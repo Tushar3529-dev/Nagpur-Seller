@@ -1,0 +1,286 @@
+{
+  "success": true,
+  "message": "Delivery zones retrieved successfully.",
+  "data": {
+    "current_page": 1,
+    "last_page": 1,
+    "per_page": 15,
+    "total": 6,
+    "data": [
+      {
+        "id": 2,
+        "name": "Anjar Zone",
+        "slug": "anjar-zone-1",
+        "center_latitude": "23.12171827",
+        "center_longitude": "69.99563923",
+        "radius_km": 10.206,
+        "boundary_json": [
+          {
+            "lat": 23.160554565912722,
+            "lng": 70.0057863209961
+          },
+          {
+            "lat": 23.160238912426976,
+            "lng": 69.96115436298828
+          },
+          {
+            "lat": 23.136562781408006,
+            "lng": 69.93883838398438
+          },
+          {
+            "lat": 23.10561966958833,
+            "lng": 69.93712177021484
+          },
+          {
+            "lat": 23.080038856974987,
+            "lng": 69.94776477558594
+          },
+          {
+            "lat": 23.067720433078286,
+            "lng": 69.98621692402344
+          },
+          {
+            "lat": 23.07624869286795,
+            "lng": 70.04767169697266
+          },
+          {
+            "lat": 23.137194199178953,
+            "lng": 70.09402026875
+          },
+          {
+            "lat": 23.171286341746715,
+            "lng": 70.04217853291016
+          }
+        ],
+        "rush_delivery_enabled": false,
+        "delivery_time_per_km": 10,
+        "rush_delivery_time_per_km": 55,
+        "rush_delivery_charges": 50,
+        "regular_delivery_charges": 55,
+        "free_delivery_amount": 5000,
+        "distance_based_delivery_charges": 55,
+        "per_store_drop_off_fee": 55,
+        "handling_charges": 15,
+        "buffer_time": 1,
+        "status": "active",
+        "delivery_boy_base_fee": "10.02",
+        "delivery_boy_per_store_pickup_fee": "22.00",
+        "delivery_boy_distance_based_fee": "22.00",
+        "delivery_boy_per_order_incentive": "55.00",
+        "created_at": "2025-07-01 09:39:38",
+        "updated_at": "2025-10-14 06:30:09"
+      },
+      {
+        "id": 1,
+        "name": "Bhuj",
+        "slug": "bhuj-1",
+        "center_latitude": "23.19750648",
+        "center_longitude": "69.65052342",
+        "radius_km": 26.709,
+        "boundary_json": [
+          {
+            "lat": 23.283032926625406,
+            "lng": 69.84175419664672
+          },
+          {
+            "lat": 23.140412333321457,
+            "lng": 69.78682255602172
+          },
+          {
+            "lat": 23.067149811845123,
+            "lng": 69.43114018297484
+          },
+          {
+            "lat": 23.29943083113958,
+            "lng": 69.54237675524047
+          }
+        ],
+        "rush_delivery_enabled": true,
+        "delivery_time_per_km": 10,
+        "rush_delivery_time_per_km": 2,
+        "rush_delivery_charges": 50,
+        "regular_delivery_charges": 10,
+        "free_delivery_amount": 2500,
+        "distance_based_delivery_charges": 10,
+        "per_store_drop_off_fee": 10,
+        "handling_charges": 10,
+        "buffer_time": 0,
+        "status": "active",
+        "delivery_boy_base_fee": "50.00",
+        "delivery_boy_per_store_pickup_fee": "50.00",
+        "delivery_boy_distance_based_fee": "50.00",
+        "delivery_boy_per_order_incentive": "50.00",
+        "created_at": "2025-07-01 09:39:07",
+        "updated_at": "2026-02-13 14:38:20"
+      },
+      {
+        "id": 3,
+        "name": "delhi",
+        "slug": "delhi-1",
+        "center_latitude": "28.60740004",
+        "center_longitude": "77.34547079",
+        "radius_km": 11.187,
+        "boundary_json": [
+          {
+            "lat": 28.666024502160685,
+            "lng": 77.25655019986327
+          },
+          {
+            "lat": 28.666626984328584,
+            "lng": 77.43439138638671
+          },
+          {
+            "lat": 28.547871187658842,
+            "lng": 77.43782461392577
+          },
+          {
+            "lat": 28.549077504482888,
+            "lng": 77.25311697232421
+          }
+        ],
+        "rush_delivery_enabled": false,
+        "delivery_time_per_km": 0,
+        "rush_delivery_time_per_km": null,
+        "rush_delivery_charges": null,
+        "regular_delivery_charges": 0,
+        "free_delivery_amount": null,
+        "distance_based_delivery_charges": null,
+        "per_store_drop_off_fee": null,
+        "handling_charges": null,
+        "buffer_time": 0,
+        "status": "active",
+        "delivery_boy_base_fee": null,
+        "delivery_boy_per_store_pickup_fee": null,
+        "delivery_boy_distance_based_fee": null,
+        "delivery_boy_per_order_incentive": null,
+        "created_at": "2025-07-01 10:20:56",
+        "updated_at": "2026-02-13 13:28:30"
+      },
+      {
+        "id": 8,
+        "name": "delhi west",
+        "slug": "delhi-west-1",
+        "center_latitude": "28.71697104",
+        "center_longitude": "77.06707103",
+        "radius_km": 17.234,
+        "boundary_json": [
+          {
+            "lat": 28.76636288595713,
+            "lng": 76.93615062218063
+          },
+          {
+            "lat": 28.76756669130161,
+            "lng": 77.23415477257126
+          },
+          {
+            "lat": 28.61698352933102,
+            "lng": 77.03090770225876
+          }
+        ],
+        "rush_delivery_enabled": false,
+        "delivery_time_per_km": 10,
+        "rush_delivery_time_per_km": 5,
+        "rush_delivery_charges": 100,
+        "regular_delivery_charges": 50,
+        "free_delivery_amount": 1000,
+        "distance_based_delivery_charges": 10,
+        "per_store_drop_off_fee": 10,
+        "handling_charges": 10,
+        "buffer_time": 10,
+        "status": "active",
+        "delivery_boy_base_fee": "200.00",
+        "delivery_boy_per_store_pickup_fee": "10.00",
+        "delivery_boy_distance_based_fee": "10.00",
+        "delivery_boy_per_order_incentive": "10.00",
+        "created_at": "2025-11-12 10:30:40",
+        "updated_at": "2026-02-13 14:41:35"
+      },
+      {
+        "id": 6,
+        "name": "San Francisco",
+        "slug": "san-francisco",
+        "center_latitude": "37.75812290",
+        "center_longitude": "-122.44157204",
+        "radius_km": 14.747,
+        "boundary_json": [
+          {
+            "lat": 37.75188123130436,
+            "lng": -122.55538352966968
+          },
+          {
+            "lat": 37.889109829137446,
+            "lng": -122.41530784607593
+          },
+          {
+            "lat": 37.732333903088616,
+            "lng": -122.27797874451343
+          },
+          {
+            "lat": 37.65916665046532,
+            "lng": -122.51761802674
+          }
+        ],
+        "rush_delivery_enabled": false,
+        "delivery_time_per_km": 10,
+        "rush_delivery_time_per_km": 50,
+        "rush_delivery_charges": 50,
+        "regular_delivery_charges": 70,
+        "free_delivery_amount": 500,
+        "distance_based_delivery_charges": 2,
+        "per_store_drop_off_fee": 10,
+        "handling_charges": 10,
+        "buffer_time": 5,
+        "status": "active",
+        "delivery_boy_base_fee": "30.00",
+        "delivery_boy_per_store_pickup_fee": "15.00",
+        "delivery_boy_distance_based_fee": "2.00",
+        "delivery_boy_per_order_incentive": "0.00",
+        "created_at": "2025-08-07 10:49:13",
+        "updated_at": "2026-01-23 17:07:40"
+      },
+      {
+        "id": 11,
+        "name": "world",
+        "slug": "world",
+        "center_latitude": "36.16706139",
+        "center_longitude": "95.24740918",
+        "radius_km": 400.236,
+        "boundary_json": [
+          {
+            "lat": 38.14013847833464,
+            "lng": 93.00619824441195
+          },
+          {
+            "lat": 36.603586550776825,
+            "lng": 99.68588574441195
+          },
+          {
+            "lat": 34.45807031482748,
+            "lng": 96.52182324441195
+          },
+          {
+            "lat": 35.46645022404198,
+            "lng": 91.77572949441195
+          }
+        ],
+        "rush_delivery_enabled": false,
+        "delivery_time_per_km": 55,
+        "rush_delivery_time_per_km": 10,
+        "rush_delivery_charges": 9,
+        "regular_delivery_charges": 55,
+        "free_delivery_amount": null,
+        "distance_based_delivery_charges": null,
+        "per_store_drop_off_fee": null,
+        "handling_charges": null,
+        "buffer_time": 19,
+        "status": "active",
+        "delivery_boy_base_fee": null,
+        "delivery_boy_per_store_pickup_fee": null,
+        "delivery_boy_distance_based_fee": null,
+        "delivery_boy_per_order_incentive": null,
+        "created_at": "2026-02-05 17:45:23",
+        "updated_at": "2026-02-05 17:45:23"
+      }
+    ]
+  }
+}

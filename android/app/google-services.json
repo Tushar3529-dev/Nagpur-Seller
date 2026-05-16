@@ -1,0 +1,223 @@
+{
+  "project_info": {
+    "project_number": "437097852625",
+    "firebase_url": "https://nagpurmart-86ea5-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "nagpurmart-86ea5",
+    "storage_bucket": "nagpurmart-86ea5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:437097852625:android:591b455b5dd3d2f237dff0",
+        "android_client_info": {
+          "package_name": "com.nagpurmart.customer"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "437097852625-em4vqa3h0q8pvte63ejn5s0qsl0ov02t.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.nagpurmart.customer",
+            "certificate_hash": "abcd23ca13416c15d41810cdb2cd55abc3e3c523"
+          }
+        },
+        {
+          "client_id": "437097852625-sklk2bt4oikb6jm276o5tlj566c2v2ps.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAvw3X8JIkhHQfz_1RQ5IUp8Si2Xrzuymc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "437097852625-sklk2bt4oikb6jm276o5tlj566c2v2ps.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "437097852625-80qtdeie2skoumhldq3ik39t5grkj6nt.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.hyperLocal.customer"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:437097852625:android:91f12118f821e1cb37dff0",
+        "android_client_info": {
+          "package_name": "com.nagpurmart.seller"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "437097852625-o2a762l5m2mjjpv44d41dlkm9v7qbtdr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.nagpurmart.seller",
+            "certificate_hash": "abcd23ca13416c15d41810cdb2cd55abc3e3c523"
+          }
+        },
+        {
+          "client_id": "437097852625-sklk2bt4oikb6jm276o5tlj566c2v2ps.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAvw3X8JIkhHQfz_1RQ5IUp8Si2Xrzuymc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "437097852625-sklk2bt4oikb6jm276o5tlj566c2v2ps.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "437097852625-80qtdeie2skoumhldq3ik39t5grkj6nt.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.hyperLocal.customer"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:437097852625:android:115455db453c98ae37dff0",
+        "android_client_info": {
+          "package_name": "in.nagpurmart.customer"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "437097852625-4oq3o8rr61udaf9aubrnjlc3ef237cra.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "in.nagpurmart.customer",
+            "certificate_hash": "3b86a674a386cf065be78d5ae9d803e9716a974c"
+          }
+        },
+        {
+          "client_id": "437097852625-qcja59p4j7dkkuenp33u9vso3c72g41t.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "in.nagpurmart.customer",
+            "certificate_hash": "c42ceebeccd7cf3ad77e6cacd4bb6ff4e977a237"
+          }
+        },
+        {
+          "client_id": "437097852625-sklk2bt4oikb6jm276o5tlj566c2v2ps.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAvw3X8JIkhHQfz_1RQ5IUp8Si2Xrzuymc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "437097852625-sklk2bt4oikb6jm276o5tlj566c2v2ps.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "437097852625-80qtdeie2skoumhldq3ik39t5grkj6nt.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.hyperLocal.customer"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:437097852625:android:ecfca1de9629dcd937dff0",
+        "android_client_info": {
+          "package_name": "in.nagpurmart.rider"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "437097852625-sklk2bt4oikb6jm276o5tlj566c2v2ps.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAvw3X8JIkhHQfz_1RQ5IUp8Si2Xrzuymc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "437097852625-sklk2bt4oikb6jm276o5tlj566c2v2ps.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "437097852625-80qtdeie2skoumhldq3ik39t5grkj6nt.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.hyperLocal.customer"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:437097852625:android:8759d2cc97351f2137dff0",
+        "android_client_info": {
+          "package_name": "in.nagpurmart.seller"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "437097852625-sklk2bt4oikb6jm276o5tlj566c2v2ps.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAvw3X8JIkhHQfz_1RQ5IUp8Si2Xrzuymc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "437097852625-sklk2bt4oikb6jm276o5tlj566c2v2ps.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "437097852625-80qtdeie2skoumhldq3ik39t5grkj6nt.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.hyperLocal.customer"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

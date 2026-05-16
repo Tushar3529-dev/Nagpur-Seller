@@ -1,0 +1,9 @@
+{
+  "ar": [
+    "noActiveStore"
+  ],
+
+  "hi": [
+    "noActiveStore"
+  ]
+}
