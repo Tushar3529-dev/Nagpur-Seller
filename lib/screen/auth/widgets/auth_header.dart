@@ -25,7 +25,7 @@ class AuthHeader extends StatelessWidget {
           height: height,
           width: double.infinity,
           decoration: BoxDecoration(
-            color: AppColors.authHeaderColor,
+            color: AppColors.primaryColor,
             borderRadius: BorderRadius.circular(30),
           ),
           child: Stack(
@@ -34,7 +34,7 @@ class AuthHeader extends StatelessWidget {
                 borderRadius: BorderRadius.circular(25),
                 child: Opacity(
                   opacity: 0.2,
-                  child: SvgPicture.asset(ImagesPath.doodle, fit: BoxFit.cover),
+                  child: Image.asset('assets/images/png/login-page.png', fit: BoxFit.contain,),
                 ),
               ),
 

@@ -22,7 +22,7 @@ class ImagesPath {
   static const String productsInactive = '$svgMainPath/products_inactive.svg';
   static const String moreActive = '$svgMainPath/more_active.svg';
   static const String moreInactive = '$svgMainPath/more_inactive.svg';
-  static const String doodle = '$svgMainPath/doodle.svg';
+  static const String doodle = 'assets/images/png/login-page.png';
 
   // more section
   static const String productSvg = '$svgMainPath/products_inactive.svg';
