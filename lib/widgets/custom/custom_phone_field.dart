@@ -97,42 +97,42 @@ class CustomPhoneField extends StatelessWidget {
               vertical: 14,
             ),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(30.0),
               borderSide: BorderSide(
                 color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
                 width: 1,
               ),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(30.0),
               borderSide: BorderSide(
                 color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
                 width: 1,
               ),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(30.0),
               borderSide: BorderSide(
                 color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
                 width: 1.5,
               ),
             ),
             errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(30.0),
               borderSide: const BorderSide(
                 color: AppColors.darkErrorColor,
                 width: 1,
               ),
             ),
             focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(30.0),
               borderSide: const BorderSide(
                 color: AppColors.darkErrorColor,
                 width: 1.5,
               ),
             ),
             disabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(30.0),
               borderSide: BorderSide(
                 color: Colors.grey.shade300,
                 width: 1,

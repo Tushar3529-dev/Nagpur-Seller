@@ -106,7 +106,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
               // App Name
               Text(
-                'HYPER LOCAL',
+                'Nagpur Mart',
                 style: TextStyle(
                   fontFamily: AppConstants.fontFamily,
                   fontSize: 20,
@@ -199,14 +199,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                 vertical: 14,
                               ),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(30.0),
                                 borderSide: BorderSide(
                                   color: Colors.grey.shade300,
                                   width: 1,
                                 ),
                               ),
                               enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(30.0),
                                 borderSide: BorderSide(
                                   color: isDark
                                       ? Colors.grey.shade700
@@ -215,21 +215,21 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                 ),
                               ),
                               focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(30.0),
                                 borderSide: BorderSide(
                                   color: AppColors.primaryColor,
                                   width: 1.5,
                                 ),
                               ),
                               errorBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(30.0),
                                 borderSide: const BorderSide(
                                   color: Colors.red,
                                   width: 1,
                                 ),
                               ),
                               focusedErrorBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(30.0),
                                 borderSide: const BorderSide(
                                   color: Colors.red,
                                   width: 1.5,
@@ -254,7 +254,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                     backgroundColor: AppColors.primaryColor,
                                     foregroundColor: Colors.white,
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
+                                      borderRadius: BorderRadius.circular(30.0),
                                     ),
                                     elevation: 0,
                                     disabledBackgroundColor: AppColors

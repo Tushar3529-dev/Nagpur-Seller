@@ -204,16 +204,16 @@ class _LoginPageState extends State<LoginPage>
                             color: isDark
                                 ? AppColors.mainDarkContainerBgColor
                                 : Colors.grey[200],
-                            borderRadius: BorderRadius.circular(
-                              UIUtils.radiusMD(screenType),
+                            borderRadius: BorderRadius.circular(30.0,
+                             /*  UIUtils.radiusMD(screenType), */
                             ),
                           ),
                           child: TabBar(
                             controller: _tabController,
                             indicator: BoxDecoration(
                               color: AppColors.primaryColor,
-                              borderRadius: BorderRadius.circular(
-                                UIUtils.radiusMD(screenType),
+                              borderRadius: BorderRadius.circular(30.0,
+                               /*  UIUtils.radiusMD(screenType), */
                               ),
                             ),
                             indicatorSize: TabBarIndicatorSize.tab,

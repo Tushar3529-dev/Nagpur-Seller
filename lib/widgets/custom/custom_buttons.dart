@@ -21,7 +21,7 @@ class PrimaryButton extends StatelessWidget {
     this.height,
     this.backgroundColor,
     this.foregroundColor,
-    this.borderRadius = 8.0,
+    this.borderRadius = 30.0,
     this.padding,
   });
 
@@ -88,7 +88,7 @@ class SecondaryButton extends StatelessWidget {
     this.height,
     this.borderColor,
     this.foregroundColor,
-    this.borderRadius = 8.0,
+    this.borderRadius = 30.0,
     this.padding,
   });
 

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  /* static const Color primaryColor = Color(0xFF006BD5); */
-  static const Color primaryColor = Color(0xFFFF2D55);
+  /* static const Color primaryColor = Color(0xFF006BD5); Hyper local color */
+/*   static const Color primaryColor = Color(0xFFFF2D55);  pink theme code */
+ static const Color primaryColor = Color(0xFF0047D9);// this is the final color code 
   // font color
   static Color lightFontColor = Colors.black;
   static Color darkFontColor = Colors.white;
