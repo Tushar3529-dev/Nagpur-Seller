@@ -1,6 +1,7 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:hyper_local_seller/config/hive_storage.dart';
+import 'package:hyper_local_seller/config/theme.dart';
 import 'package:hyper_local_seller/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -613,7 +614,7 @@ class _HomePageState extends State<HomePage> {
                   screenType,
                   label: l10n?.addProduct ?? "Add Product",
                   icon: Icons.add,
-                  color: Colors.blue.shade700,
+                  color: AppColors.primaryColor,
                   onTap: () {
                     if (!PermissionChecker.hasPermission(
                       AppPermissions.productCreate,
@@ -692,7 +693,7 @@ class _HomePageState extends State<HomePage> {
                   screenType,
                   label: l10n?.viewOrders ?? "View Orders",
                   icon: Icons.list_alt_outlined,
-                  color: Colors.orange.shade700,
+                  color: const Color.fromARGB(255, 255, 115, 0),
                   onTap: () {
                     if (!PermissionChecker.hasPermission(
                       AppPermissions.orderView,
