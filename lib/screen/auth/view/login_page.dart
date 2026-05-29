@@ -181,7 +181,7 @@ class _LoginPageState extends State<LoginPage>
                           style: TextStyle(
                             fontFamily: AppConstants.fontFamily,
                             fontWeight: UIUtils.bold,
-                            fontSize: UIUtils.appTitle(screenType),
+                            fontSize: /* UIUtils.appTitle(screenType), */25,
                             color: isDark
                                 ? AppColors.darkFontColor
                                 : AppColors.lightFontColor,
@@ -194,7 +194,7 @@ class _LoginPageState extends State<LoginPage>
                           style: TextStyle(
                             fontFamily: AppConstants.fontFamily,
                             fontSize: UIUtils.body(screenType),
-                            color: Colors.grey,
+                            color: Colors.black,
                           ),
                         ),
                         SizedBox(height: UIUtils.gapXL(screenType)),

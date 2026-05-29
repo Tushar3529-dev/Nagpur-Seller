@@ -1,10 +1,10 @@
 class ImagesPath {
   // PNGS
   static const String pngMainPath = 'assets/images/png';
-  static const String lightLogo = '$pngMainPath/seller_logo2.jpeg';
-  static const String darkLogo = '$pngMainPath/seller_logo2.jpeg';
-  static const String splashBgPng = '$pngMainPath/seller_logo2.jpeg';
-  static const String sellerLogoPng = '$pngMainPath/seller_logo2.jpeg';
+  static const String lightLogo = '$pngMainPath/seller_logo.png';
+  static const String darkLogo = '$pngMainPath/seller_logo.png';
+  static const String splashBgPng = '$pngMainPath/seller_logo.png';
+  static const String sellerLogoPng = '$pngMainPath/seller_logo.png';
 
   // slider images
   static const String introSlider1 = '$pngMainPath/slider-1.png';

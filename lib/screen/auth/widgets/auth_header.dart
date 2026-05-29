@@ -24,31 +24,38 @@ class AuthHeader extends StatelessWidget {
         Container(
           height: height,
           width: double.infinity,
-          decoration: BoxDecoration(
+          /* decoration: BoxDecoration(
             color: AppColors.primaryColor,
             borderRadius: BorderRadius.circular(30),
-          ),
-          child: Stack(
+          ), */
+          child: Center(
+                child: Image.asset(
+                  ImagesPath.darkLogo,
+              /*     width: 250,
+                  height: 250, */
+                  fit: BoxFit.contain,
+                ),
+              ),/*  Stack(
             children: [
-              ClipRRect(
+              /* ClipRRect(
                 borderRadius: BorderRadius.circular(25),
                 child: Opacity(
                   opacity: 0.2,
                   child: Image.asset('assets/images/png/login-page.png', fit: BoxFit.contain,),
                 ),
-              ),
+              ), */
 
               // Content
               Center(
                 child: Image.asset(
                   ImagesPath.darkLogo,
-                  width: 250,
-                  height: 250,
+              /*     width: 250,
+                  height: 250, */
                   fit: BoxFit.contain,
                 ),
               ),
             ],
-          ),
+          ), */
         ),
 
         if (showBackButton)
