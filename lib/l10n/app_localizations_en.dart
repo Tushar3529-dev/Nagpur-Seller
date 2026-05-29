@@ -975,7 +975,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hsnCode => 'HSN Code';
 
   @override
-  String get hyperLocal => 'HYPER LOCAL';
+  String get hyperLocal => 'NagpurMart Seller';
 
   @override
   String get iWantMyMoney => 'I want my money';
