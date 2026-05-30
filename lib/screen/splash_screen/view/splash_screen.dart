@@ -127,7 +127,7 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+ /*  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.tertiary,
       body: Stack(
@@ -152,5 +152,15 @@ class _SplashScreenState extends State<SplashScreen> {
         ],
       ),
     );
-  }
+  } */
+ Widget build(BuildContext context) {
+  return Scaffold(
+    body: Image.asset(
+      ImagesPath.splashImage,
+      width: double.infinity,
+      height: double.infinity,
+      fit: BoxFit.cover,
+    ),
+  );
+}
 }

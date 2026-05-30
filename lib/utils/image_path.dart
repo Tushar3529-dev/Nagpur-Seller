@@ -11,6 +11,8 @@ class ImagesPath {
   static const String introSlider2 = '$pngMainPath/slider-2.png';
   static const String introSlider3 = '$pngMainPath/slider-3.png';
 
+  static const String splashImage='assets/images/png/splash.png';
+
   // SVGS
   static const String svgMainPath = 'assets/images/svg';
   static const String splashBgSvg = '$svgMainPath/doodle.svg';
