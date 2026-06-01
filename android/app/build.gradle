@@ -66,14 +66,16 @@ android {
     }
 
     buildTypes {
-        release {
-            minifyEnabled false  // Disable R8
-            shrinkResources false
-          /*   signingConfig = signingConfigs.release */
-          signingConfig = signingConfigs.debug 
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-        }
+    release {
+        minifyEnabled false
+        shrinkResources false
+
+        signingConfig = signingConfigs.release
+
+        proguardFiles getDefaultProguardFile('proguard-android.txt'),
+                'proguard-rules.pro'
     }
+}
 
     // Ensure native libraries are uncompressed and 16 KiB page-aligned (required for 16 KB devices)
     packaging {
