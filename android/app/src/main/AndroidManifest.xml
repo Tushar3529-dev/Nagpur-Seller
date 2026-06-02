@@ -37,7 +37,7 @@
     </queries>
 
     <application
-        android:label="Nagpur Mart Seller"
+        android:label="nagpurmart.in Seller"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
         <activity
