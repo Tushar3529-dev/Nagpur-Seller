@@ -20,7 +20,7 @@ class RolesRepo {
 
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -43,7 +43,7 @@ class RolesRepo {
         return response;
       }
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -54,7 +54,7 @@ class RolesRepo {
 
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -71,7 +71,7 @@ class RolesRepo {
 
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 }

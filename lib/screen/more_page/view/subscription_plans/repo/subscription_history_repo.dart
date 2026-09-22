@@ -18,7 +18,7 @@ class SubscriptionHistoryRepo {
 
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 }

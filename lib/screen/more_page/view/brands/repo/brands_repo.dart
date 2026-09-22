@@ -16,7 +16,7 @@ class BrandsRepo {
 
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 }

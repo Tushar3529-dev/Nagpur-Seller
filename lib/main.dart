@@ -60,6 +60,10 @@ import 'package:hyper_local_seller/screen/products_page/add_products/bloc/select
 import 'l10n/app_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:hyper_local_seller/service/notification_service.dart';
+import 'package:hyper_local_seller/screen/order_page/incoming_orders/cubit/incoming_orders_cubit.dart';
+import 'package:hyper_local_seller/screen/order_page/incoming_orders/repo/pending_orders_repo.dart';
+import 'package:hyper_local_seller/screen/order_page/incoming_orders/view/incoming_order_overlay.dart';
+import 'package:hyper_local_seller/screen/order_page/incoming_orders/view/incoming_orders_controller.dart';
 import 'package:hyper_local_seller/bloc/store_switcher/store_switcher_cubit.dart';
 import 'package:hyper_local_seller/screen/more_page/view/stores/add_store/bloc/add_store_bloc.dart';
 import 'package:hyper_local_seller/screen/more_page/view/stores/add_store/repo/add_store_repo.dart';
@@ -109,6 +113,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     }
     // Always mark that notification count needs refresh
     await box.put('pendingNotificationCountRefresh', true);
+
+    if (message.notification == null &&
+        NotificationService.isNewRegularOrderType(
+          type,
+          message.data['seller_order_id']?.toString(),
+        )) {
+      await NotificationService.showIncomingOrderAlert(message);
+    }
     debugPrint('[BG Handler] Background notification processed: type=$type');
   } catch (e) {
     debugPrint('[BG Handler] Error storing refresh flag: $e');
@@ -149,6 +161,7 @@ void main() async {
         RepositoryProvider(create: (_) => DeliveryZoneRepo()),
         RepositoryProvider(create: (_) => NotificationListRepo()),
         RepositoryProvider(create: (_) => SubscriptionPlansRepo()),
+        RepositoryProvider(create: (_) => PendingOrdersRepo()),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -277,8 +290,14 @@ void main() async {
           BlocProvider(
             create: (_) => SubscriptionHistoryBloc(SubscriptionHistoryRepo()),
           ),
+          BlocProvider(
+            create: (context) =>
+                IncomingOrdersCubit(context.read<PendingOrdersRepo>()),
+          ),
         ],
-        child: const AppLifecycleObserverWidget(child: AppWrapper()),
+        child: const AppLifecycleObserverWidget(
+          child: IncomingOrdersController(child: AppWrapper()),
+        ),
       ),
     ),
   );
@@ -319,7 +338,9 @@ class MyApp extends StatelessWidget {
                     // Initialize/Update screen size in Bloc
                     final size = MediaQuery.of(context).size;
                     context.read<ScreenSizeBloc>().add(ScreenSizeChanged(size));
-                    return SubscriptionReminderWrapper(child: child!);
+                    return IncomingOrderOverlay(
+                      child: SubscriptionReminderWrapper(child: child!),
+                    );
                   },
                 );
               },

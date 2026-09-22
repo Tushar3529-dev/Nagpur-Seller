@@ -25,7 +25,7 @@ class ProductFaqRepo {
       );
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -34,7 +34,7 @@ class ProductFaqRepo {
       final response = await _helper.get("${ApiRoutes.productFaqsApi}/$id");
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -63,7 +63,7 @@ class ProductFaqRepo {
 
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -72,7 +72,7 @@ class ProductFaqRepo {
       final response = await _helper.delete("${ApiRoutes.productFaqsApi}/$id");
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 }

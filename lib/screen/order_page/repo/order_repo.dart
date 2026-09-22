@@ -37,7 +37,7 @@ class OrdersRepo {
 
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -48,7 +48,7 @@ class OrdersRepo {
       );
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -60,7 +60,7 @@ class OrdersRepo {
       );
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -69,7 +69,7 @@ class OrdersRepo {
       final response = await _helper.get(ApiRoutes.ordersEnumsApi);
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 }

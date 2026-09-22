@@ -15,7 +15,7 @@ class TaxGroupsRepo {
 
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 }

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -15,6 +16,7 @@ import 'package:hyper_local_seller/router/app_routes.dart';
 import 'package:hyper_local_seller/screen/home_page/bloc/home_page/home_page_bloc.dart';
 import 'package:hyper_local_seller/screen/home_page/bloc/notification/notification_list_bloc.dart';
 import 'package:hyper_local_seller/screen/order_page/bloc/orders/orders_bloc.dart';
+import 'package:hyper_local_seller/screen/order_page/incoming_orders/cubit/incoming_orders_cubit.dart';
 import 'package:hyper_local_seller/widgets/ui/order_notification_handler.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -229,6 +231,13 @@ class NotificationService {
       final type = payload['type']?.toString().toLowerCase();
       final isOrderNotification = _isOrderRelatedType(type, payload['seller_order_id']);
 
+      if (isNewRegularOrderType(type, payload['seller_order_id'])) {
+        // The blocking incoming-order popup reads the pending list from the
+        // server, so the push only needs to trigger a fetch.
+        _fetchIncomingOrdersFromContext();
+        return; // Don't show the system notification
+      }
+
       if (isOrderNotification) {
         // Show the bottom sheet immediately for foreground order notifications
         final context = GlobalKeys.navigatorKey.currentContext;
@@ -270,6 +279,7 @@ class NotificationService {
         "notification_id": message.data['notification_id'] ?? '',
       };
       _handleNotificationTap(payload, fromForeground: false);
+      _fetchIncomingOrdersFromContext();
 
       // Refresh orders + notification count after background tap navigation
       final type = message.data['type']?.toString().toLowerCase();
@@ -335,6 +345,7 @@ class NotificationService {
             context.read<OrdersBloc>().add(RefreshOrders());
           }
           context.read<NotificationListBloc>().add(FetchUnreadCount());
+          context.read<IncomingOrdersCubit>().fetch();
           debugPrint('[Terminated] Blocs refreshed after handling pending notification');
         }
       });
@@ -349,6 +360,97 @@ class NotificationService {
         type == 'return_order' ||
         type == 'return_order_update' ||
         (orderId != null && orderId.isNotEmpty && type == null);
+  }
+
+  /// New regular orders — these go to the blocking incoming-order popup.
+  /// Updates and returns keep their existing handling.
+  static bool isNewRegularOrderType(String? type, String? sellerOrderId) {
+    final t = type?.toLowerCase() ?? '';
+    if (t == 'new_order' || t == 'order' || t == 'orders') return true;
+    return t.isEmpty && sellerOrderId != null && sellerOrderId.isNotEmpty;
+  }
+
+  void _fetchIncomingOrdersFromContext() {
+    final context = GlobalKeys.navigatorKey.currentContext;
+    if (context == null || !context.mounted) return;
+    try {
+      context.read<IncomingOrdersCubit>().fetch();
+    } catch (e) {
+      debugPrint('[Notification] Error fetching incoming orders: $e');
+    }
+  }
+
+  static const int _incomingOrderAlertId = 9001;
+  static const String _incomingOrderChannelId = 'incoming_orders_channel';
+
+  /// Android only, from the background isolate: a notification whose sound
+  /// keeps repeating until the seller opens it (FLAG_INSISTENT). Only works
+  /// when the backend sends the new-order push as data-only — pushes with a
+  /// `notification` block are shown by the system instead.
+  static Future<void> showIncomingOrderAlert(RemoteMessage message) async {
+    if (!Platform.isAndroid) return;
+    try {
+      final plugin = FlutterLocalNotificationsPlugin();
+      await plugin.initialize(
+        const InitializationSettings(
+          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        ),
+      );
+
+      const channel = AndroidNotificationChannel(
+        _incomingOrderChannelId,
+        'Incoming orders',
+        description: 'Rings until you open a new order.',
+        importance: Importance.max,
+        playSound: true,
+        sound: RawResourceAndroidNotificationSound('notification_sound'),
+        enableVibration: true,
+      );
+      await plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >()
+          ?.createNotificationChannel(channel);
+
+      final payload = jsonEncode({
+        'type': message.data['type'] ?? 'new_order',
+        'seller_order_id': message.data['seller_order_id'] ?? '',
+        'order_id': message.data['order_id'] ?? '',
+      });
+
+      await plugin.show(
+        _incomingOrderAlertId,
+        message.data['title'] ?? 'New order received',
+        message.data['body'] ?? 'Open the app to accept it.',
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            channel.id,
+            channel.name,
+            channelDescription: channel.description,
+            importance: Importance.max,
+            priority: Priority.max,
+            category: AndroidNotificationCategory.alarm,
+            sound: const RawResourceAndroidNotificationSound(
+              'notification_sound',
+            ),
+            autoCancel: true,
+            // 4 = Notification.FLAG_INSISTENT: repeat the sound until handled.
+            additionalFlags: Int32List.fromList(<int>[4]),
+          ),
+        ),
+        payload: payload,
+      );
+    } catch (e) {
+      debugPrint('[Notification] Error showing incoming order alert: $e');
+    }
+  }
+
+  Future<void> cancelIncomingOrderAlert() async {
+    try {
+      await _flutterLocalNotificationsPlugin.cancel(_incomingOrderAlertId);
+    } catch (e) {
+      debugPrint('[Notification] Error cancelling incoming order alert: $e');
+    }
   }
 
   /// Dispatches [RefreshOrders] + [FetchUnreadCount] using the global navigator

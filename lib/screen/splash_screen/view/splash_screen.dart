@@ -11,6 +11,7 @@ import 'package:hyper_local_seller/config/hive_storage.dart';
 import 'package:hyper_local_seller/router/app_routes.dart';
 import 'package:hyper_local_seller/screen/more_page/view/profile/bloc/profile_bloc.dart';
 import 'package:hyper_local_seller/service/notification_service.dart';
+import 'package:hyper_local_seller/screen/order_page/incoming_orders/cubit/incoming_orders_cubit.dart';
 import 'package:hyper_local_seller/screen/more_page/view/subscription_plans/bloc/current_subscription/current_subscription_bloc.dart';
 import 'package:hyper_local_seller/screen/more_page/view/subscription_plans/service/subscription_limit_service.dart';
 import 'package:hyper_local_seller/utils/image_path.dart';
@@ -67,6 +68,9 @@ class _SplashScreenState extends State<SplashScreen> {
         if (mounted) {
           context.read<CurrentSubscriptionBloc>().add(FetchCurrentSubscription());
         }
+
+        // Bring up any orders still waiting to be accepted
+        if (mounted) context.read<IncomingOrdersCubit>().fetch();
 
         // Check for pending notifications
         final notificationService = NotificationService();

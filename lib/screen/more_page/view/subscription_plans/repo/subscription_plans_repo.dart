@@ -9,7 +9,7 @@ class SubscriptionPlansRepo {
       final response = await _helper.get(ApiRoutes.subscriptionPlansApi);
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -19,7 +19,7 @@ class SubscriptionPlansRepo {
       final response = await _helper.post(ApiRoutes.checkEligibilityApi, body);
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -40,7 +40,7 @@ class SubscriptionPlansRepo {
       );
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -49,7 +49,7 @@ class SubscriptionPlansRepo {
       final response = await _helper.get(ApiRoutes.currentSubscriptionPlanApi);
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 }

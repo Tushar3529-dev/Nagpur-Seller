@@ -13,7 +13,7 @@ class AddStoreRepository {
       );
       return responseData;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -25,7 +25,7 @@ class AddStoreRepository {
       );
       return responseData;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -36,7 +36,7 @@ class AddStoreRepository {
       );
       return responseData;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -48,7 +48,7 @@ class AddStoreRepository {
       );
       return responseData;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 }

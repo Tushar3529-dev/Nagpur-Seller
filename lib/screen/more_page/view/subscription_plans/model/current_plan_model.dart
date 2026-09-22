@@ -113,7 +113,7 @@ class CurrentPlanData {
     String status = JsonParser.string(statusVal ?? 'inactive');
     String? endDate = JsonParser.string(endDateVal);
 
-    if (status == 'active' && endDate != null && endDate.isNotEmpty) {
+    if (status == 'active' && endDate.isNotEmpty) {
       try {
         final format = DateFormat('dd MMM yyyy HH:mm:ss');
         final expiryDate = format.parse(endDate);

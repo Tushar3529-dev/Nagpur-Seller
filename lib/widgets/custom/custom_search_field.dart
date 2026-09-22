@@ -187,7 +187,6 @@ class CustomSearchField extends StatelessWidget {
               // Optional: you can show loading shimmer here if needed
               // but for icon button usually we keep it simple
 
-              final storeId = HiveStorage.selectedStoreId;
 
               return Padding(
                 // Always some start spacing from previous element (filter or search field)

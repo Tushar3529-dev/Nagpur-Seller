@@ -26,7 +26,7 @@ class StoresRepo {
 
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -35,7 +35,7 @@ class StoresRepo {
       final response = await _helper.get(ApiRoutes.storesEnumsApi);
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -46,7 +46,7 @@ class StoresRepo {
       );
       return responseData;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -58,7 +58,7 @@ class StoresRepo {
       );
       return responseData;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 }

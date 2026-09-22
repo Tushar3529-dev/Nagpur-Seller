@@ -48,7 +48,7 @@ dependencies:
   remixicon: ^1.4.1
   flutter_bloc: ^8.1.6
   equatable: ^2.0.5
-  flutter_quill: ^11.5.0
+  flutter_quill: ^11.6.0
   google_maps_flutter: ^2.10.0
   geolocator: ^13.0.2
   geocoding: ^3.0.0

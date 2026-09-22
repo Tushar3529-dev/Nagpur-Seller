@@ -9,7 +9,7 @@
 # packages, and plugins designed to encourage good coding practices.
 analyzer:
   errors:
-    deprecated_member_use: ignore ignore
+    deprecated_member_use: ignore
     invalid_use_of_visible_for_testing_member: ignore
     unused_import: ignore
 include: package:flutter_lints/flutter.yaml

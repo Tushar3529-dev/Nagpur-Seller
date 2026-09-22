@@ -38,6 +38,7 @@ class ApiRoutes {
   static String dashboardDataApi = '$baseUrl/dashboard';
   static String ordersApi = '$baseUrl/orders';
   static String ordersEnumsApi = '$ordersApi/enums';
+  static String pendingRegularOrdersApi = '$ordersApi/pending-regular';
 
   // wallet / transactions
   static String walletApi = '$baseUrl/wallet';

@@ -23,7 +23,7 @@ class SystemUsersRepo {
 
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -32,7 +32,7 @@ class SystemUsersRepo {
       final response = await _helper.get('${ApiRoutes.systemUsersApi}/$id');
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -51,7 +51,7 @@ class SystemUsersRepo {
 
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -61,7 +61,7 @@ class SystemUsersRepo {
 
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 }

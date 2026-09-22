@@ -33,7 +33,7 @@ class ProductsRepo {
 
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -42,7 +42,7 @@ class ProductsRepo {
       final response = await _helper.get(ApiRoutes.productsEnumsApi);
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -51,7 +51,7 @@ class ProductsRepo {
       final response = await _helper.delete("${ApiRoutes.productsApi}/$id");
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -60,7 +60,7 @@ class ProductsRepo {
       final response = await _helper.get("${ApiRoutes.productsApi}/$id");
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -76,7 +76,7 @@ class ProductsRepo {
       );
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 }

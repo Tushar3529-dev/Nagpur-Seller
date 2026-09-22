@@ -29,7 +29,7 @@ class AuthRepository {
 
       return responseData;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -105,7 +105,7 @@ class AuthRepository {
 
       return responseData;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -130,7 +130,7 @@ class AuthRepository {
 
       return responseData;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -174,7 +174,7 @@ class AuthRepository {
 
       return responseData;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -186,7 +186,7 @@ class AuthRepository {
 
       return responseData;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -196,7 +196,7 @@ class AuthRepository {
       final responseData = await _helper.post(ApiRoutes.customSendOtpApi, body);
       return responseData;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -215,7 +215,7 @@ class AuthRepository {
       await _extractAndSaveToken(responseData);
       return responseData;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 }

@@ -2,16 +2,25 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:curl_logger_dio_interceptor/curl_logger_dio_interceptor.dart';
 import 'package:hyper_local_seller/service/security.dart';
+import 'package:hyper_local_seller/service/session_manager.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
 class ApiBaseHelper {
-  final Dio _dio = Dio();
+  // One Dio client shared by every repository.
+  static final Dio _dio = _createDio();
 
-  ApiBaseHelper() {
-    // In ApiBaseHelper constructor
-    // _dio.interceptors.add(CurlLoggerDioInterceptor(printOnSuccess: true));
+  static Dio _createDio() {
+    final dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 20),
+        receiveTimeout: const Duration(seconds: 60),
+        sendTimeout: const Duration(seconds: 120),
+      ),
+    );
 
-    // _dio.interceptors.add(
+    // dio.interceptors.add(CurlLoggerDioInterceptor(printOnSuccess: true));
+
+    // dio.interceptors.add(
     //   PrettyDioLogger(
     //     requestHeader: true,
     //     requestBody: true,
@@ -24,7 +33,7 @@ class ApiBaseHelper {
     // );
 
     // Add default headers interceptor
-    _dio.interceptors.add(
+    dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
           final headers = await Security.headers;
@@ -32,10 +41,15 @@ class ApiBaseHelper {
           return handler.next(options);
         },
         onError: (DioException e, handler) {
+          // Expired/invalid token — log the user out globally.
+          if (e.response?.statusCode == 401) {
+            SessionManager.handleUnauthorized();
+          }
           return handler.next(e);
         },
       ),
     );
+    return dio;
   }
 
   Future<dynamic> post(String url, Map<String, dynamic> body) async {
@@ -102,7 +116,7 @@ class ApiBaseHelper {
             return responseBody;
           } else {
             // If success is false, throw the message
-            throw Exception(message);
+            throw ApiException(message);
           }
         }
 
@@ -144,32 +158,34 @@ class ApiBaseHelper {
 
           // If only one error, use the message field
           if (errorMessages.length == 1 && data.containsKey('message')) {
-            return Exception(data['message']);
+            return ApiException(data['message']);
           }
 
           // If multiple errors, show all detailed errors
-          return Exception(errorMessages.join('\n'));
+          return ApiException(errorMessages.join('\n'));
         }
 
         // Handle other errors with message
         if (data.containsKey('message')) {
-          return Exception(data['message']); // Return backend message
+          return ApiException(data['message']); // Return backend message
         }
       }
-      return Exception("${error.response?.statusMessage}");
+      return ApiException("${error.response?.statusMessage}");
     } else {
       switch (error.type) {
         case DioExceptionType.connectionTimeout:
         case DioExceptionType.sendTimeout:
         case DioExceptionType.receiveTimeout:
-          return Exception("Connection timeout");
+          return ApiException("Connection timeout");
+        case DioExceptionType.connectionError:
+          return ApiException("No Internet Connection");
         case DioExceptionType.unknown:
           if (error.error is SocketException) {
-            return Exception("No Internet Connection");
+            return ApiException("No Internet Connection");
           }
-          return Exception("Unexpected error occurred");
+          return ApiException("Unexpected error occurred");
         default:
-          return Exception("Something went wrong");
+          return ApiException("Something went wrong");
       }
     }
   }
@@ -202,4 +218,15 @@ class UnauthorisedException extends AppException {
 
 class InvalidInputException extends AppException {
   InvalidInputException([String? message]) : super(message, "Invalid Input: ");
+}
+
+/// Error carrying a user-facing message from the API; toString() is the
+/// plain message so it can be shown directly in the UI.
+class ApiException implements Exception {
+  final String message;
+
+  ApiException(dynamic message) : message = message?.toString() ?? '';
+
+  @override
+  String toString() => message;
 }

@@ -28,6 +28,7 @@ import 'package:hyper_local_seller/screen/more_page/view/wallet/bloc/withdraw_hi
 import 'package:hyper_local_seller/screen/products_page/products/bloc/product_faq_bloc/product_faq_bloc.dart';
 import 'package:hyper_local_seller/screen/products_page/products/bloc/products_bloc/products_bloc.dart';
 import 'package:hyper_local_seller/screen/order_page/bloc/orders/orders_bloc.dart';
+import 'package:hyper_local_seller/screen/order_page/incoming_orders/cubit/incoming_orders_cubit.dart';
 import 'package:hyper_local_seller/screen/order_page/bloc/order_filters_bloc/order_filters_bloc.dart';
 
 import '../screen/more_page/view/subscription_plans/bloc/buy_subscription/buy_subscription_event.dart';
@@ -65,7 +66,8 @@ class MasterApiService {
     context.read<OrdersBloc>().add(LoadOrdersInitial());
     context.read<OrderFiltersBloc>().add(FetchOrderFilters());
 
-    // 6. Notifications
+    // 6. Notifications + orders waiting to be accepted
+    context.read<IncomingOrdersCubit>().fetch();
     context.read<NotificationListBloc>().add(FetchUnreadCount());
     context.read<NotificationListBloc>().add(LoadNotificationsInitial());
 
@@ -128,6 +130,7 @@ class MasterApiService {
 
     // ── Notifications ──
     context.read<NotificationListBloc>().add(ClearNotifications());
+    context.read<IncomingOrdersCubit>().clear();
 
     // ── Orders ──
     context.read<OrdersBloc>().add(OrdersReset());
