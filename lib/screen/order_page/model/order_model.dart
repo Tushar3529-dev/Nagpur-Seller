@@ -1,6 +1,8 @@
+import 'package:hyper_local_seller/screen/order_page/incoming_orders/model/pending_order_model.dart';
 import 'package:hyper_local_seller/service/json_parser.dart';
 
-const String modelName = 'order_model';
+export 'package:hyper_local_seller/screen/order_page/incoming_orders/model/pending_order_model.dart'
+    show OrderMode;
 
 class OrdersResponse {
   bool? success;
@@ -13,20 +15,10 @@ class OrdersResponse {
     return OrdersResponse(
       success: JsonParser.boolValue(json['success'] ?? false),
       message: JsonParser.string(json['message'] ?? ''),
-      data: json['data'] != null
+      data: json['data'] is Map<String, dynamic>
           ? OrdersPageData.fromJson(json['data'] as Map<String, dynamic>)
           : null,
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = <String, dynamic>{};
-    data['success'] = success;
-    data['message'] = message;
-    if (this.data != null) {
-      data['data'] = this.data!.toJson();
-    }
-    return data;
   }
 }
 
@@ -35,7 +27,7 @@ class OrdersPageData {
   int? lastPage;
   int? perPage;
   int? total;
-  List<SellerOrderItem>? items;
+  List<SellerOrder>? items;
 
   OrdersPageData({
     this.currentPage,
@@ -51,220 +43,247 @@ class OrdersPageData {
       lastPage: JsonParser.intValue(json['last_page'] ?? 1),
       perPage: JsonParser.intValue(json['per_page'] ?? 15),
       total: JsonParser.intValue(json['total'] ?? 0),
-
-      items: JsonParser.list<SellerOrderItem>(
-        json['data'],
-            (v) => SellerOrderItem.fromJson(v as Map<String, dynamic>),
-      ),
+      items: _maps(json['data']).map(SellerOrder.fromJson).toList(),
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = <String, dynamic>{};
-    data['current_page'] = currentPage;
-    data['last_page'] = lastPage;
-    data['per_page'] = perPage;
-    data['total'] = total;
-    if (items != null) {
-      data['data'] = items!.map((v) => v.toJson()).toList();
-    }
-    return data;
   }
 }
 
-class SellerOrderItem {
-  int orderItemId;
-  int sellerOrderId;
-  String createdAt;
-  OrderInfo order;
-  ProductInfo product;
-  StoreInfo store;
-  String sku;
-  int quantity;
-  SubtotalInfo subtotal;
-  String status;
+/// One row of `GET /seller/orders` — a whole order with its items.
+class SellerOrder {
+  final int id;
 
-  SellerOrderItem({
-    required this.orderItemId,
+  /// Id used for `GET /orders/{id}`. The list sends `seller_order_id` on
+  /// older responses; newer ones only send `id`.
+  final int sellerOrderId;
+  final String orderNumber;
+  final String uuid;
+
+  /// Null when the row doesn't say — the server already filtered by mode.
+  final OrderMode? orderMode;
+  final String status;
+  final String paymentMethod;
+  final String paymentStatus;
+  final bool isRushOrder;
+  final String fulfillmentType;
+  final String currencyCode;
+  final String subtotal;
+  final String finalTotal;
+  final String? formattedTotal;
+  final String? deliveryDate;
+  final String? deliverySlotLabel;
+  final String shippingName;
+  final String shippingPhone;
+  final String createdAt;
+  final List<SellerOrderLine> items;
+
+  const SellerOrder({
+    required this.id,
     required this.sellerOrderId,
+    required this.orderNumber,
+    required this.uuid,
+    required this.orderMode,
+    required this.status,
+    required this.paymentMethod,
+    required this.paymentStatus,
+    required this.isRushOrder,
+    required this.fulfillmentType,
+    required this.currencyCode,
+    required this.subtotal,
+    required this.finalTotal,
+    this.formattedTotal,
+    required this.deliveryDate,
+    required this.deliverySlotLabel,
+    required this.shippingName,
+    required this.shippingPhone,
     required this.createdAt,
-    required this.order,
-    required this.product,
-    required this.store,
-    required this.sku,
+    required this.items,
+  });
+
+  factory SellerOrder.fromJson(Map<String, dynamic> json) {
+    // The live endpoint still returns one row per order item; the
+    // order-level shape (with `items`) is what the backend is moving to.
+    if (json.containsKey('order_item_id') && !json.containsKey('items')) {
+      return SellerOrder._fromItemRow(json);
+    }
+
+    final id = JsonParser.intValue(json['id']);
+    final slot = json['delivery_time_slot'];
+
+    return SellerOrder(
+      id: id,
+      sellerOrderId: JsonParser.intValue(json['seller_order_id'], fallback: id),
+      orderNumber: JsonParser.string(json['order_number']),
+      uuid: JsonParser.string(json['uuid']),
+      orderMode: OrderMode.tryParse(json['order_mode']),
+      status: JsonParser.string(json['status'], fallback: 'pending'),
+      paymentMethod: JsonParser.string(json['payment_method'], fallback: 'cod'),
+      paymentStatus: JsonParser.string(json['payment_status']),
+      isRushOrder: JsonParser.boolValue(json['is_rush_order']),
+      fulfillmentType: JsonParser.string(json['fulfillment_type']),
+      currencyCode: JsonParser.string(json['currency_code']),
+      subtotal: JsonParser.string(json['subtotal'], fallback: '0'),
+      finalTotal: JsonParser.string(
+        json['final_total'] ?? json['total_payable'],
+        fallback: '0',
+      ),
+      deliveryDate: _nonEmpty(json['delivery_date']),
+      deliverySlotLabel: slot is Map ? _nonEmpty(slot['label']) : null,
+      shippingName: JsonParser.string(json['shipping_name']),
+      shippingPhone: JsonParser.string(json['shipping_phone']),
+      createdAt: JsonParser.string(json['created_at']),
+      items: _maps(json['items']).map(SellerOrderLine.fromJson).toList(),
+    );
+  }
+
+  /// Item-level row: `{order_item_id, seller_order_id, order{...},
+  /// product{...}, store{...}, quantity, subtotal{raw, formatted}, status}`.
+  factory SellerOrder._fromItemRow(Map<String, dynamic> json) {
+    final order = json['order'] is Map ? json['order'] as Map : const {};
+    final product = json['product'] is Map ? json['product'] as Map : const {};
+    final store = json['store'] is Map ? json['store'] as Map : const {};
+    final subtotal = json['subtotal'] is Map
+        ? json['subtotal'] as Map
+        : const {};
+    final status = JsonParser.string(json['status'], fallback: 'pending');
+    final orderId = JsonParser.intValue(order['id']);
+
+    return SellerOrder(
+      id: orderId,
+      sellerOrderId: JsonParser.intValue(json['seller_order_id']),
+      orderNumber: JsonParser.string(order['order_number']),
+      uuid: JsonParser.string(order['uuid']),
+      orderMode: OrderMode.tryParse(json['order_mode'] ?? order['order_mode']),
+      status: status,
+      paymentMethod: JsonParser.string(
+        order['payment_method'],
+        fallback: 'cod',
+      ),
+      paymentStatus: JsonParser.string(order['payment_status']),
+      isRushOrder: JsonParser.boolValue(order['is_rush_order']),
+      fulfillmentType: JsonParser.string(order['fulfillment_type']),
+      currencyCode: JsonParser.string(order['currency_code']),
+      subtotal: JsonParser.string(subtotal['raw'], fallback: '0'),
+      finalTotal: JsonParser.string(subtotal['raw'], fallback: '0'),
+      formattedTotal: _nonEmpty(subtotal['formatted']),
+      deliveryDate: null,
+      deliverySlotLabel: null,
+      shippingName: JsonParser.string(order['buyer_name']),
+      shippingPhone: '',
+      createdAt: JsonParser.string(json['created_at']),
+      items: [
+        SellerOrderLine(
+          id: JsonParser.intValue(json['order_item_id']),
+          productTitle: JsonParser.string(product['title']),
+          variantTitle: JsonParser.string(product['variant']),
+          image: _firstUrl([order['image'], product['image']]),
+          storeName: JsonParser.string(store['name']),
+          quantity: JsonParser.intValue(json['quantity'], fallback: 1),
+          price: JsonParser.string(subtotal['raw'], fallback: '0'),
+          subtotal: JsonParser.string(subtotal['raw'], fallback: '0'),
+          status: status,
+        ),
+      ],
+    );
+  }
+
+  bool get isWholesale => orderMode == OrderMode.wholesale;
+
+  /// Total ready for display — the backend's own formatting when it sends one.
+  String displayTotal(String currencySymbol) =>
+      formattedTotal ?? '$currencySymbol$finalTotal';
+
+  int get totalQuantity => items.fold(0, (sum, item) => sum + item.quantity);
+
+  /// First item's title, with "+N more" when the order has several items.
+  String get title {
+    if (items.isEmpty) return orderNumber;
+    final first = items.first.productTitle.isNotEmpty
+        ? items.first.productTitle
+        : orderNumber;
+    return items.length > 1 ? '$first +${items.length - 1} more' : first;
+  }
+
+  String get image => items
+      .map((i) => i.image)
+      .firstWhere((i) => i.isNotEmpty, orElse: () => '');
+
+  /// Items the seller can still act on with [action]
+  /// (`accept` / `reject` / `preparing`).
+  List<SellerOrderLine> itemsFor(String action) {
+    return items.where((item) {
+      final s = item.status.toLowerCase();
+      if (action == 'preparing') return s == 'accepted';
+      return s == 'pending' ||
+          s == 'awaiting_store_response' ||
+          s == 'partially_accepted';
+    }).toList();
+  }
+}
+
+class SellerOrderLine {
+  /// order_item_id — what the accept/reject/preparing endpoints take.
+  final int id;
+  final String productTitle;
+  final String variantTitle;
+  final String image;
+  final String storeName;
+  final int quantity;
+  final String price;
+  final String subtotal;
+  final String status;
+
+  const SellerOrderLine({
+    required this.id,
+    required this.productTitle,
+    required this.variantTitle,
+    required this.image,
+    required this.storeName,
     required this.quantity,
+    required this.price,
     required this.subtotal,
     required this.status,
   });
 
-  factory SellerOrderItem.fromJson(Map<String, dynamic> json) {
-    return SellerOrderItem(
-      orderItemId: JsonParser.requireInt(
-        json['order_item_id'],
-        model: modelName,
-        field: 'order_item_id',
+  factory SellerOrderLine.fromJson(Map<String, dynamic> json) {
+    final product = json['product'] is Map ? json['product'] as Map : const {};
+    final variant = json['variant'] is Map ? json['variant'] as Map : const {};
+    final store = json['store'] is Map ? json['store'] as Map : const {};
+
+    return SellerOrderLine(
+      id: JsonParser.intValue(json['id'] ?? json['order_item_id']),
+      productTitle: JsonParser.string(
+        product['title'] ?? product['name'] ?? json['title'],
       ),
-      sellerOrderId: JsonParser.requireInt(
-        json['seller_order_id'],
-        model: modelName,
-        field: 'seller_order_id',
-      ),
-      createdAt: JsonParser.string(json['created_at'] ?? ''),
-
-      order: json['order'] != null
-          ? OrderInfo.fromJson(json['order'] as Map<String, dynamic>)
-          : OrderInfo(), // fallback empty
-
-      product: json['product'] != null
-          ? ProductInfo.fromJson(json['product'] as Map<String, dynamic>)
-          : ProductInfo(),
-
-      store: json['store'] != null
-          ? StoreInfo.fromJson(json['store'] as Map<String, dynamic>)
-          : StoreInfo(),
-
-      sku: JsonParser.requireString(
-        json['sku'],
-        model: modelName,
-        field: 'sku',
-      ),
-
-      quantity: JsonParser.intValue(json['quantity'] ?? 1),
-
-      subtotal: json['subtotal'] != null
-          ? SubtotalInfo.fromJson(json['subtotal'] as Map<String, dynamic>)
-          : SubtotalInfo(),
-
-      status: JsonParser.string(json['status'] ?? 'pending'),
+      variantTitle: JsonParser.string(variant['title'] ?? variant['name']),
+      image: _firstUrl([
+        json['image'],
+        variant['image'],
+        product['image'],
+        product['main_image'],
+        product['image_url'],
+        product['thumbnail'],
+      ]),
+      storeName: JsonParser.string(store['name']),
+      quantity: JsonParser.intValue(json['quantity'], fallback: 1),
+      price: JsonParser.string(json['price'], fallback: '0'),
+      subtotal: JsonParser.string(json['subtotal'], fallback: '0'),
+      status: JsonParser.string(json['status'], fallback: 'pending'),
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = <String, dynamic>{};
-    data['order_item_id'] = orderItemId;
-    data['seller_order_id'] = sellerOrderId;
-    data['created_at'] = createdAt;
-    data['order'] = order.toJson();
-    data['product'] = product.toJson();
-    data['store'] = store.toJson();
-    data['sku'] = sku;
-    data['quantity'] = quantity;
-    data['subtotal'] = subtotal.toJson();
-    data['status'] = status;
-    return data;
   }
 }
 
-class OrderInfo {
-  int id;
-  String uuid;
-  String buyerName;
-  String paymentMethod;
-  bool isRushOrder;
-  String status;
-  String image;
+Iterable<Map<String, dynamic>> _maps(dynamic value) =>
+    value is List ? value.whereType<Map<String, dynamic>>() : const [];
 
-  OrderInfo({
-    this.id = 0,
-    this.uuid = '',
-    this.buyerName = '',
-    this.paymentMethod = '',
-    this.isRushOrder = false,
-    this.status = '',
-    this.image = ''
-  });
-
-  factory OrderInfo.fromJson(Map<String, dynamic> json) {
-    return OrderInfo(
-      id: JsonParser.intValue(json['id'] ?? 0),
-      uuid: JsonParser.string(json['uuid'] ?? ''),
-      buyerName: JsonParser.string(json['buyer_name'] ?? 'Guest'),
-      paymentMethod: JsonParser.string(json['payment_method'] ?? 'cod'),
-      isRushOrder: JsonParser.boolValue(json['is_rush_order'] ?? false),
-      status: JsonParser.string(json['status'] ?? ''),
-      image:  JsonParser.string(json['image'] ?? ''),
-    );
+String _firstUrl(List<dynamic> candidates) {
+  for (final candidate in candidates) {
+    final url = _nonEmpty(candidate);
+    if (url != null && url.startsWith('http')) return url;
   }
-
-  Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = <String, dynamic>{};
-    data['id'] = id;
-    data['uuid'] = uuid;
-    data['buyer_name'] = buyerName;
-    data['payment_method'] = paymentMethod;
-    data['is_rush_order'] = isRushOrder;
-    data['status'] = status;
-    data['image'] = image;
-    return data;
-  }
+  return '';
 }
 
-class ProductInfo {
-  int id;
-  String title;
-  String variant;
-
-  ProductInfo({
-    this.id = 0,
-    this.title = '',
-    this.variant = '',
-  });
-
-  factory ProductInfo.fromJson(Map<String, dynamic> json) {
-    return ProductInfo(
-      id: JsonParser.intValue(json['id'] ?? 0),
-      title: JsonParser.string(json['title'] ?? ''),
-      variant: JsonParser.string(json['variant'] ?? ''),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = <String, dynamic>{};
-    data['id'] = id;
-    data['title'] = title;
-    data['variant'] = variant;
-    return data;
-  }
-}
-
-class StoreInfo {
-  String name;
-
-  StoreInfo({this.name = ''});
-
-  factory StoreInfo.fromJson(Map<String, dynamic> json) {
-    return StoreInfo(
-      name: JsonParser.string(json['name'] ?? ''),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = <String, dynamic>{};
-    data['name'] = name;
-    return data;
-  }
-}
-
-class SubtotalInfo {
-  int raw;
-  String formatted;
-
-  SubtotalInfo({
-    this.raw = 0,
-    this.formatted = '\$0.00',
-  });
-
-  factory SubtotalInfo.fromJson(Map<String, dynamic> json) {
-    return SubtotalInfo(
-      raw: JsonParser.intValue(json['raw'] ?? 0),
-      formatted: JsonParser.string(json['formatted'] ?? '\$0.00'),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = <String, dynamic>{};
-    data['raw'] = raw;
-    data['formatted'] = formatted;
-    return data;
-  }
+String? _nonEmpty(dynamic value) {
+  final text = value?.toString().trim();
+  return (text == null || text.isEmpty || text == 'null') ? null : text;
 }

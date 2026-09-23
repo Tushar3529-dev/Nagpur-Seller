@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hyper_local_seller/config/api_routes.dart';
 import 'package:hyper_local_seller/config/hive_storage.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/model/pending_order_model.dart';
+import 'package:hyper_local_seller/screen/order_page/model/order_model.dart';
 import 'package:hyper_local_seller/service/api_base_helper.dart';
 
 class PendingOrdersRepo {
@@ -15,23 +16,43 @@ class PendingOrdersRepo {
   /// every poll.
   final Set<int> _imageLookupMisses = {};
 
-  /// Pending (not yet accepted) regular orders across all of the seller's stores.
-  Future<List<PendingOrder>> getPendingRegularOrders() async {
+  /// Orders waiting for the seller to accept, across all of their stores.
+  ///
+  /// - regular: every order awaiting a response
+  /// - wholesale: `popup=1` makes the backend return only orders whose
+  ///   delivery slot ends within 30 minutes, so no time filtering here.
+  Future<List<PendingOrder>> getPendingOrders(OrderMode mode) async {
     final response = await _helper.get(
       ApiRoutes.pendingRegularOrdersApi,
-      queryParameters: {'order_mode': 'regular'},
+      queryParameters: {
+        'order_mode': mode.name,
+        if (mode == OrderMode.wholesale) 'popup': '1',
+      },
+      allowMissingSuccessFlag: true,
     );
+    if (response is! Map<String, dynamic>) return [];
 
-    final data = response is Map<String, dynamic> ? response['data'] : null;
-    final orders = data is Map<String, dynamic> ? data['orders'] : null;
+    // Current shape: { data: [...], count, order_mode }.
+    // Older shape:   { success, data: { orders: [...] } }.
+    final data = response['data'];
+    final orders = data is List
+        ? data
+        : (data is Map<String, dynamic> ? data['orders'] : null);
+    if (kDebugMode) {
+      debugPrint(
+        '[PendingOrdersRepo] ${mode.name}: '
+        '${orders is List ? orders.length : "unreadable"} pending',
+      );
+    }
     if (orders is! List) return [];
 
+    final responseMode = OrderMode.tryParse(response['order_mode']) ?? mode;
     final parsed = orders
         .whereType<Map<String, dynamic>>()
-        .map(PendingOrder.fromJson)
+        .map((json) => PendingOrder.fromJson(json, fallbackMode: responseMode))
         .where((order) => order.sellerOrderId != 0)
         .toList();
-    return _withImages(parsed);
+    return _withImages(parsed, mode);
   }
 
   Future<dynamic> acceptItem(int orderItemId) {
@@ -42,7 +63,10 @@ class PendingOrdersRepo {
     return _helper.post('${ApiRoutes.ordersApi}/$orderItemId/preparing', {});
   }
 
-  Future<List<PendingOrder>> _withImages(List<PendingOrder> orders) async {
+  Future<List<PendingOrder>> _withImages(
+    List<PendingOrder> orders,
+    OrderMode mode,
+  ) async {
     final missing = {
       for (final order in orders)
         for (final item in order.items)
@@ -51,7 +75,7 @@ class PendingOrdersRepo {
               !_imageLookupMisses.contains(item.orderItemId))
             item.orderItemId,
     };
-    if (missing.isNotEmpty) await _lookUpImages(missing);
+    if (missing.isNotEmpty) await _lookUpImages(missing, mode);
 
     return [
       for (final order in orders)
@@ -69,26 +93,23 @@ class PendingOrdersRepo {
   /// The orders list (`GET /seller/orders`) carries an image per order item.
   /// It's scoped to the selected store, so orders from other stores keep the
   /// placeholder until the pending endpoint sends images itself.
-  Future<void> _lookUpImages(Set<int> orderItemIds) async {
+  Future<void> _lookUpImages(Set<int> orderItemIds, OrderMode mode) async {
     try {
       final response = await _helper.get(
         ApiRoutes.ordersApi,
         queryParameters: {
           'page': '1',
           'per_page': '50',
+          'order_mode': mode.name,
           if (HiveStorage.selectedStoreId != null)
             'store_id': HiveStorage.selectedStoreId,
         },
       );
-      final data = response is Map<String, dynamic> ? response['data'] : null;
-      final rows = data is Map<String, dynamic> ? data['data'] : null;
-      if (rows is List) {
-        for (final row in rows.whereType<Map<String, dynamic>>()) {
-          final id = int.tryParse(row['order_item_id']?.toString() ?? '');
-          final order = row['order'];
-          final image = order is Map ? order['image']?.toString() : null;
-          if (id != null && image != null && image.startsWith('http')) {
-            _imageCache[id] = image;
+      if (response is Map<String, dynamic>) {
+        final orders = OrdersResponse.fromJson(response).data?.items ?? [];
+        for (final item in orders.expand((order) => order.items)) {
+          if (item.id != 0 && item.image.isNotEmpty) {
+            _imageCache[item.id] = item.image;
           }
         }
       }

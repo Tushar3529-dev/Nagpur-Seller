@@ -3160,6 +3160,18 @@ abstract class AppLocalizations {
   /// **'Manage and track customer orders'**
   String get ordersSubtitle;
 
+  /// No description provided for @regularOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'Regular'**
+  String get regularOrders;
+
+  /// No description provided for @wholesaleOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'Wholesale'**
+  String get wholesaleOrders;
+
   /// No description provided for @otpLabel.
   ///
   /// In en, this message translates to:

@@ -25,7 +25,7 @@ class IncomingOrdersController extends StatefulWidget {
 
 class _IncomingOrdersControllerState extends State<IncomingOrdersController>
     with WidgetsBindingObserver {
-  static const _pollInterval = Duration(seconds: 20);
+  static const _pollInterval = Duration(seconds: 5);
   Timer? _pollTimer;
 
   IncomingOrdersCubit get _cubit => context.read<IncomingOrdersCubit>();
@@ -35,6 +35,21 @@ class _IncomingOrdersControllerState extends State<IncomingOrdersController>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _startPolling();
+    // The listener below only reacts to changes, so cover orders that were
+    // already queued before this widget mounted.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _syncRinging(_cubit.state);
+    });
+  }
+
+  void _syncRinging(IncomingOrdersState state) {
+    if (state.hasPending) {
+      OrderRingtoneService().start();
+      // The in-app ring takes over from the system alert.
+      NotificationService().cancelIncomingOrderAlert();
+    } else {
+      OrderRingtoneService().stop();
+    }
   }
 
   @override
@@ -83,15 +98,7 @@ class _IncomingOrdersControllerState extends State<IncomingOrdersController>
   Widget build(BuildContext context) {
     return BlocListener<IncomingOrdersCubit, IncomingOrdersState>(
       listenWhen: (prev, curr) => prev.hasPending != curr.hasPending,
-      listener: (context, state) {
-        if (state.hasPending) {
-          OrderRingtoneService().start();
-          // The in-app ring takes over from the system alert.
-          NotificationService().cancelIncomingOrderAlert();
-        } else {
-          OrderRingtoneService().stop();
-        }
-      },
+      listener: (context, state) => _syncRinging(state),
       child: widget.child,
     );
   }

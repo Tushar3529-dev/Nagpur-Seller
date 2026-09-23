@@ -1702,6 +1702,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ordersSubtitle => 'Manage and track customer orders';
 
   @override
+  String get regularOrders => 'Regular';
+
+  @override
+  String get wholesaleOrders => 'Wholesale';
+
+  @override
   String get otpLabel => 'OTP';
 
   @override

@@ -33,9 +33,12 @@ class OrderRingtoneService {
     try {
       await _player.setAudioContext(
         AudioContext(
+          // Alarm stream: still audible when the phone is on silent or
+          // vibrate (the ring stream is muted then). Found on the emulator
+          // with the ringer silenced.
           android: const AudioContextAndroid(
             contentType: AndroidContentType.sonification,
-            usageType: AndroidUsageType.notificationRingtone,
+            usageType: AndroidUsageType.alarm,
             audioFocus: AndroidAudioFocus.gainTransientMayDuck,
             stayAwake: true,
           ),

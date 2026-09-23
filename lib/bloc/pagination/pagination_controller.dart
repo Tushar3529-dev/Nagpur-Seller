@@ -10,6 +10,10 @@ class PaginationController<T> {
   final StateEmitter<T> emit;
   final int perPage;
 
+  /// Bumped by every reset/reload. A response that comes back after a newer
+  /// reload started (e.g. the filters changed meanwhile) is dropped.
+  int _generation = 0;
+
   PaginationController({
     required this.fetcher,
     required this.emit,
@@ -18,10 +22,12 @@ class PaginationController<T> {
 
   /// Initial load or full refresh (clears data if stale-while-revalidate is disabled)
   void reset() {
+    _generation++;
     emit(PaginatedState<T>());
   }
 
   Future<void> loadInitial({bool silent = false, PaginatedState<T>? currentState}) async {
+    _generation++;
     final baseState = currentState ?? PaginatedState<T>(); // Temporary initial state
     
     if (!silent) {
@@ -43,6 +49,7 @@ class PaginationController<T> {
     // Don't refresh if already loading
     if (currentState.isInitialLoading || currentState.isRefreshing) return;
 
+    _generation++;
     emit(currentState.copyWith(isRefreshing: true));
 
     await _fetchData(
@@ -85,9 +92,11 @@ class PaginationController<T> {
     PaginatedState<T>? currentState,
   }) async {
     final state = currentState ?? PaginatedState<T>();
+    final generation = _generation;
     
     try {
       final response = await fetcher(page, perPage);
+      if (generation != _generation) return;
       
       final newItems = isNextPage 
           ? [...state.items, ...response.items] 
@@ -112,6 +121,7 @@ class PaginationController<T> {
         error: null,
       ));
     } catch (e) {
+      if (generation != _generation) return;
       emit(state.copyWith(
         isInitialLoading: false,
         isRefreshing: false,

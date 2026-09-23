@@ -1655,6 +1655,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get ordersSubtitle => 'إدارة طلبات العملاء وتتبعها';
 
   @override
+  String get regularOrders => 'عادي';
+
+  @override
+  String get wholesaleOrders => 'جملة';
+
+  @override
   String get otpLabel => 'رمز التحقق';
 
   @override

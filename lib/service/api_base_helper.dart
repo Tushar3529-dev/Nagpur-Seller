@@ -64,10 +64,14 @@ class ApiBaseHelper {
   Future<dynamic> get(
     String url, {
     Map<String, dynamic>? queryParameters,
+    bool allowMissingSuccessFlag = false,
   }) async {
     try {
       final response = await _dio.get(url, queryParameters: queryParameters);
-      return _returnResponse(response);
+      return _returnResponse(
+        response,
+        allowMissingSuccessFlag: allowMissingSuccessFlag,
+      );
     } on DioException catch (e) {
       throw _handleError(e);
     }
@@ -100,11 +104,21 @@ class ApiBaseHelper {
     }
   }
 
-  dynamic _returnResponse(Response response) {
+  /// [allowMissingSuccessFlag] accepts a 2xx body that has no `success` key at
+  /// all (an explicit `success: false` is still treated as an error).
+  dynamic _returnResponse(
+    Response response, {
+    bool allowMissingSuccessFlag = false,
+  }) {
     switch (response.statusCode) {
       case 200:
       case 201:
         final responseBody = response.data;
+        if (allowMissingSuccessFlag &&
+            responseBody is Map<String, dynamic> &&
+            !responseBody.containsKey('success')) {
+          return responseBody;
+        }
         // Robust check for { success, message, data } structure
         if (responseBody is Map<String, dynamic>) {
           bool success =

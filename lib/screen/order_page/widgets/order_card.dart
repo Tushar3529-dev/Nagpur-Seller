@@ -108,7 +108,7 @@ class OrderCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${l10n?.qtyWithCount(data['quantity']) ?? 'Qty: ${data['quantity']}'} × ${data['subtotal']}',
+                    '${l10n?.qtyWithCount(data['quantity']) ?? 'Qty: ${data['quantity']}'} • ${data['subtotal']}',
                     style: TextStyle(
                       fontSize: UIUtils.caption(screenType),
                       color: Colors.grey.shade600,

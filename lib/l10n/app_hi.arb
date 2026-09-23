@@ -449,6 +449,8 @@
   "orderSummary": "ऑर्डर सारांश",
   "orders": "ऑर्डर",
   "ordersSubtitle": "ग्राहक ऑर्डर प्रबंधित और ट्रैक करें",
+  "regularOrders": "रेगुलर",
+  "wholesaleOrders": "होलसेल",
   "otpLabel": "ओटीपी",
   "otpSentSuccess": "OTP सफलतापूर्वक भेजा गया",
   "out_of_stock": "स्टॉक समाप्त",

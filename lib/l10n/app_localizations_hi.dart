@@ -1688,6 +1688,12 @@ class AppLocalizationsHi extends AppLocalizations {
   String get ordersSubtitle => 'ग्राहक ऑर्डर प्रबंधित और ट्रैक करें';
 
   @override
+  String get regularOrders => 'रेगुलर';
+
+  @override
+  String get wholesaleOrders => 'होलसेल';
+
+  @override
   String get otpLabel => 'ओटीपी';
 
   @override

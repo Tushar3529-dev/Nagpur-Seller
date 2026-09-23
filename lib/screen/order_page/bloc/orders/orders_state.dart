@@ -1,12 +1,16 @@
 part of 'orders_bloc.dart';
 
-class OrdersState extends PaginatedState<SellerOrderItem> {
+class OrdersState extends PaginatedState<SellerOrder> {
   final String? paymentType;
   final String? range;
   final String? sortBy;
   final String? sortDir;
   final String? status;
   final int? storeId;
+
+  /// Which tab is showing: [OrderMode.regular] or [OrderMode.wholesale].
+  /// Not a filter — refreshing or clearing filters keeps it.
+  final OrderMode orderMode;
 
   const OrdersState({
     super.items,
@@ -23,11 +27,12 @@ class OrdersState extends PaginatedState<SellerOrderItem> {
     this.sortDir,
     this.status,
     this.storeId,
+    this.orderMode = OrderMode.regular,
   });
 
   @override
   OrdersState copyWith({
-    List<SellerOrderItem>? items,
+    List<SellerOrder>? items,
     bool? hasMore,
     bool? isInitialLoading,
     bool? isPaginating, // Replaced isLoadingMore
@@ -46,6 +51,7 @@ class OrdersState extends PaginatedState<SellerOrderItem> {
     String? status,
     bool overrideFilters = false,
     int? storeId,
+    OrderMode? orderMode,
   }) {
     return OrdersState(
       items: items ?? this.items,
@@ -62,6 +68,7 @@ class OrdersState extends PaginatedState<SellerOrderItem> {
       sortDir: overrideFilters ? sortDir : (sortDir ?? this.sortDir),
       status: overrideFilters ? status : (status ?? this.status),
       storeId: overrideFilters ? storeId : (storeId ?? this.storeId),
+      orderMode: orderMode ?? this.orderMode,
     );
   }
 
@@ -74,5 +81,6 @@ class OrdersState extends PaginatedState<SellerOrderItem> {
         sortDir,
         status,
         storeId,
+        orderMode,
       ];
 }

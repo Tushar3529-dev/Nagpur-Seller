@@ -45,3 +45,9 @@ class UpdateOrderListItemStatus extends OrdersEvent {
   final String status;
   UpdateOrderListItemStatus({required this.orderId, required this.status});
 }
+
+/// Switches between the Regular and Wholesale tabs.
+class ChangeOrderMode extends OrdersEvent {
+  final OrderMode orderMode;
+  ChangeOrderMode(this.orderMode);
+}

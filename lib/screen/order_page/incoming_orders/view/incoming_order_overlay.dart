@@ -16,18 +16,65 @@ import 'package:url_launcher/url_launcher.dart';
 /// Sits in `MaterialApp.builder`, above every route. While there are pending
 /// regular orders it covers the whole app with a stack of order cards that
 /// can only be cleared by accepting them — there is no close or reject.
-class IncomingOrderOverlay extends StatelessWidget {
+class IncomingOrderOverlay extends StatefulWidget {
   final Widget child;
 
   const IncomingOrderOverlay({super.key, required this.child});
 
   @override
+  State<IncomingOrderOverlay> createState() => _IncomingOrderOverlayState();
+}
+
+class _IncomingOrderOverlayState extends State<IncomingOrderOverlay> {
+  /// What the router below last reported about being able to go back.
+  bool _routesCanPop = false;
+  bool _hasPending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Orders may already be queued when this mounts (listener only sees changes).
+    if (context.read<IncomingOrdersCubit>().state.hasPending) {
+      _hasPending = true;
+      _report(true);
+    }
+  }
+
+  /// With predictive back (enforced on recent Android), the system only sends
+  /// Back to Flutter when the framework says it can handle it; otherwise it
+  /// closes the app itself and IncomingOrdersController.didPopRoute never runs.
+  /// While orders are pending, report "can handle back" so the press reaches
+  /// the controller, which swallows it.
+  bool _onNavigationNotification(NavigationNotification notification) {
+    _routesCanPop = notification.canHandlePop;
+    if (!_hasPending) return false; // Let it reach WidgetsApp untouched.
+    _report(true);
+    return true;
+  }
+
+  void _report(bool canHandlePop) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      NavigationNotification(canHandlePop: canHandlePop).dispatch(context);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return BlocBuilder<IncomingOrdersCubit, IncomingOrdersState>(
+    return BlocConsumer<IncomingOrdersCubit, IncomingOrdersState>(
+      listenWhen: (prev, curr) => prev.hasPending != curr.hasPending,
+      listener: (context, state) {
+        _hasPending = state.hasPending;
+        _report(state.hasPending || _routesCanPop);
+      },
       builder: (context, state) {
+        _hasPending = state.hasPending;
         return Stack(
           children: [
-            child,
+            NotificationListener<NavigationNotification>(
+              onNotification: _onNavigationNotification,
+              child: widget.child,
+            ),
             if (state.hasPending)
               Positioned.fill(child: _OrderStackBarrier(state: state)),
           ],
@@ -80,6 +127,7 @@ class _OrderStackBarrier extends StatelessWidget {
                         order: top,
                         position: 1,
                         total: state.orders.length,
+                        waitingSince: state.waitingSince(top),
                         isAccepting:
                             state.acceptingOrderId == top.sellerOrderId,
                         errorMessage: state.failedOrderId == top.sellerOrderId
@@ -116,12 +164,16 @@ class _WaitingBadge extends StatelessWidget {
         children: [
           const Icon(Icons.notifications_active, color: Colors.white, size: 16),
           const SizedBox(width: 6),
-          Text(
-            count == 1 ? '1 order waiting' : '$count orders waiting',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+          Flexible(
+            child: Text(
+              count == 1 ? '1 order waiting' : '$count orders waiting',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -154,6 +206,7 @@ class _IncomingOrderCard extends StatelessWidget {
   final PendingOrder order;
   final int position;
   final int total;
+  final DateTime? waitingSince;
   final bool isAccepting;
   final String? errorMessage;
 
@@ -162,6 +215,7 @@ class _IncomingOrderCard extends StatelessWidget {
     required this.order,
     required this.position,
     required this.total,
+    required this.waitingSince,
     required this.isAccepting,
     required this.errorMessage,
   });
@@ -184,35 +238,49 @@ class _IncomingOrderCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.topCenter,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _Header(position: position, total: total),
-                    const SizedBox(height: _timerSize / 2 + 12),
-                  ],
-                ),
-                Positioned(
-                  bottom: 12,
-                  child: ResponseTimer(
-                    since: order.createdAt,
-                    size: _timerSize,
-                  ),
-                ),
-              ],
-            ),
+            // Everything but the accept button scrolls, so the card still
+            // fits on small screens with large system font sizes.
             Flexible(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                padding: const EdgeInsets.only(bottom: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _OrderSummary(order: order),
-                    const SizedBox(height: 12),
-                    for (final item in order.items) _ItemRow(item: item),
+                    Stack(
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.topCenter,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _Header(
+                              position: position,
+                              total: total,
+                              isWholesale: order.isWholesale,
+                            ),
+                            const SizedBox(height: _timerSize / 2 + 12),
+                          ],
+                        ),
+                        Positioned(
+                          bottom: 12,
+                          child: ResponseTimer(
+                            since: waitingSince,
+                            size: _timerSize,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _OrderSummary(order: order),
+                          const SizedBox(height: 12),
+                          for (final item in order.items) _ItemRow(item: item),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -232,8 +300,13 @@ class _IncomingOrderCard extends StatelessWidget {
 class _Header extends StatelessWidget {
   final int position;
   final int total;
+  final bool isWholesale;
 
-  const _Header({required this.position, required this.total});
+  const _Header({
+    required this.position,
+    required this.total,
+    required this.isWholesale,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -273,9 +346,9 @@ class _Header extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          const Text(
-            'New regular order',
-            style: TextStyle(
+          Text(
+            isWholesale ? 'Wholesale order due soon' : 'New regular order',
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 22,
               fontWeight: FontWeight.w700,
@@ -283,7 +356,9 @@ class _Header extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            'Review the details and start preparing.',
+            isWholesale
+                ? 'Delivery slot ends within 30 minutes. Start preparing.'
+                : 'Review the details and start preparing.',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.85),
               fontSize: 14,
@@ -309,6 +384,10 @@ class _OrderSummary extends StatelessWidget {
 
     final tiles = <_InfoTile>[
       _InfoTile(
+        label: 'ORDER TYPE',
+        value: order.isWholesale ? 'Wholesale' : 'Regular',
+      ),
+      _InfoTile(
         label: 'ORDERED',
         value: created == null
             ? '—'
@@ -320,8 +399,8 @@ class _OrderSummary extends StatelessWidget {
         label: 'ITEMS',
         value: order.itemCount == 1 ? '1 item' : '${order.itemCount} items',
       ),
-      if (order.deliverySlot != null)
-        _InfoTile(label: 'DELIVERY SLOT', value: order.deliverySlot!),
+      if (order.delivery != null)
+        _InfoTile(label: 'DELIVERY', value: order.delivery!),
     ];
 
     return Container(
@@ -435,7 +514,7 @@ class _InfoTile extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             value,
-            maxLines: 1,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w700,

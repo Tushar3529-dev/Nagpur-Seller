@@ -510,6 +510,8 @@
   "orderSummary": "Order Summary",
   "orders": "Orders",
   "ordersSubtitle": "Manage and track customer orders",
+  "regularOrders": "Regular",
+  "wholesaleOrders": "Wholesale",
   "otpLabel": "OTP",
   "otpSentSuccess": "OTP sent successfully",
   "out_of_stock": "Out of Stock",

@@ -448,6 +448,8 @@
   "orderSummary": "ملخص الطلب",
   "orders": "الطلبات",
   "ordersSubtitle": "إدارة طلبات العملاء وتتبعها",
+  "regularOrders": "عادي",
+  "wholesaleOrders": "جملة",
   "otpLabel": "رمز التحقق",
   "otpSentSuccess": "تم إرسال OTP بنجاح",
   "out_of_stock": "غير متوفر في المخزون",
