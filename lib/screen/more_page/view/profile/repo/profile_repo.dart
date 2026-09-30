@@ -13,7 +13,7 @@ class ProfileRepo {
 
       return response;
     } catch (e) {
-      rethrow;
+      throw Exception(e.toString());
     }
   }
 
@@ -43,7 +43,7 @@ class ProfileRepo {
 
       return response;
     } catch (e) {
-      rethrow;
+      throw Exception(e.toString());
     }
   }
 
@@ -60,7 +60,7 @@ class ProfileRepo {
       });
       return response;
     } catch (e) {
-      rethrow;
+      throw Exception(e.toString());
     }
   }
 }

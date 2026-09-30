@@ -20,7 +20,7 @@ class AttributesRepo {
 
       return response;
     } catch (e) {
-      rethrow;
+      throw Exception(e.toString());
     }
   }
 
@@ -29,7 +29,7 @@ class AttributesRepo {
       final response = await _helper.post(ApiRoutes.attributesApi, data);
       return response;
     } catch (e) {
-      rethrow;
+      throw Exception(e.toString());
     }
   }
 
@@ -38,7 +38,7 @@ class AttributesRepo {
       final response = await _helper.post('${ApiRoutes.attributesApi}/$id', data);
       return response;
     } catch (e) {
-      rethrow;
+      throw Exception(e.toString());
     }
   }
 
@@ -47,7 +47,7 @@ class AttributesRepo {
       final response = await _helper.delete('${ApiRoutes.attributesApi}/$id');
       return response;
     } catch (e) {
-      rethrow;
+      throw Exception(e.toString());
     }
   }
 
@@ -58,7 +58,7 @@ class AttributesRepo {
       );
       return response;
     } catch (e) {
-      rethrow;
+      throw Exception(e.toString());
     }
   }
 
@@ -95,7 +95,7 @@ class AttributesRepo {
       final response = await _helper.post(ApiRoutes.attributeValueApi, data);
       return response;
     } catch (e) {
-      rethrow;
+      throw Exception(e.toString());
     }
   }
 
@@ -121,7 +121,7 @@ class AttributesRepo {
       final response = await _helper.post('${ApiRoutes.attributeValueApi}/$id', data);
       return response;
     } catch (e) {
-      rethrow;
+      throw Exception(e.toString());
     }
   }
 
@@ -130,7 +130,7 @@ class AttributesRepo {
       final response = await _helper.delete('${ApiRoutes.attributeValueApi}/$id');
       return response;
     } catch (e) {
-      rethrow;
+      throw Exception(e.toString());
     }
   }
 }

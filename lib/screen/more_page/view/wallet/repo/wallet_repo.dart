@@ -14,7 +14,7 @@ class WalletRepository {
       }
       return null;
     } catch (e) {
-      rethrow;
+      throw Exception(e.toString());
     }
   }
 
@@ -32,7 +32,7 @@ class WalletRepository {
       }
       return null;
     } catch (e) {
-      rethrow;
+      throw Exception(e.toString());
     }
   }
 
@@ -50,7 +50,7 @@ class WalletRepository {
       }
       return null;
     } catch (e) {
-      rethrow;
+      throw Exception(e.toString());
     }
   }
 
@@ -61,7 +61,7 @@ class WalletRepository {
       });
       return response;
     } catch (e) {
-      rethrow;
+      throw Exception(e.toString());
     }
   }
 }
