@@ -202,7 +202,7 @@ void main() {
     expect(OrderRingtoneService().isRinging, isTrue);
     expect(audioCalls, contains('setReleaseMode:loop'), reason: 'loops');
 
-    repo.server[OrderMode.regular] = [];
+    // Accepted orders remain in pending until preparing succeeds.
     await tester.tap(find.text('Accept order'));
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 200)),
@@ -366,7 +366,7 @@ void main() {
     expect(reported.last, isTrue);
 
     // Accepted, queue empty: hand Back back to the system (home can't pop).
-    repo.server[OrderMode.regular] = [];
+    // Accepted orders remain in pending until preparing succeeds.
     await tester.tap(find.text('Accept order'));
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 100)),
@@ -557,6 +557,57 @@ void main() {
     await tester.tap(find.text('Confirm'));
     await tester.pump();
   }
+
+  testWidgets(
+    'missing backend barcode shows an error without a dummy fallback',
+    (tester) async {
+      final json = _order(1);
+      (json['items'] as List).first
+        ..remove('barcode')
+        ..['status'] = 'accepted';
+      repo.server[OrderMode.regular] = [json];
+      await pumpApp(tester);
+      await settleScan(tester);
+      expect(
+        find.text('Barcode missing for Product 1. Contact support.'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('A1'), findsNothing);
+      expect(find.text('Mark as preparing'), findsNothing);
+      await manual(tester, 'A1');
+      expect(
+        find.text(
+          "This barcode isn't in this order. Check the product and try again.",
+        ),
+        findsOneWidget,
+      );
+      expect(cubit.state.verifiedItemIds, isEmpty);
+      expect(repo.calls, isEmpty);
+      await disposeApp(tester);
+    },
+  );
+
+  testWidgets('real expected barcode is hidden but manual verification works', (
+    tester,
+  ) async {
+    final json = _order(1);
+    (json['items'] as List).first
+      ..['barcode'] = '8901234500021'
+      ..['status'] = 'accepted';
+    repo.server[OrderMode.regular] = [json];
+    await pumpApp(tester);
+    await settleScan(tester);
+    expect(find.textContaining('8901234500021'), findsNothing);
+    expect(find.text('Accept order'), findsNothing);
+    await manual(tester, '8901234500021');
+    await tester.enterText(find.byType(TextField), '3');
+    await tester.tap(find.text('Confirm quantity').last);
+    await tester.pump();
+    expect(find.text('Mark as preparing'), findsOneWidget);
+    expect(cubit.state.verifiedBarcodes, {1: '8901234500021'});
+    expect(find.textContaining('8901234500021'), findsNothing);
+    await disposeApp(tester);
+  });
 
   testWidgets(
     'manual quantity stepper, typing, errors, tick and already verified',

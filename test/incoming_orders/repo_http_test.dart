@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hyper_local_seller/config/api_routes.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/model/pending_order_model.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/repo/pending_orders_repo.dart';
+import 'package:hyper_local_seller/service/api_base_helper.dart';
 
 import 'helpers.dart';
 
@@ -328,6 +329,88 @@ void main() {
       12: 'preparing',
     });
     expect(requests.single.uri.path, '/api/seller/orders/1');
+  });
+
+  test('missing pending barcode is not replaced with a dummy code', () async {
+    final json = orderJson(1);
+    (json['items'] as List).first.remove('barcode');
+    respond = (_) => listResponse([json]);
+    final order = (await PendingOrdersRepo().getPendingOrders(
+      OrderMode.regular,
+    )).single;
+    expect(order.items.single.barcode, isNull);
+    final count = requests.length;
+    await expectLater(
+      PendingOrdersRepo().markOrderPreparing(
+        order,
+        verifiedBarcodes: {1: 'A1'},
+      ),
+      throwsA(
+        isA<ApiException>().having(
+          (e) => e.message,
+          'message',
+          contains('Barcode missing'),
+        ),
+      ),
+    );
+    expect(requests.length, count, reason: 'missing data must block preparing');
+  });
+
+  test(
+    'verify-and-prepare retains structured 422 errors and is atomic',
+    () async {
+      statusFor = (_) => 422;
+      final errors = [
+        {
+          'order_item_id': 11,
+          'field': 'barcode',
+          'message': 'Incorrect barcode.',
+        },
+      ];
+      respond = (_) => {
+        'success': false,
+        'message': 'Verification failed.',
+        'data': {'errors': errors},
+      };
+      final order = PendingOrder.fromJson(
+        orderJson(1, itemIds: [11], barcodes: {11: '8901234500021'}),
+      );
+      final completed = <int>[];
+      await expectLater(
+        PendingOrdersRepo().markOrderPreparing(
+          order,
+          verifiedBarcodes: {11: '8901234500021'},
+          onItemDone: completed.add,
+        ),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.statusCode, 'status', 422)
+              .having(
+                (e) => e.responseData?['data']['errors'],
+                'errors',
+                errors,
+              ),
+        ),
+      );
+      expect(completed, isEmpty);
+      expect(requests, hasLength(1));
+      expect(
+        requests.single.uri.path,
+        '/api/seller/orders/1/verify-and-prepare',
+      );
+    },
+  );
+
+  test('itemStatuses also reads direct status fields', () async {
+    respond = (_) => {
+      'success': true,
+      'data': {
+        'items': [
+          {'id': 11, 'status': 'Preparing'},
+        ],
+      },
+    };
+    expect(await PendingOrdersRepo().itemStatuses(1), {11: 'preparing'});
   });
 
   group('accept + preparing', () {

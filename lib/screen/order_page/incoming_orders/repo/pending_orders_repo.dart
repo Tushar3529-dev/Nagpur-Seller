@@ -148,7 +148,8 @@ class PendingOrdersRepo {
       for (final item in items.whereType<Map>())
         if (int.tryParse('${(item['orderItem'] as Map?)?['id'] ?? item['id']}')
             case final id?)
-          id: '${(item['orderItem'] as Map?)?['status'] ?? ''}'.toLowerCase(),
+          id: '${(item['orderItem'] as Map?)?['status'] ?? item['status'] ?? ''}'
+              .toLowerCase(),
     };
   }
 

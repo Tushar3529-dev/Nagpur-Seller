@@ -73,12 +73,12 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
         _restored = true;
         await _restore(generation);
       }
-      await Future.wait([
+      final refreshed = await Future.wait([
         _fetchMode(OrderMode.regular, generation),
         _fetchMode(OrderMode.wholesale, generation),
       ]);
       if (isClosed || !_isLoggedIn || generation != _sessionGeneration) return;
-      _publish();
+      _publish(refreshedModes: refreshed.whereType<OrderMode>().toSet());
     } finally {
       _isFetching = false;
       if (_refetchQueued && !state.isBusy) {
@@ -88,16 +88,18 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
     }
   }
 
-  Future<void> _fetchMode(OrderMode mode, int generation) async {
+  Future<OrderMode?> _fetchMode(OrderMode mode, int generation) async {
     try {
       final orders = await _repo.getPendingOrders(mode);
       if (generation == _sessionGeneration && !isClosed) {
         _latest[mode] = orders;
+        return mode;
       }
     } catch (e) {
       // Keep the last list — being offline must not drop the popup.
       debugPrint('[IncomingOrders] ${mode.name} fetch failed: $e');
     }
+    return null;
   }
 
   /// Brings back orders that were being scanned when the app last closed,
@@ -410,12 +412,31 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
   /// Merges both modes into one queue: deduplicated by seller_order_id,
   /// prepared orders removed, accepted orders first, then oldest first
   /// (first come, first served).
-  void _publish() {
+  void _publish({Set<OrderMode> refreshedModes = const {}}) {
     final now = DateTime.now();
     final byId = <int, PendingOrder>{};
     final accepted = {...state.acceptedOrderIds};
     final verified = {...state.verifiedItemIds};
     final codes = {...state.verifiedBarcodes};
+    // The pending contract includes accepted orders. A successful refresh
+    // therefore removes saved orders that are no longer pending. Failed modes
+    // keep their local progress, and acceptance does not reconcile an old list.
+    _held.removeWhere((id, order) {
+      final removed =
+          accepted.contains(id) &&
+          refreshedModes.contains(order.mode) &&
+          !_latest[order.mode]!.any((pending) => pending.sellerOrderId == id);
+      if (removed) {
+        accepted.remove(id);
+        for (final item in order.items) {
+          verified.remove(item.orderItemId);
+          codes.remove(item.orderItemId);
+          _matchedCodes.remove(item.orderItemId);
+          _doneSteps.remove(item.orderItemId);
+        }
+      }
+      return removed;
+    });
     for (final order in [
       ..._latest[OrderMode.regular]!,
       ..._latest[OrderMode.wholesale]!,

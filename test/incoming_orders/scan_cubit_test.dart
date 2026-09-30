@@ -131,6 +131,7 @@ void main() {
       expect(cubit.state.hasPending, isTrue);
       expect(cubit.state.hasUnaccepted, isFalse);
       repo.server[OrderMode.regular] = [
+        cubit.state.orders.first.toJson(),
         orderJson(2, itemIds: [22], createdAt: '2000-01-01T00:00:00Z'),
       ];
       await Future<void>.delayed(Duration.zero);
@@ -168,7 +169,22 @@ void main() {
         ScanSession(order, {11}, verifiedBarcodes: {11: 'A1'}),
       ];
       repo.statuses[1] = {11: status, 12: status};
-      if (status == 'offline') repo.failStatusFor.add(1);
+      if (status == 'accepted') {
+        repo.server[OrderMode.regular] = [
+          order
+              .copyWith(
+                items: [
+                  for (final item in order.items)
+                    item.copyWith(status: 'accepted'),
+                ],
+              )
+              .toJson(),
+        ];
+      }
+      if (status == 'offline') {
+        repo.failStatusFor.add(1);
+        repo.failing.add(OrderMode.regular);
+      }
       await cubit.fetch();
       final keep = status == 'accepted' || status == 'offline';
       expect(cubit.state.hasPending, keep);
@@ -191,6 +207,9 @@ void main() {
       ];
       repo.statuses[1] = {11: 'preparing', 12: 'accepted'};
       repo.server[OrderMode.regular] = [
+        order
+            .copyWith(items: [order.items.last.copyWith(status: 'accepted')])
+            .toJson(),
         orderJson(2, itemIds: [22], createdAt: '2000-01-01T00:00:00Z'),
       ];
       await cubit.fetch();

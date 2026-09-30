@@ -13,7 +13,7 @@ The supplied contract is preserved in [seller-order-popup-flow-api.md](seller-or
 - Structured backend validation errors retain item IDs and field names. Invalidated items lose their ticks, show their field errors, and must be scanned and counted again before resubmission.
 - Confirming quantity requires a preceding matching scan/manual code. Actual codes are saved with verification progress. Legacy saved ticks without scanned values require re-verification.
 - Refreshing an accepted order updates its packing data. Changed quantities/barcodes invalidate affected ticks; unchanged pending polls preserve a matched code while quantity is being entered.
-- Test helpers and the persistent fake preview remain isolated from real endpoints. Fixture A1–An values are test data, not a production fallback. Test sources were adapted to the new contract; they were not executed.
+- Automated test fixtures remain isolated from real endpoints. The fake device preview and A1–A5 demo barcode images were removed at the user's request. No fixture is imported by production code. Legacy dummy-value sessions are refreshed from current backend data; successful pending responses remove stale accepted orders, while failed modes preserve progress.
 
 ## Deferred backend confirmation — remember this
 
@@ -25,4 +25,4 @@ The user explicitly deferred this question pending backend confirmation. It rema
 
 The Orders list and Order Details pages remain unchanged under the original scope constraint. Their status actions may need a separate update because the new backend contract requires barcode and quantity for single-item preparing requests too.
 
-No analyzer, automated tests, emulator runs or backend requests were performed for this integration: testing remains paused at the user's request. Previous test results in order-scan-verification.md apply to the earlier implementation, not this API integration.
+Testing was resumed at the user's request. See [order-scan-backend-verification.md](order-scan-backend-verification.md) for current results. Previous results in order-scan-verification.md describe the earlier draft.
