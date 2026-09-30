@@ -124,8 +124,9 @@ class FakePendingOrdersRepo extends PendingOrdersRepo {
   }) async {
     for (final item in order.items) {
       if (skipItemIds.contains(item.orderItemId) ||
-          statuses[order.sellerOrderId]?[item.orderItemId] == 'preparing')
+          statuses[order.sellerOrderId]?[item.orderItemId] == 'preparing') {
         continue;
+      }
       await markItemPreparing(item.orderItemId);
       statuses.putIfAbsent(order.sellerOrderId, () => {})[item.orderItemId] =
           'preparing';
