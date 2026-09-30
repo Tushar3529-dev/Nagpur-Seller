@@ -624,6 +624,7 @@ class Variant {
 }
 
 class VariantStore {
+  int? storeProductVariantId;
   int? id;
   int? storeId;
   String? storeSlug;
@@ -635,6 +636,7 @@ class VariantStore {
   int? stock;
 
   VariantStore({
+    this.storeProductVariantId,
     this.id,
     this.storeId,
     this.storeSlug,
@@ -648,6 +650,9 @@ class VariantStore {
 
   factory VariantStore.fromJson(Map<String, dynamic> json) {
     return VariantStore(
+      storeProductVariantId: JsonParser.intValue(
+        json['store_product_variant_id'],
+      ),
       id: JsonParser.intValue(json['id']),
       storeId: JsonParser.intValue(json['store_id']),
       storeSlug: JsonParser.string(json['store_slug']),
@@ -663,6 +668,7 @@ class VariantStore {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'store_product_variant_id': storeProductVariantId,
       'store_id': storeId,
       'store_slug': storeSlug,
       'store_name': storeName,

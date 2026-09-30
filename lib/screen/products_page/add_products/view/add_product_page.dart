@@ -1,3 +1,4 @@
+import 'package:hyper_local_seller/screen/products_page/add_products/widgets/stock_quantity_field.dart';
 import 'dart:developer';
 
 import 'package:hyper_local_seller/l10n/app_localizations.dart';
@@ -61,7 +62,8 @@ class _AddProductPageState extends State<AddProductPage> {
     if (!currentOk) {
       showCustomSnackbar(
         context: context,
-        message: error ?? AppLocalizations.of(context)!.pleaseCompleteCurrentStep,
+        message:
+            error ?? AppLocalizations.of(context)!.pleaseCompleteCurrentStep,
         isError: true,
       );
       return;
@@ -72,7 +74,9 @@ class _AddProductPageState extends State<AddProductPage> {
       if (!_isStepCompleted(i, data)) {
         showCustomSnackbar(
           context: context,
-          message: AppLocalizations.of(context)!.stepMustBeCompletedBeforeJumping(i),
+          message: AppLocalizations.of(
+            context,
+          )!.stepMustBeCompletedBeforeJumping(i),
           isError: true,
         );
         return;
@@ -133,7 +137,10 @@ class _AddProductPageState extends State<AddProductPage> {
     switch (step) {
       case 1:
         if (data.categoryId == null) {
-          return (false, AppLocalizations.of(context)!.selectAtLeastOneCategory);
+          return (
+            false,
+            AppLocalizations.of(context)!.selectAtLeastOneCategory,
+          );
         }
         return (true, null);
 
@@ -163,18 +170,21 @@ class _AddProductPageState extends State<AddProductPage> {
         if (total != 0) {
           // total is explicitly set → validate it
           if (total < 0) {
-            return (false, AppLocalizations.of(context)!.totalAllowedQtyPositive);
+            return (
+              false,
+              AppLocalizations.of(context)!.totalAllowedQtyPositive,
+            );
           }
           if (total < min) {
             return (
-            false,
-            AppLocalizations.of(context)!.totalAllowedQtyMinOrderConflict,
+              false,
+              AppLocalizations.of(context)!.totalAllowedQtyMinOrderConflict,
             );
           }
           if (min % stepSize != 0) {
             return (
-            false,
-            AppLocalizations.of(context)!.minOrderQtyDivisibleByStep,
+              false,
+              AppLocalizations.of(context)!.minOrderQtyDivisibleByStep,
             );
           }
         } else {
@@ -182,8 +192,8 @@ class _AddProductPageState extends State<AddProductPage> {
           // Still need to check that min is compatible with step
           if (min % stepSize != 0) {
             return (
-            false,
-            AppLocalizations.of(context)!.minOrderQtyDivisibleByStep,
+              false,
+              AppLocalizations.of(context)!.minOrderQtyDivisibleByStep,
             );
           }
           // No other checks needed when there's no total cap
@@ -226,43 +236,73 @@ class _AddProductPageState extends State<AddProductPage> {
           for (var v in data.variants) {
             if (v.isDefault) hasDefault = true;
             if (v.name == null || v.name!.trim().isEmpty) {
-              return (false, AppLocalizations.of(context)!.allVariantsMustHaveName);
+              return (
+                false,
+                AppLocalizations.of(context)!.allVariantsMustHaveName,
+              );
             }
             if (v.barcode == null || v.barcode!.trim().isEmpty) {
-              return (false, AppLocalizations.of(context)!.barcodeRequiredForAllVariants);
+              return (
+                false,
+                AppLocalizations.of(context)!.barcodeRequiredForAllVariants,
+              );
             }
             if (v.weight == null || v.weight!.trim().isEmpty) {
-              return (false, AppLocalizations.of(context)!.weightRequiredForAllVariants);
+              return (
+                false,
+                AppLocalizations.of(context)!.weightRequiredForAllVariants,
+              );
             }
             if (v.height == null || v.height!.trim().isEmpty) {
-              return (false, AppLocalizations.of(context)!.heightRequiredForAllVariants);
+              return (
+                false,
+                AppLocalizations.of(context)!.heightRequiredForAllVariants,
+              );
             }
             if (v.breadth == null || v.breadth!.trim().isEmpty) {
-              return (false, AppLocalizations.of(context)!.breadthRequiredForAllVariants);
+              return (
+                false,
+                AppLocalizations.of(context)!.breadthRequiredForAllVariants,
+              );
             }
             if (v.length == null || v.length!.trim().isEmpty) {
-              return (false, AppLocalizations.of(context)!.lengthRequiredForAllVariants);
+              return (
+                false,
+                AppLocalizations.of(context)!.lengthRequiredForAllVariants,
+              );
             }
           }
           if (!hasDefault) {
-            return (false, AppLocalizations.of(context)!.selectAtLeastOneDefaultVariant);
+            return (
+              false,
+              AppLocalizations.of(context)!.selectAtLeastOneDefaultVariant,
+            );
           }
         }
         return (true, null);
 
       case 5:
         if (data.mainImage == null) {
-          return (false, AppLocalizations.of(context)!.mainProductImageCompulsory);
+          return (
+            false,
+            AppLocalizations.of(context)!.mainProductImageCompulsory,
+          );
         }
         return (true, null);
 
       case 6:
         if (data.shortDescription == null ||
             data.shortDescription!.trim().isEmpty) {
-          return (false, AppLocalizations.of(context)!.shortDescriptionCompulsory);
+          return (
+            false,
+            AppLocalizations.of(context)!.shortDescriptionCompulsory,
+          );
         }
         if (data.description == null || _isHtmlEmpty(data.description!)) {
-          return (false, AppLocalizations.of(context)!.fullDescriptionCompulsory);
+          return (
+            false,
+            AppLocalizations.of(context)!.fullDescriptionCompulsory,
+          );
         }
         return (true, null);
 
@@ -274,7 +314,12 @@ class _AddProductPageState extends State<AddProductPage> {
         for (var sp in data.storePricing) {
           if (data.type == 'simple') {
             if (sp.price == null || sp.price!.trim().isEmpty) {
-              return (false, AppLocalizations.of(context)!.priceRequiredForStore(sp.storeName));
+              return (
+                false,
+                AppLocalizations.of(
+                  context,
+                )!.priceRequiredForStore(sp.storeName),
+              );
             }
             // Price vs Special Price check
             final double? price = double.tryParse(sp.price!);
@@ -285,17 +330,38 @@ class _AddProductPageState extends State<AddProductPage> {
             if (price != null && specialPrice != null && specialPrice > price) {
               return (
                 false,
-                AppLocalizations.of(context)!.specialPriceGreaterError(sp.storeName),
+                AppLocalizations.of(
+                  context,
+                )!.specialPriceGreaterError(sp.storeName),
               );
             }
             if (sp.cost == null || sp.cost!.trim().isEmpty) {
-              return (false, AppLocalizations.of(context)!.costRequiredForStore(sp.storeName));
+              return (
+                false,
+                AppLocalizations.of(
+                  context,
+                )!.costRequiredForStore(sp.storeName),
+              );
             }
             if (sp.stock == null || sp.stock!.trim().isEmpty) {
-              return (false, AppLocalizations.of(context)!.stockRequiredForStore(sp.storeName));
+              return (
+                false,
+                AppLocalizations.of(
+                  context,
+                )!.stockRequiredForStore(sp.storeName),
+              );
+            }
+            if (!isValidStockQuantity(sp.stock)) {
+              return (
+                false,
+                'Stock for ${sp.storeName} must be a whole number of 0 or more.',
+              );
             }
             if (sp.sku == null || sp.sku!.trim().isEmpty) {
-              return (false, AppLocalizations.of(context)!.skuRequiredForStore(sp.storeName));
+              return (
+                false,
+                AppLocalizations.of(context)!.skuRequiredForStore(sp.storeName),
+              );
             }
           } else {
             // For variants, we need to check variantStorePricing for this store
@@ -303,7 +369,12 @@ class _AddProductPageState extends State<AddProductPage> {
                 .where((vp) => vp.storeId == sp.storeId)
                 .toList();
             if (vps.isEmpty) {
-              return (false, AppLocalizations.of(context)!.pricingNotSetForStore(sp.storeName));
+              return (
+                false,
+                AppLocalizations.of(
+                  context,
+                )!.pricingNotSetForStore(sp.storeName),
+              );
             }
             for (var vp in vps) {
               final variantName =
@@ -320,25 +391,39 @@ class _AddProductPageState extends State<AddProductPage> {
               if (vp.price == null || vp.price!.trim().isEmpty) {
                 return (
                   false,
-                  AppLocalizations.of(context)!.priceRequiredForStoreVariant(sp.storeName, variantName),
+                  AppLocalizations.of(
+                    context,
+                  )!.priceRequiredForStoreVariant(sp.storeName, variantName),
                 );
               }
               if (vp.stock == null || vp.stock!.trim().isEmpty) {
                 return (
                   false,
-                  AppLocalizations.of(context)!.stockRequiredForStoreVariant(sp.storeName, variantName),
+                  AppLocalizations.of(
+                    context,
+                  )!.stockRequiredForStoreVariant(sp.storeName, variantName),
+                );
+              }
+              if (!isValidStockQuantity(vp.stock)) {
+                return (
+                  false,
+                  'Stock for ${sp.storeName} ($variantName) must be a whole number of 0 or more.',
                 );
               }
               if (vp.sku == null || vp.sku!.trim().isEmpty) {
                 return (
                   false,
-                  AppLocalizations.of(context)!.skuRequiredForStoreVariant(sp.storeName, variantName),
+                  AppLocalizations.of(
+                    context,
+                  )!.skuRequiredForStoreVariant(sp.storeName, variantName),
                 );
               }
               if (vp.cost == null || vp.cost!.trim().isEmpty) {
                 return (
                   false,
-                  AppLocalizations.of(context)!.costRequiredForStoreVariant(sp.storeName, variantName),
+                  AppLocalizations.of(
+                    context,
+                  )!.costRequiredForStoreVariant(sp.storeName, variantName),
                 );
               }
 
@@ -353,7 +438,9 @@ class _AddProductPageState extends State<AddProductPage> {
                   specialPrice > price) {
                 return (
                   false,
-                  AppLocalizations.of(context)!.specialPriceGreaterErrorVariant(sp.storeName, variantName),
+                  AppLocalizations.of(
+                    context,
+                  )!.specialPriceGreaterErrorVariant(sp.storeName, variantName),
                 );
               }
             }
@@ -378,7 +465,6 @@ class _AddProductPageState extends State<AddProductPage> {
   }
 
   bool _canSubmit(ProductData data) {
-
     bool allGood = true;
 
     for (int i = 1; i <= _totalSteps; i++) {
@@ -387,7 +473,6 @@ class _AddProductPageState extends State<AddProductPage> {
         allGood = false;
       }
     }
-
 
     return allGood;
   }

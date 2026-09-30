@@ -5,6 +5,29 @@ import 'package:hyper_local_seller/service/api_base_helper.dart';
 class ProductsRepo {
   final ApiBaseHelper _helper = ApiBaseHelper();
 
+  Future<int> updateInventory({
+    required int productId,
+    required int storeProductVariantId,
+    required int stock,
+  }) async {
+    if (productId < 1 || storeProductVariantId < 1 || stock < 0) {
+      throw ApiException('Enter a valid inventory record and stock quantity.');
+    }
+    final response = await _helper.post(
+      '${ApiRoutes.productsApi}/$productId/inventory',
+      {'store_product_variant_id': storeProductVariantId, 'stock': stock},
+    );
+    final data = response is Map ? response['data'] : null;
+    final value = data is Map ? data['new_stock'] : null;
+    final updated = value is int ? value : int.tryParse('$value');
+    if (updated == null || updated < 0) {
+      throw ApiException(
+        'Stock was submitted, but the updated quantity was not returned. Refresh the product to check its stock.',
+      );
+    }
+    return updated;
+  }
+
   Future<dynamic> getProducts({
     int? page,
     int? perPage,
