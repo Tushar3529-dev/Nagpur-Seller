@@ -22,6 +22,19 @@ class _Repo extends ProductsRepo {
 }
 
 void main() {
+  test('seller store resource id maps to inventory id, never store id', () {
+    final store = VariantStore.fromJson({'id': 186, 'store_id': 1, 'stock': 6});
+    expect(store.storeProductVariantId, 186);
+    expect(store.storeId, 1);
+    expect(VariantStore.fromJson({'store_id': 1}).storeProductVariantId, 0);
+    expect(
+      VariantStore.fromJson({
+        'id': 186,
+        'store_product_variant_id': 789,
+      }).storeProductVariantId,
+      789,
+    );
+  });
   test('creation stock is blank and zero survives both pricing payloads', () {
     expect(StorePricing(storeId: 1, storeName: 'Store').toJson()['stock'], '');
     expect(

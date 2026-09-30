@@ -28,7 +28,7 @@ class _Repo extends ProductsRepo {
                 {
                   'store_id': 7,
                   'store_name': 'Store',
-                  'store_product_variant_id': 789 + index,
+                  'id': 789 + index,
                   'stock': index == 0 ? 6 : 0,
                 },
               ],

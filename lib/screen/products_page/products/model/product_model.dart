@@ -651,7 +651,9 @@ class VariantStore {
   factory VariantStore.fromJson(Map<String, dynamic> json) {
     return VariantStore(
       storeProductVariantId: JsonParser.intValue(
-        json['store_product_variant_id'],
+        // Seller product details return the inventory row as stores[].id,
+        // distinct from its store_id. Prefer the explicit field when present.
+        json['store_product_variant_id'] ?? json['id'],
       ),
       id: JsonParser.intValue(json['id']),
       storeId: JsonParser.intValue(json['store_id']),
