@@ -20,7 +20,7 @@ Future<void> openProductScanner(BuildContext context) async {
       clipBehavior: Clip.antiAlias,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 480),
-        child: const ProductScanDialog(),
+        child: const ProductScanDialog(searchOnDetect: true),
       ),
     ),
   );
@@ -29,7 +29,7 @@ Future<void> openProductScanner(BuildContext context) async {
   }
 }
 
-enum _Mode { camera, manual, review }
+enum _Mode { camera, manual, review, lookup }
 
 /// Reads a barcode for a product form without looking up an existing product.
 Future<String?> scanProductBarcode(BuildContext context) => showDialog<String>(
@@ -50,6 +50,9 @@ Future<String?> scanProductBarcode(BuildContext context) => showDialog<String>(
 class ProductScanDialog extends StatefulWidget {
   /// Product forms need the confirmed code, including codes for new products.
   final bool returnBarcode;
+
+  /// Only the bottom-bar product search skips scan confirmation.
+  final bool searchOnDetect;
   @visibleForTesting
   final ProductsRepo? repo;
 
@@ -62,6 +65,7 @@ class ProductScanDialog extends StatefulWidget {
     this.repo,
     this.cameraBuilder,
     this.returnBarcode = false,
+    this.searchOnDetect = false,
   });
 
   @override
@@ -122,6 +126,11 @@ class _ProductScanDialogState extends State<ProductScanDialog> {
     HapticFeedback.mediumImpact();
     _scannedCode = code.trim();
     _scannedImage = image;
+    if (widget.searchOnDetect && !widget.returnBarcode) {
+      _go(_Mode.lookup);
+      _search(_scannedCode!);
+      return;
+    }
     _go(_Mode.review);
   }
 
@@ -129,6 +138,7 @@ class _ProductScanDialogState extends State<ProductScanDialog> {
   /// product resource, so the seller resource is fetched by id for the
   /// details page, which expects that shape.
   Future<void> _search(String code) async {
+    if (_isSearching) return;
     final barcode = code.trim();
     if (barcode.isEmpty) {
       setState(() => _error = 'Enter a barcode');
@@ -180,6 +190,7 @@ class _ProductScanDialogState extends State<ProductScanDialog> {
                 widget.returnBarcode ? 'Scan barcode' : 'Scan product',
               _Mode.manual => 'Enter barcode',
               _Mode.review => 'Is this code correct?',
+              _Mode.lookup => 'Find product',
             },
             onClose: () => Navigator.of(context).pop(),
           ),
@@ -190,6 +201,7 @@ class _ProductScanDialogState extends State<ProductScanDialog> {
                 _Mode.camera => _buildCamera(),
                 _Mode.manual => _buildManual(),
                 _Mode.review => _buildReview(),
+                _Mode.lookup => _buildLookup(),
               },
             ),
           ),
@@ -198,6 +210,7 @@ class _ProductScanDialogState extends State<ProductScanDialog> {
               _Mode.camera => _buildCameraActions(),
               _Mode.manual => _buildManualActions(),
               _Mode.review => _buildReviewActions(),
+              _Mode.lookup => _buildLookupActions(),
             },
           ),
         ],
@@ -206,6 +219,43 @@ class _ProductScanDialogState extends State<ProductScanDialog> {
   }
 
   // ── Camera ─────────────────────────────────────────────────────────────
+
+  Widget _buildLookup() => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 24),
+    child: _isSearching
+        ? const Column(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Searching for product…'),
+            ],
+          )
+        : ScanErrorText(_error ?? 'Product not found'),
+  );
+
+  Widget _buildLookupActions() => _isSearching
+      ? ScanSecondaryButton(
+          label: 'Cancel',
+          onPressed: () => Navigator.of(context).pop(),
+        )
+      : Row(
+          children: [
+            Expanded(
+              child: ScanSecondaryButton(
+                label: 'Scan again',
+                onPressed: () => _go(_Mode.camera),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: ScanPrimaryButton(
+                label: 'Retry search',
+                icon: Icons.search,
+                onPressed: () => _search(_scannedCode ?? ''),
+              ),
+            ),
+          ],
+        );
 
   Widget _buildCamera() {
     if (widget.cameraBuilder != null) return widget.cameraBuilder!(_onCode);

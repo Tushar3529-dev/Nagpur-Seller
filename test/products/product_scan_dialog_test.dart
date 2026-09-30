@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,12 +13,14 @@ class _FakeRepo extends ProductsRepo {
   Object? barcodeError;
   final List<String> barcodeCalls = [];
   final List<int> idCalls = [];
+  Completer<void>? searchGate;
 
   _FakeRepo(this.idsByBarcode);
 
   @override
   Future<dynamic> getProductByBarcode(String barcode) async {
     barcodeCalls.add(barcode);
+    if (searchGate != null) await searchGate!.future;
     if (barcodeError != null) throw barcodeError!;
     final id = idsByBarcode[barcode];
     if (id == null) throw ApiException('Product not found', statusCode: 404);
@@ -46,7 +49,11 @@ void main() {
   Product? popped;
   String? barcodePopped;
 
-  Future<void> open(WidgetTester tester, {bool returnBarcode = false}) async {
+  Future<void> open(
+    WidgetTester tester, {
+    bool returnBarcode = false,
+    bool searchOnDetect = false,
+  }) async {
     popped = null;
     barcodePopped = null;
     await tester.pumpWidget(
@@ -61,6 +68,7 @@ void main() {
                     child: ProductScanDialog(
                       repo: repo,
                       returnBarcode: returnBarcode,
+                      searchOnDetect: searchOnDetect,
                       cameraBuilder: (onCode) {
                         scan = onCode;
                         return const SizedBox(
@@ -89,6 +97,54 @@ void main() {
   }
 
   setUp(() => repo = _FakeRepo({'8901234500021': 123}));
+
+  testWidgets('bottom-bar scan searches immediately without confirmation', (
+    tester,
+  ) async {
+    await open(tester, searchOnDetect: true);
+    scan('8901234500021', null);
+    await tester.pumpAndSettle();
+    expect(repo.barcodeCalls, ['8901234500021']);
+    expect(repo.idCalls, [123]);
+    expect(popped?.id, 123);
+    expect(find.text('Confirm'), findsNothing);
+  });
+
+  testWidgets('automatic lookup ignores repeated detections while searching', (
+    tester,
+  ) async {
+    repo.searchGate = Completer<void>();
+    await open(tester, searchOnDetect: true);
+    scan('8901234500021', null);
+    scan('8901234500021', null);
+    await tester.pump();
+    expect(find.text('Searching for product…'), findsOneWidget);
+    expect(find.text('Confirm'), findsNothing);
+    expect(repo.barcodeCalls, ['8901234500021']);
+    repo.searchGate!.complete();
+    await tester.pumpAndSettle();
+    expect(popped?.id, 123);
+  });
+
+  testWidgets('automatic lookup errors support retry and scanning again', (
+    tester,
+  ) async {
+    repo.barcodeError = ApiException('No Internet Connection');
+    await open(tester, searchOnDetect: true);
+    scan('8901234500021', null);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('No Internet Connection'), findsOneWidget);
+    await tester.tap(find.text('Retry search'));
+    await tester.pumpAndSettle();
+    expect(repo.barcodeCalls, hasLength(2));
+    await tester.tap(find.text('Scan again'));
+    await tester.pumpAndSettle();
+    expect(find.text('camera'), findsOneWidget);
+    repo.barcodeError = null;
+    scan('8901234500021', null);
+    await tester.pumpAndSettle();
+    expect(popped?.id, 123);
+  });
 
   testWidgets('form scan confirms a new barcode without product lookup', (
     tester,
