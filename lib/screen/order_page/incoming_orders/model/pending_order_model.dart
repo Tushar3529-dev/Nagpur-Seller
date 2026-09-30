@@ -85,6 +85,23 @@ class PendingOrder extends Equatable {
 
   int get itemCount => items.fold(0, (sum, item) => sum + item.quantity);
 
+  Map<String, dynamic> toJson() => {
+    'seller_order_id': sellerOrderId,
+    'order_id': orderId,
+    'order_number': orderNumber,
+    'order_mode': mode.name,
+    'created_at': createdAt?.toIso8601String(),
+    'customer': {
+      'name': customerName,
+      'phone': customerPhone,
+      'address': customerAddress,
+    },
+    'payment_method': paymentMethod,
+    'total': total,
+    'delivery': delivery,
+    'items': [for (final item in items) item.toJson()],
+  };
+
   PendingOrder copyWith({List<PendingOrderItem>? items}) {
     return PendingOrder(
       sellerOrderId: sellerOrderId,
@@ -122,6 +139,9 @@ class PendingOrderItem extends Equatable {
   final int quantity;
   final String subtotal;
 
+  /// Code the seller must scan to verify this item before preparing.
+  final String? barcode;
+
   const PendingOrderItem({
     required this.orderItemId,
     required this.product,
@@ -129,6 +149,7 @@ class PendingOrderItem extends Equatable {
     required this.image,
     required this.quantity,
     required this.subtotal,
+    this.barcode,
   });
 
   factory PendingOrderItem.fromJson(Map<String, dynamic> json) {
@@ -139,10 +160,21 @@ class PendingOrderItem extends Equatable {
       image: _imageFrom(json),
       quantity: _toInt(json['quantity'], fallback: 1),
       subtotal: json['subtotal']?.toString() ?? '0',
+      barcode: _nonEmpty(json['barcode']),
     );
   }
 
-  PendingOrderItem copyWith({String? image}) {
+  Map<String, dynamic> toJson() => {
+    'order_item_id': orderItemId,
+    'product': product,
+    'variant': variant,
+    'image': image,
+    'quantity': quantity,
+    'subtotal': subtotal,
+    'barcode': barcode,
+  };
+
+  PendingOrderItem copyWith({String? image, String? barcode}) {
     return PendingOrderItem(
       orderItemId: orderItemId,
       product: product,
@@ -150,7 +182,16 @@ class PendingOrderItem extends Equatable {
       image: image ?? this.image,
       quantity: quantity,
       subtotal: subtotal,
+      barcode: barcode ?? this.barcode,
     );
+  }
+
+  /// Whether [code] (scanned or typed) is this item's barcode.
+  bool matchesCode(String code) {
+    final expected = barcode?.trim().toLowerCase();
+    return expected != null &&
+        expected.isNotEmpty &&
+        expected == code.trim().toLowerCase();
   }
 
   @override
@@ -161,6 +202,7 @@ class PendingOrderItem extends Equatable {
     image,
     quantity,
     subtotal,
+    barcode,
   ];
 }
 

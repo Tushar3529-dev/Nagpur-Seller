@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hyper_local_seller/config/api_routes.dart';
 import 'package:hyper_local_seller/config/hive_storage.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/model/pending_order_model.dart';
+import 'package:hyper_local_seller/screen/order_page/model/order_details_model.dart';
 import 'package:hyper_local_seller/screen/order_page/model/order_model.dart';
 import 'package:hyper_local_seller/service/api_base_helper.dart';
 
@@ -55,12 +56,77 @@ class PendingOrdersRepo {
     return _withImages(parsed, mode);
   }
 
+  /// Accepts [order] and returns the details the seller packs against,
+  /// with a barcode on every item.
+  ///
+  /// [skipItemIds] were already accepted by an earlier, partly failed
+  /// attempt; [onItemAccepted] reports each item as it goes through.
+  ///
+  /// TODO(api): switch to the order-level accept endpoint once it's live.
+  /// Its response carries the order details with a `barcode` per product,
+  /// which replaces the per-item calls and [_withDummyBarcodes].
+  Future<PendingOrder> acceptOrder(
+    PendingOrder order, {
+    Set<int> skipItemIds = const {},
+    void Function(int orderItemId)? onItemAccepted,
+  }) async {
+    for (final item in order.items) {
+      if (skipItemIds.contains(item.orderItemId)) continue;
+      await acceptItem(item.orderItemId);
+      onItemAccepted?.call(item.orderItemId);
+    }
+    return _withDummyBarcodes(order);
+  }
+
+  /// Moves every item of a scanned and verified [order] to preparing.
+  ///
+  /// TODO(api): switch to the order-level preparing endpoint once it's live.
+  Future<void> markOrderPreparing(
+    PendingOrder order, {
+    Set<int> skipItemIds = const {},
+    void Function(int orderItemId)? onItemDone,
+  }) async {
+    for (final item in order.items) {
+      if (skipItemIds.contains(item.orderItemId)) continue;
+      await markItemPreparing(item.orderItemId);
+      onItemDone?.call(item.orderItemId);
+    }
+  }
+
   Future<dynamic> acceptItem(int orderItemId) {
     return _helper.post('${ApiRoutes.ordersApi}/$orderItemId/accept', {});
   }
 
   Future<dynamic> markItemPreparing(int orderItemId) {
     return _helper.post('${ApiRoutes.ordersApi}/$orderItemId/preparing', {});
+  }
+
+  /// Current status of each item of a seller order, keyed by order_item_id,
+  /// used to check an order restored from the device is still waiting to be
+  /// prepared.
+  Future<Map<int, String>> itemStatuses(int sellerOrderId) async {
+    final response = await _helper.get('${ApiRoutes.ordersApi}/$sellerOrderId');
+    final items = response is Map<String, dynamic>
+        ? OrderDetailsResponse.fromJson(response).data?.items ?? []
+        : const <OrderItemDetail>[];
+    return {
+      for (final item in items)
+        item.orderItem?.id ?? item.id: (item.orderItem?.status ?? '')
+            .toLowerCase(),
+    };
+  }
+
+  /// Until the backend sends barcodes, item N of an order gets `A<N>` so the
+  /// scan flow can be tested (type it in manual entry, or scan a barcode
+  /// that encodes it).
+  // TODO(api): remove once the accept response carries real barcodes.
+  PendingOrder _withDummyBarcodes(PendingOrder order) {
+    return order.copyWith(
+      items: [
+        for (final (index, item) in order.items.indexed)
+          item.barcode != null ? item : item.copyWith(barcode: 'A${index + 1}'),
+      ],
+    );
   }
 
   Future<List<PendingOrder>> _withImages(

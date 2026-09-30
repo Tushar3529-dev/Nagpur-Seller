@@ -10,12 +10,14 @@ import 'package:hyper_local_seller/screen/home_page/bloc/notification/notificati
 import 'package:hyper_local_seller/screen/order_page/bloc/orders/orders_bloc.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/cubit/incoming_orders_cubit.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/model/pending_order_model.dart';
+import 'package:hyper_local_seller/screen/order_page/incoming_orders/widgets/order_scan_panel.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/widgets/response_timer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Sits in `MaterialApp.builder`, above every route. While there are pending
-/// regular orders it covers the whole app with a stack of order cards that
-/// can only be cleared by accepting them — there is no close or reject.
+/// orders it covers the whole app with a stack of order cards. A card is
+/// cleared only by accepting it, scanning every item and marking it as
+/// preparing — there is no close or reject.
 class IncomingOrderOverlay extends StatefulWidget {
   final Widget child;
 
@@ -84,6 +86,16 @@ class _IncomingOrderOverlayState extends State<IncomingOrderOverlay> {
   }
 }
 
+/// Reloads the screens showing order status after the popup changed one.
+void _refreshOrderScreens(BuildContext context) {
+  context.read<OrdersBloc>().add(RefreshOrders());
+  context.read<NotificationListBloc>().add(FetchUnreadCount());
+  final store = context.read<StoreSwitcherCubit>().state.selectedStore;
+  if (store != null) {
+    context.read<HomePageBloc>().add(FetchHomePageData(storeId: store.id));
+  }
+}
+
 class _OrderStackBarrier extends StatelessWidget {
   final IncomingOrdersState state;
 
@@ -93,50 +105,72 @@ class _OrderStackBarrier extends StatelessWidget {
   Widget build(BuildContext context) {
     final top = state.orders.first;
     final behind = (state.orders.length - 1).clamp(0, 2);
+    final isScanning = state.isAccepted(top);
 
-    return Material(
-      color: Colors.black.withValues(alpha: 0.6),
-      child: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _WaitingBadge(count: state.orders.length),
-                  const SizedBox(height: 14),
-                  // Edges of the cards waiting underneath the top one.
-                  for (var i = behind; i >= 1; i--) _StackEdge(depth: i),
-                  Flexible(
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 280),
-                      transitionBuilder: (child, animation) => FadeTransition(
-                        opacity: animation,
-                        child: ScaleTransition(
-                          scale: Tween(
-                            begin: 0.96,
-                            end: 1.0,
-                          ).animate(animation),
-                          child: child,
+    // This sits above the app's Navigator, so it brings its own Overlay for
+    // the scan panel's text fields (selection handles, toolbar).
+    return Overlay.wrap(
+      child: Material(
+        color: Colors.black.withValues(alpha: 0.6),
+        child: Padding(
+          // Keep the text fields above the keyboard.
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(context).bottom,
+          ),
+          child: SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _WaitingBadge(count: state.orders.length),
+                      const SizedBox(height: 14),
+                      // Edges of the cards waiting underneath the top one.
+                      for (var i = behind; i >= 1; i--) _StackEdge(depth: i),
+                      Flexible(
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 280),
+                          transitionBuilder: (child, animation) =>
+                              FadeTransition(
+                                opacity: animation,
+                                child: ScaleTransition(
+                                  scale: Tween(
+                                    begin: 0.96,
+                                    end: 1.0,
+                                  ).animate(animation),
+                                  child: child,
+                                ),
+                              ),
+                          child: isScanning
+                              ? OrderScanPanel(
+                                  key: ValueKey('scan-${top.sellerOrderId}'),
+                                  order: top,
+                                  state: state,
+                                  onPrepared: () =>
+                                      _refreshOrderScreens(context),
+                                )
+                              : _IncomingOrderCard(
+                                  key: ValueKey(top.sellerOrderId),
+                                  order: top,
+                                  position: 1,
+                                  total: state.orders.length,
+                                  waitingSince: state.waitingSince(top),
+                                  isAccepting:
+                                      state.acceptingOrderId ==
+                                      top.sellerOrderId,
+                                  errorMessage:
+                                      state.failedOrderId == top.sellerOrderId
+                                      ? state.errorMessage
+                                      : null,
+                                ),
                         ),
                       ),
-                      child: _IncomingOrderCard(
-                        key: ValueKey(top.sellerOrderId),
-                        order: top,
-                        position: 1,
-                        total: state.orders.length,
-                        waitingSince: state.waitingSince(top),
-                        isAccepting:
-                            state.acceptingOrderId == top.sellerOrderId,
-                        errorMessage: state.failedOrderId == top.sellerOrderId
-                            ? state.errorMessage
-                            : null,
-                      ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -357,8 +391,8 @@ class _Header extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             isWholesale
-                ? 'Delivery slot ends within 30 minutes. Start preparing.'
-                : 'Review the details and start preparing.',
+                ? 'Delivery slot ends within 30 minutes. Accept to start packing.'
+                : 'Review the details and accept to start packing.',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.85),
               fontSize: 14,
@@ -631,14 +665,7 @@ class _AcceptBar extends StatelessWidget {
 
   Future<void> _accept(BuildContext context) async {
     final accepted = await context.read<IncomingOrdersCubit>().accept(order);
-    if (!accepted || !context.mounted) return;
-
-    context.read<OrdersBloc>().add(RefreshOrders());
-    context.read<NotificationListBloc>().add(FetchUnreadCount());
-    final store = context.read<StoreSwitcherCubit>().state.selectedStore;
-    if (store != null) {
-      context.read<HomePageBloc>().add(FetchHomePageData(storeId: store.id));
-    }
+    if (accepted && context.mounted) _refreshOrderScreens(context);
   }
 
   @override
@@ -697,9 +724,7 @@ class _AcceptBar extends StatelessWidget {
                       ),
                     )
                   : Text(
-                      errorMessage != null
-                          ? 'Retry accept'
-                          : 'Accept and prepare order',
+                      errorMessage != null ? 'Retry accept' : 'Accept order',
                       style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w600,

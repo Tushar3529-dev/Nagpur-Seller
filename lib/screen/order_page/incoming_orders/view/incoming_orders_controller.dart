@@ -7,7 +7,8 @@ import 'package:hyper_local_seller/service/notification_service.dart';
 import 'package:hyper_local_seller/service/order_ringtone_service.dart';
 
 /// Drives the incoming-order popup from outside the router:
-/// - rings while there are pending orders and stops when the stack is empty
+/// - rings while there are orders waiting to be accepted (not while the
+///   seller is only scanning an accepted one)
 /// - swallows the Android back button while orders are pending
 /// - re-checks the pending list on resume and on a timer (backup for missed pushes)
 ///
@@ -43,7 +44,7 @@ class _IncomingOrdersControllerState extends State<IncomingOrdersController>
   }
 
   void _syncRinging(IncomingOrdersState state) {
-    if (state.hasPending) {
+    if (state.hasUnaccepted) {
       OrderRingtoneService().start();
       // The in-app ring takes over from the system alert.
       NotificationService().cancelIncomingOrderAlert();
@@ -70,7 +71,7 @@ class _IncomingOrdersControllerState extends State<IncomingOrdersController>
     switch (state) {
       case AppLifecycleState.resumed:
         _cubit.fetch();
-        if (_cubit.state.hasPending) {
+        if (_cubit.state.hasUnaccepted) {
           // A call or another app may have taken audio focus meanwhile.
           OrderRingtoneService().stop().then(
             (_) => OrderRingtoneService().start(),
@@ -97,7 +98,7 @@ class _IncomingOrdersControllerState extends State<IncomingOrdersController>
   @override
   Widget build(BuildContext context) {
     return BlocListener<IncomingOrdersCubit, IncomingOrdersState>(
-      listenWhen: (prev, curr) => prev.hasPending != curr.hasPending,
+      listenWhen: (prev, curr) => prev.hasUnaccepted != curr.hasUnaccepted,
       listener: (context, state) => _syncRinging(state),
       child: widget.child,
     );
