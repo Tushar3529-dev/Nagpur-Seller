@@ -29,6 +29,7 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
   bool _isFetching = false;
   bool _refetchQueued = false;
   bool _restored = false;
+  int _sessionGeneration = 0;
 
   /// Last list received per mode. If one endpoint fails, the other mode's
   /// orders (and the failed mode's last known orders) stay on screen.
@@ -64,16 +65,17 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
       return;
     }
     _isFetching = true;
+    final generation = _sessionGeneration;
     try {
       if (!_restored) {
         _restored = true;
-        await _restore();
+        await _restore(generation);
       }
       await Future.wait([
-        _fetchMode(OrderMode.regular),
-        _fetchMode(OrderMode.wholesale),
+        _fetchMode(OrderMode.regular, generation),
+        _fetchMode(OrderMode.wholesale, generation),
       ]);
-      if (isClosed || !_isLoggedIn) return;
+      if (isClosed || !_isLoggedIn || generation != _sessionGeneration) return;
       _publish();
     } finally {
       _isFetching = false;
@@ -84,9 +86,12 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
     }
   }
 
-  Future<void> _fetchMode(OrderMode mode) async {
+  Future<void> _fetchMode(OrderMode mode, int generation) async {
     try {
-      _latest[mode] = await _repo.getPendingOrders(mode);
+      final orders = await _repo.getPendingOrders(mode);
+      if (generation == _sessionGeneration && !isClosed) {
+        _latest[mode] = orders;
+      }
     } catch (e) {
       // Keep the last list — being offline must not drop the popup.
       debugPrint('[IncomingOrders] ${mode.name} fetch failed: $e');
@@ -95,9 +100,11 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
 
   /// Brings back orders that were being scanned when the app last closed,
   /// unless the server says they were prepared, rejected or cancelled since.
-  Future<void> _restore() async {
+  Future<void> _restore(int generation) async {
     final sessions = await _store.load();
-    if (sessions.isEmpty) return;
+    if (sessions.isEmpty || isClosed || generation != _sessionGeneration) {
+      return;
+    }
 
     final accepted = <int>{};
     final verified = <int>{};
@@ -110,6 +117,7 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
         // Offline: keep the order rather than lose the scan progress.
         debugPrint('[IncomingOrders] status check failed: $e');
       }
+      if (isClosed || generation != _sessionGeneration) return;
       if (statuses != null &&
           statuses.isNotEmpty &&
           !order.items.any((i) => statuses![i.orderItemId] == 'accepted')) {
@@ -142,6 +150,7 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
   Future<bool> accept(PendingOrder order) async {
     if (state.isBusy) return false;
     if (state.isAccepted(order)) return true;
+    final generation = _sessionGeneration;
     emit(
       state.copyWith(acceptingOrderId: order.sellerOrderId, clearError: true),
     );
@@ -152,15 +161,19 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
         order,
         skipItemIds: _itemsDone(order, _Step.accept),
         onItemAccepted: (id) {
+          if (isClosed || generation != _sessionGeneration) return;
           _doneSteps.putIfAbsent(id, () => {}).add(_Step.accept);
           _held.putIfAbsent(order.sellerOrderId, () => order);
         },
       );
     } catch (e) {
-      _fail(order, e, 'accept');
+      if (!isClosed && generation == _sessionGeneration) {
+        _fail(order, e, 'accept');
+      }
       return false;
     }
 
+    if (isClosed || generation != _sessionGeneration) return false;
     _held[order.sellerOrderId] = accepted;
     if (!isClosed) {
       emit(
@@ -180,7 +193,12 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
   /// Unverified items win when several share a barcode.
   (ScanMatch, PendingOrderItem?) matchCode(PendingOrder order, String code) {
     PendingOrderItem? alreadyVerified;
-    for (final item in order.items) {
+    final current =
+        state.orders
+            .where((o) => o.sellerOrderId == order.sellerOrderId)
+            .firstOrNull ??
+        order;
+    for (final item in current.items) {
       if (!item.matchesCode(code)) continue;
       if (!state.isVerified(item)) return (ScanMatch.matched, item);
       alreadyVerified = item;
@@ -205,6 +223,7 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
   /// Moves a fully verified [order] to preparing and out of the popup.
   Future<bool> markPreparing(PendingOrder order) async {
     if (state.isBusy || !state.isFullyVerified(order)) return false;
+    final generation = _sessionGeneration;
     emit(
       state.copyWith(preparingOrderId: order.sellerOrderId, clearError: true),
     );
@@ -213,14 +232,20 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
       await _repo.markOrderPreparing(
         order,
         skipItemIds: _itemsDone(order, _Step.preparing),
-        onItemDone: (id) =>
-            _doneSteps.putIfAbsent(id, () => {}).add(_Step.preparing),
+        onItemDone: (id) {
+          if (!isClosed && generation == _sessionGeneration) {
+            _doneSteps.putIfAbsent(id, () => {}).add(_Step.preparing);
+          }
+        },
       );
     } catch (e) {
-      _fail(order, e, 'preparing');
+      if (!isClosed && generation == _sessionGeneration) {
+        _fail(order, e, 'preparing');
+      }
       return false;
     }
 
+    if (isClosed || generation != _sessionGeneration) return false;
     final itemIds = order.items.map((item) => item.orderItemId);
     itemIds.forEach(_doneSteps.remove);
     _handled.add(order.sellerOrderId);
@@ -283,6 +308,8 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
   /// Called on logout.
   void clear() {
     debugPrint('[IncomingOrders] cleared (logout)');
+    _sessionGeneration++;
+    _refetchQueued = false;
     _doneSteps.clear();
     _held.clear();
     _handled.clear();

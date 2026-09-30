@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -21,7 +22,15 @@ import 'package:url_launcher/url_launcher.dart';
 class IncomingOrderOverlay extends StatefulWidget {
   final Widget child;
 
-  const IncomingOrderOverlay({super.key, required this.child});
+  @visibleForTesting
+  final Widget Function(void Function(String code, Uint8List? image) onCode)?
+  cameraBuilder;
+
+  const IncomingOrderOverlay({
+    super.key,
+    required this.child,
+    this.cameraBuilder,
+  });
 
   @override
   State<IncomingOrderOverlay> createState() => _IncomingOrderOverlayState();
@@ -78,7 +87,12 @@ class _IncomingOrderOverlayState extends State<IncomingOrderOverlay> {
               child: widget.child,
             ),
             if (state.hasPending)
-              Positioned.fill(child: _OrderStackBarrier(state: state)),
+              Positioned.fill(
+                child: _OrderStackBarrier(
+                  state: state,
+                  cameraBuilder: widget.cameraBuilder,
+                ),
+              ),
           ],
         );
       },
@@ -99,7 +113,10 @@ void _refreshOrderScreens(BuildContext context) {
 class _OrderStackBarrier extends StatelessWidget {
   final IncomingOrdersState state;
 
-  const _OrderStackBarrier({required this.state});
+  final Widget Function(void Function(String code, Uint8List? image) onCode)?
+  cameraBuilder;
+
+  const _OrderStackBarrier({required this.state, this.cameraBuilder});
 
   @override
   Widget build(BuildContext context) {
@@ -147,6 +164,7 @@ class _OrderStackBarrier extends StatelessWidget {
                           child: isScanning
                               ? OrderScanPanel(
                                   key: ValueKey('scan-${top.sellerOrderId}'),
+                                  cameraBuilder: cameraBuilder,
                                   order: top,
                                   state: state,
                                   onPrepared: () =>

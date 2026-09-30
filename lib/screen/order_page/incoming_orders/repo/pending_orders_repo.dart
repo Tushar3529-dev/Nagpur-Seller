@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:hyper_local_seller/config/api_routes.dart';
 import 'package:hyper_local_seller/config/hive_storage.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/model/pending_order_model.dart';
-import 'package:hyper_local_seller/screen/order_page/model/order_details_model.dart';
 import 'package:hyper_local_seller/screen/order_page/model/order_model.dart';
 import 'package:hyper_local_seller/service/api_base_helper.dart';
 
@@ -106,13 +105,14 @@ class PendingOrdersRepo {
   /// prepared.
   Future<Map<int, String>> itemStatuses(int sellerOrderId) async {
     final response = await _helper.get('${ApiRoutes.ordersApi}/$sellerOrderId');
-    final items = response is Map<String, dynamic>
-        ? OrderDetailsResponse.fromJson(response).data?.items ?? []
-        : const <OrderItemDetail>[];
+    final data = response is Map ? response['data'] : null;
+    final items = data is Map ? data['items'] : null;
+    if (items is! List) return {};
     return {
-      for (final item in items)
-        item.orderItem?.id ?? item.id: (item.orderItem?.status ?? '')
-            .toLowerCase(),
+      for (final item in items.whereType<Map>())
+        if (int.tryParse('${(item['orderItem'] as Map?)?['id'] ?? item['id']}')
+            case final id?)
+          id: '${(item['orderItem'] as Map?)?['status'] ?? ''}'.toLowerCase(),
     };
   }
 

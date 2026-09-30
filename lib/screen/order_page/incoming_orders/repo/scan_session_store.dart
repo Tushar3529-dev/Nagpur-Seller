@@ -17,7 +17,10 @@ class ScanSession {
 /// order drops out of the pending endpoint, so without this an app restart
 /// mid-scan would lose the popup.
 class ScanSessionStore {
-  static const _boxName = 'incomingOrderScans';
+  final String _boxName;
+
+  ScanSessionStore({String boxName = 'incomingOrderScans'})
+    : _boxName = boxName;
   static const _key = 'sessions';
 
   Future<List<ScanSession>> load() async {

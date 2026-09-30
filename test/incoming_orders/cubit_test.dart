@@ -10,13 +10,15 @@ import 'helpers.dart';
 void main() {
   late FakePendingOrdersRepo repo;
   late IncomingOrdersCubit cubit;
+  late FakeScanSessionStore store;
 
   setUpAll(() => initTestHive());
 
   setUp(() async {
     await HiveStorage.setAccessToken('test-token');
     repo = FakePendingOrdersRepo();
-    cubit = IncomingOrdersCubit(repo);
+    store = FakeScanSessionStore();
+    cubit = IncomingOrdersCubit(repo, store: store);
   });
 
   tearDown(() => cubit.close());
@@ -81,6 +83,10 @@ void main() {
         final top = cubit.state.orders.first;
         shown.add(top.sellerOrderId);
         expect(await cubit.accept(top), isTrue);
+        for (final item in top.items) {
+          cubit.confirmQuantity(item, item.quantity);
+        }
+        expect(await cubit.markPreparing(top), isTrue);
       }
       expect(shown, [1, 2, 3, 4, 5]);
     });
@@ -178,37 +184,39 @@ void main() {
   });
 
   group('accept', () {
-    test('accept then preparing for every item, in order', () async {
+    test('accept only for every item, in order', () async {
       repo.server[OrderMode.regular] = [
         orderJson(1, itemIds: [11, 12, 13]),
       ];
       await cubit.fetch();
 
       expect(await cubit.accept(queued(1)), isTrue);
-      expect(repo.calls, [
-        'accept 11',
-        'preparing 11',
-        'accept 12',
-        'preparing 12',
-        'accept 13',
-        'preparing 13',
-      ]);
+      expect(repo.calls, ['accept 11', 'accept 12', 'accept 13']);
     });
 
-    test('accepted order leaves the queue and never comes back', () async {
-      repo.server[OrderMode.regular] = [orderJson(1), orderJson(2)];
-      await cubit.fetch();
-
-      await cubit.accept(queued(1));
-      expect(queueIds(), [2]);
-
-      // Backend still lists it for a while (or in the wholesale list).
-      repo.server[OrderMode.wholesale] = [orderJson(1, mode: 'wholesale')];
-      for (var i = 0; i < 3; i++) {
+    test(
+      'accepted order stays until preparing then never comes back',
+      () async {
+        repo.server[OrderMode.regular] = [orderJson(1), orderJson(2)];
         await cubit.fetch();
-      }
-      expect(queueIds(), [2]);
-    });
+
+        await cubit.accept(queued(1));
+        expect(queueIds(), [1, 2]);
+        final order = queued(1);
+        for (final item in order.items) {
+          cubit.confirmQuantity(item, item.quantity);
+        }
+        await cubit.markPreparing(order);
+        expect(queueIds(), [2]);
+
+        // Backend still lists it for a while (or in the wholesale list).
+        repo.server[OrderMode.wholesale] = [orderJson(1, mode: 'wholesale')];
+        for (var i = 0; i < 3; i++) {
+          await cubit.fetch();
+        }
+        expect(queueIds(), [2]);
+      },
+    );
 
     test('accepting the same order twice sends no extra calls', () async {
       repo.server[OrderMode.regular] = [orderJson(1)];
@@ -230,7 +238,7 @@ void main() {
       expect(await cubit.accept(queued(1)), isFalse);
       repo.acceptGate!.complete();
       expect(await first, isTrue);
-      expect(repo.calls, ['accept 1', 'preparing 1']);
+      expect(repo.calls, ['accept 1']);
     });
 
     test('shows loading state while accepting', () async {
@@ -250,23 +258,18 @@ void main() {
         orderJson(1, itemIds: [11, 12]),
       ];
       await cubit.fetch();
-      repo.failPreparingOnce.add(12);
+      repo.failAcceptOnce.add(12);
 
       expect(await cubit.accept(queued(1)), isFalse);
       expect(cubit.state.failedOrderId, 1);
-      expect(cubit.state.errorMessage, contains('preparing failed'));
+      expect(cubit.state.errorMessage, contains('accept failed'));
       expect(queueIds(), [1], reason: 'order stays until it goes through');
-      expect(repo.calls, ['accept 11', 'preparing 11', 'accept 12']);
+      expect(repo.calls, ['accept 11']);
 
       expect(await cubit.accept(queued(1)), isTrue);
       expect(cubit.state.errorMessage, isNull);
-      expect(repo.calls, [
-        'accept 11',
-        'preparing 11',
-        'accept 12',
-        'preparing 12',
-      ]);
-      expect(queueIds(), isEmpty);
+      expect(repo.calls, ['accept 11', 'accept 12']);
+      expect(queueIds(), [1]);
     });
 
     test(
@@ -276,7 +279,7 @@ void main() {
           orderJson(9, mode: 'wholesale', itemIds: [91, 92]),
         ];
         await cubit.fetch();
-        repo.failPreparingOnce.add(91);
+        repo.failAcceptOnce.add(92);
         expect(await cubit.accept(queued(9)), isFalse);
         await Future<void>.delayed(Duration.zero);
 
@@ -292,13 +295,8 @@ void main() {
         expect(queueIds(), [9]);
         expect(cubit.state.failedOrderId, 9);
         expect(await cubit.accept(queued(9)), isTrue);
-        expect(repo.calls, [
-          'accept 91',
-          'preparing 91',
-          'accept 92',
-          'preparing 92',
-        ]);
-        expect(queueIds(), isEmpty);
+        expect(repo.calls, ['accept 91', 'accept 92']);
+        expect(queueIds(), [9]);
       },
     );
 
@@ -359,7 +357,7 @@ void main() {
         final pending = cubit.accept(queued(2));
         repo.acceptGate!.complete();
         await pending;
-        expect(queueIds(), [1]);
+        expect(queueIds(), [1, 2]);
       },
     );
 
@@ -377,6 +375,10 @@ void main() {
       while (cubit.state.hasPending) {
         final top = cubit.state.orders.first;
         expect(await cubit.accept(top), isTrue);
+        for (final item in top.items) {
+          cubit.confirmQuantity(item, item.quantity);
+        }
+        expect(await cubit.markPreparing(top), isTrue);
       }
       expect(repo.calls.where((c) => c.startsWith('accept')).length, 6);
     });
@@ -389,8 +391,14 @@ void main() {
 
     cubit.clear();
     expect(cubit.state.hasPending, isFalse);
+    expect(cubit.state.acceptedOrderIds, isEmpty);
+    expect(cubit.state.verifiedItemIds, isEmpty);
+    expect(store.clearCount, 1);
+    expect(store.sessions, isEmpty);
 
     // A different seller logs in; order 1 is no longer suppressed.
+    await cubit.fetch();
+    await Future<void>.delayed(Duration.zero);
     await cubit.fetch();
     expect(queueIds().toSet(), {1, 2});
   });

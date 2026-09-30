@@ -263,6 +263,68 @@ void main() {
     });
   });
 
+  test(
+    'acceptOrder skips accepted items, assigns dummy codes and preserves server codes',
+    () async {
+      respond = (_) => {'success': true};
+      final order = PendingOrder.fromJson(
+        orderJson(1, itemIds: [11, 12, 13], barcodes: {12: 'REAL'}),
+      );
+      final completed = <int>[];
+      final accepted = await PendingOrdersRepo().acceptOrder(
+        order,
+        skipItemIds: {11},
+        onItemAccepted: completed.add,
+      );
+      expect(requests.map((r) => '${r.method} ${r.uri.path}'), [
+        'POST /api/seller/orders/12/accept',
+        'POST /api/seller/orders/13/accept',
+      ]);
+      expect(completed, [12, 13]);
+      expect(accepted.items.map((i) => i.barcode), ['A1', 'REAL', 'A3']);
+    },
+  );
+  test(
+    'markOrderPreparing posts each remaining item and reports progress',
+    () async {
+      respond = (_) => {'success': true};
+      final order = PendingOrder.fromJson(orderJson(1, itemIds: [11, 12, 13]));
+      final completed = <int>[];
+      await PendingOrdersRepo().markOrderPreparing(
+        order,
+        skipItemIds: {12},
+        onItemDone: completed.add,
+      );
+      expect(requests.map((r) => '${r.method} ${r.uri.path}'), [
+        'POST /api/seller/orders/11/preparing',
+        'POST /api/seller/orders/13/preparing',
+      ]);
+      expect(completed, [11, 13]);
+    },
+  );
+  test('itemStatuses reads nested ids and lowercases statuses', () async {
+    respond = (_) => {
+      'success': true,
+      'data': {
+        'items': [
+          {
+            'id': 91,
+            'orderItem': {'id': 11, 'status': 'ACCEPTED'},
+          },
+          {
+            'id': 12,
+            'orderItem': {'status': 'Preparing'},
+          },
+        ],
+      },
+    };
+    expect(await PendingOrdersRepo().itemStatuses(1), {
+      11: 'accepted',
+      12: 'preparing',
+    });
+    expect(requests.single.uri.path, '/api/seller/orders/1');
+  });
+
   group('accept + preparing', () {
     test('POST to the documented paths with auth', () async {
       respond = (_) => {'success': true, 'message': 'ok'};

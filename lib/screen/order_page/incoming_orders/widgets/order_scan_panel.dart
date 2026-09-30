@@ -21,11 +21,16 @@ class OrderScanPanel extends StatefulWidget {
   /// Called after the order was moved to preparing.
   final VoidCallback onPrepared;
 
+  @visibleForTesting
+  final Widget Function(void Function(String code, Uint8List? image) onCode)?
+  cameraBuilder;
+
   const OrderScanPanel({
     super.key,
     required this.order,
     required this.state,
     required this.onPrepared,
+    this.cameraBuilder,
   });
 
   @override
@@ -55,7 +60,7 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
   }
 
   void _go(_Mode mode) {
-    if (mode == _Mode.camera) {
+    if (mode == _Mode.camera && widget.cameraBuilder == null) {
       _scanner ??= MobileScannerController(returnImage: true);
     } else {
       _scanner?.dispose();
@@ -74,9 +79,14 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
         .map((barcode) => barcode.rawValue?.trim() ?? '')
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
     if (code.isEmpty) return;
+    _onCode(code, capture.image);
+  }
+
+  void _onCode(String code, Uint8List? image) {
+    if (!mounted || _mode != _Mode.camera || code.trim().isEmpty) return;
     HapticFeedback.mediumImpact();
-    _scannedCode = code;
-    _scannedImage = capture.image;
+    _scannedCode = code.trim();
+    _scannedImage = image;
     _go(_Mode.review);
   }
 
@@ -245,6 +255,7 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
   // ── Camera ─────────────────────────────────────────────────────────────
 
   Widget _buildCamera() {
+    if (widget.cameraBuilder != null) return widget.cameraBuilder!(_onCode);
     final scanner = _scanner!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -466,11 +477,13 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
           children: [
             Icon(Icons.check_circle, color: Colors.green.shade600, size: 18),
             const SizedBox(width: 6),
-            Text(
-              'Barcode matched',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.green.shade700,
-                fontWeight: FontWeight.w600,
+            Expanded(
+              child: Text(
+                'Barcode matched',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.green.shade700,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -605,6 +618,8 @@ class _ScanHeader extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 22,

@@ -4,6 +4,29 @@ import 'package:hyper_local_seller/screen/order_page/incoming_orders/model/pendi
 import 'helpers.dart';
 
 void main() {
+  test('barcode parsing, equality and item/order JSON round trips', () {
+    final order = PendingOrder.fromJson(
+      orderJson(1, itemIds: [11, 12], barcodes: {11: ' A1 ', 12: 'a2'}),
+    );
+    expect(order.items.first.barcode, 'A1');
+    expect(PendingOrder.fromJson(order.toJson()).toJson(), order.toJson());
+    expect(PendingOrder.fromJson(order.toJson()), order);
+    for (final item in order.items) {
+      expect(PendingOrderItem.fromJson(item.toJson()), item);
+      expect(item.copyWith(barcode: 'different'), isNot(item));
+    }
+  });
+  test(
+    'matchesCode trims and ignores case, rejects missing and empty codes',
+    () {
+      final item = PendingOrder.fromJson(orderJson(1)).items.single;
+      expect(item.matchesCode(''), isFalse);
+      expect(item.copyWith(barcode: '').matchesCode(''), isFalse);
+      expect(item.copyWith(barcode: ' A1 ').matchesCode(' a1 '), isTrue);
+      expect(item.copyWith(barcode: 'A1').matchesCode('A2'), isFalse);
+    },
+  );
+
   group('PendingOrder.fromJson', () {
     test('parses every documented field', () {
       final order = PendingOrder.fromJson(
