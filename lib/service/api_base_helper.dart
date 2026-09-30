@@ -181,10 +181,16 @@ class ApiBaseHelper {
 
         // Handle other errors with message
         if (data.containsKey('message')) {
-          return ApiException(data['message']); // Return backend message
+          return ApiException(
+            data['message'],
+            statusCode: statusCode,
+          ); // Return backend message
         }
       }
-      return ApiException("${error.response?.statusMessage}");
+      return ApiException(
+        "${error.response?.statusMessage}",
+        statusCode: statusCode,
+      );
     } else {
       switch (error.type) {
         case DioExceptionType.connectionTimeout:
@@ -239,7 +245,11 @@ class InvalidInputException extends AppException {
 class ApiException implements Exception {
   final String message;
 
-  ApiException(dynamic message) : message = message?.toString() ?? '';
+  /// HTTP status of the failed response, when there was one.
+  final int? statusCode;
+
+  ApiException(dynamic message, {this.statusCode})
+    : message = message?.toString() ?? '';
 
   @override
   String toString() => message;

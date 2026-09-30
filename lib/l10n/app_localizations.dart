@@ -544,6 +544,12 @@ abstract class AppLocalizations {
   /// **'Barcode'**
   String get barcode;
 
+  /// No description provided for @scan.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan'**
+  String get scan;
+
   /// No description provided for @barcodeRequired.
   ///
   /// In en, this message translates to:

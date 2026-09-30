@@ -64,6 +64,19 @@ class ProductsRepo {
     }
   }
 
+  /// Looks up the product whose variant has [barcode]. Throws an
+  /// [ApiException] with status 404 when no active product has it.
+  Future<dynamic> getProductByBarcode(String barcode) async {
+    try {
+      final response = await _helper.get(
+        "${ApiRoutes.productByBarcodeApi}/${Uri.encodeComponent(barcode)}",
+      );
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<dynamic> updateProductStatus(int id, String status) async {
     try {
       final Map<String, dynamic> fields = {"product_id": id, "status": status};

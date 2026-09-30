@@ -236,6 +236,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get barcode => 'الباركود';
 
   @override
+  String get scan => 'مسح';
+
+  @override
   String get barcodeRequired => 'الباركود مطلوب';
 
   @override

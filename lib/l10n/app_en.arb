@@ -74,6 +74,7 @@
   "bankBranchCode": "Bank Branch Code",
   "bankName": "Bank Name",
   "barcode": "Barcode",
+  "scan": "Scan",
   "barcodeRequired": "Barcode is required",
   "barcodeRequiredForAllVariants": "Barcode is required for all variants",
   "basePrepTime": "Base Prep Time",

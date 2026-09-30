@@ -66,6 +66,7 @@
   "bankBranchCode": "बैंक शाखा कोड",
   "bankName": "बैंक का नाम",
   "barcode": "बारकोड",
+  "scan": "स्कैन",
   "barcodeRequired": "बारकोड आवश्यक है",
   "barcodeRequiredForAllVariants": "सभी वैरिएंट के लिए बारकोड आवश्यक है",
   "basePrepTime": "बेस तैयारी समय",

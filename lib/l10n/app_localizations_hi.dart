@@ -236,6 +236,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get barcode => 'बारकोड';
 
   @override
+  String get scan => 'स्कैन';
+
+  @override
   String get barcodeRequired => 'बारकोड आवश्यक है';
 
   @override

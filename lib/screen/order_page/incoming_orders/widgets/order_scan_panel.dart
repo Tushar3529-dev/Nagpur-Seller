@@ -1,4 +1,3 @@
-import 'package:app_settings/app_settings.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hyper_local_seller/config/colors.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/cubit/incoming_orders_cubit.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/model/pending_order_model.dart';
+import 'package:hyper_local_seller/widgets/custom/barcode_scan_widgets.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 enum _Mode { checklist, camera, manual, review, quantity }
@@ -75,10 +75,8 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
 
   void _onDetect(BarcodeCapture capture) {
     if (_mode != _Mode.camera) return;
-    final code = capture.barcodes
-        .map((barcode) => barcode.rawValue?.trim() ?? '')
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-    if (code.isEmpty) return;
+    final code = firstBarcodeValue(capture);
+    if (code == null) return;
     _onCode(code, capture.image);
   }
 
@@ -184,7 +182,7 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
                 },
               ),
             ),
-            _BottomBar(
+            ScanBottomBar(
               child: switch (_mode) {
                 _Mode.checklist => _buildChecklistActions(),
                 _Mode.camera => _buildCameraActions(),
@@ -222,10 +220,10 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (error != null) ...[
-            _ErrorText("Couldn't mark as preparing. $error"),
+            ScanErrorText("Couldn't mark as preparing. $error"),
             const SizedBox(height: 8),
           ],
-          _PrimaryButton(
+          ScanPrimaryButton(
             label: error != null ? 'Retry preparing' : 'Mark as preparing',
             icon: Icons.soup_kitchen_outlined,
             color: Colors.green.shade600,
@@ -237,10 +235,10 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
     }
     return Row(
       children: [
-        _ManualEntryButton(onPressed: () => _go(_Mode.manual)),
+        ScanManualEntryButton(onPressed: () => _go(_Mode.manual)),
         const SizedBox(width: 10),
         Expanded(
-          child: _PrimaryButton(
+          child: ScanPrimaryButton(
             label: state.verifiedCount(widget.order) == 0
                 ? 'Scan item'
                 : 'Scan next item',
@@ -256,69 +254,20 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
 
   Widget _buildCamera() {
     if (widget.cameraBuilder != null) return widget.cameraBuilder!(_onCode);
-    final scanner = _scanner!;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: SizedBox(
-            height: 280,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                MobileScanner(
-                  controller: scanner,
-                  onDetect: _onDetect,
-                  errorBuilder: (context, error) => _CameraError(
-                    permissionDenied:
-                        error.errorCode ==
-                        MobileScannerErrorCode.permissionDenied,
-                    onManualEntry: () => _go(_Mode.manual),
-                  ),
-                ),
-                IgnorePointer(
-                  child: Center(
-                    child: Container(
-                      width: 240,
-                      height: 130,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.white, width: 2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: IconButton.filledTonal(
-                    tooltip: 'Flashlight',
-                    onPressed: scanner.toggleTorch,
-                    icon: const Icon(Icons.flashlight_on_outlined),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          "Point the camera at the product's barcode.",
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-      ],
+    return ScanCameraView(
+      controller: _scanner!,
+      onDetect: _onDetect,
+      onManualEntry: () => _go(_Mode.manual),
     );
   }
 
   Widget _buildCameraActions() {
     return Row(
       children: [
-        _ManualEntryButton(onPressed: () => _go(_Mode.manual)),
+        ScanManualEntryButton(onPressed: () => _go(_Mode.manual)),
         const SizedBox(width: 10),
         Expanded(
-          child: _SecondaryButton(
+          child: ScanSecondaryButton(
             label: 'Back to items',
             onPressed: () => _go(_Mode.checklist),
           ),
@@ -345,10 +294,10 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
           ),
         ),
         const SizedBox(height: 12),
-        _CodeBox(label: 'Detected code', code: _scannedCode ?? ''),
+        ScanCodeBox(label: 'Detected code', code: _scannedCode ?? ''),
         if (_error != null) ...[
           const SizedBox(height: 10),
-          _ErrorText(_error!),
+          ScanErrorText(_error!),
         ],
         const SizedBox(height: 4),
         Text(
@@ -364,14 +313,14 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
     return Row(
       children: [
         Expanded(
-          child: _SecondaryButton(
+          child: ScanSecondaryButton(
             label: 'Retake',
             onPressed: () => _go(_Mode.camera),
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: _PrimaryButton(
+          child: ScanPrimaryButton(
             label: 'Confirm',
             icon: Icons.check,
             color: Colors.green.shade600,
@@ -418,14 +367,14 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
     return Row(
       children: [
         Expanded(
-          child: _SecondaryButton(
+          child: ScanSecondaryButton(
             label: 'Scan instead',
             onPressed: () => _go(_Mode.camera),
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: _PrimaryButton(
+          child: ScanPrimaryButton(
             label: 'Confirm',
             icon: Icons.check,
             color: Colors.green.shade600,
@@ -547,7 +496,7 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
         ),
         if (_error != null) ...[
           const SizedBox(height: 10),
-          _ErrorText(_error!),
+          ScanErrorText(_error!),
         ],
       ],
     );
@@ -557,7 +506,7 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
     return Row(
       children: [
         Expanded(
-          child: _SecondaryButton(
+          child: ScanSecondaryButton(
             label: 'Cancel',
             onPressed: () {
               _item = null;
@@ -568,7 +517,7 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
         const SizedBox(width: 10),
         Expanded(
           flex: 2,
-          child: _PrimaryButton(
+          child: ScanPrimaryButton(
             label: 'Confirm quantity',
             icon: Icons.check,
             color: Colors.green.shade600,
@@ -760,247 +709,6 @@ class _Thumb extends StatelessWidget {
                 placeholder: (_, _) => placeholder,
               )
             : placeholder,
-      ),
-    );
-  }
-}
-
-class _CodeBox extends StatelessWidget {
-  final String label;
-  final String code;
-
-  const _CodeBox({required this.label, required this.code});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: isDark
-            ? AppColors.darkProductCardColor
-            : AppColors.mainLightContainerBgColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isDark ? AppColors.darkOutline : AppColors.lightOutline,
-        ),
-      ),
-      child: Row(
-        children: [
-          Text(
-            label,
-            style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: SelectableText(
-              code,
-              textAlign: TextAlign.end,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontFamily: 'monospace',
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CameraError extends StatelessWidget {
-  final bool permissionDenied;
-  final VoidCallback onManualEntry;
-
-  const _CameraError({
-    required this.permissionDenied,
-    required this.onManualEntry,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ColoredBox(
-      color: Colors.black,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.no_photography_outlined, color: Colors.white70),
-            const SizedBox(height: 10),
-            Text(
-              permissionDenied
-                  ? 'Camera access is off. Allow it in Settings, or enter the code manually.'
-                  : "The camera isn't available. Enter the code manually.",
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              alignment: WrapAlignment.center,
-              children: [
-                if (permissionDenied)
-                  TextButton(
-                    onPressed: () => AppSettings.openAppSettings(),
-                    child: const Text('Open settings'),
-                  ),
-                TextButton(
-                  onPressed: onManualEntry,
-                  child: const Text('Enter manually'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ErrorText extends StatelessWidget {
-  final String message;
-
-  const _ErrorText(this.message);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      message,
-      textAlign: TextAlign.center,
-      style: Theme.of(
-        context,
-      ).textTheme.bodySmall?.copyWith(color: Colors.red.shade600),
-    );
-  }
-}
-
-class _BottomBar extends StatelessWidget {
-  final Widget child;
-
-  const _BottomBar({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      decoration: BoxDecoration(
-        color: isDark
-            ? AppColors.darkProductCardColor
-            : AppColors.mainLightContainerBgColor,
-        border: Border(
-          top: BorderSide(
-            color: isDark ? AppColors.darkOutline : AppColors.lightOutline,
-          ),
-        ),
-      ),
-      child: child,
-    );
-  }
-}
-
-class _ManualEntryButton extends StatelessWidget {
-  final VoidCallback onPressed;
-
-  const _ManualEntryButton({required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 54,
-      height: 54,
-      child: OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          padding: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
-        child: const Tooltip(
-          message: 'Enter code manually',
-          child: Icon(Icons.keyboard_outlined),
-        ),
-      ),
-    );
-  }
-}
-
-class _PrimaryButton extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final Color color;
-  final bool isLoading;
-  final VoidCallback onPressed;
-
-  const _PrimaryButton({
-    required this.label,
-    required this.icon,
-    required this.onPressed,
-    this.color = AppColors.primaryColor,
-    this.isLoading = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 54,
-      child: ElevatedButton.icon(
-        onPressed: isLoading ? null : onPressed,
-        icon: isLoading ? const SizedBox.shrink() : Icon(icon),
-        label: isLoading
-            ? const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: Colors.white,
-                ),
-              )
-            : Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          disabledBackgroundColor: color.withValues(alpha: 0.7),
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SecondaryButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onPressed;
-
-  const _SecondaryButton({required this.label, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 54,
-      child: OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
       ),
     );
   }

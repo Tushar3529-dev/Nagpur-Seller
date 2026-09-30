@@ -66,6 +66,7 @@
   "bankBranchCode": "رمز فرع البنك",
   "bankName": "اسم البنك",
   "barcode": "الباركود",
+  "scan": "مسح",
   "barcodeRequired": "الباركود مطلوب",
   "barcodeRequiredForAllVariants": "الباركود مطلوب لجميع المتغيرات",
   "basePrepTime": "وقت التحضير الأساسي",

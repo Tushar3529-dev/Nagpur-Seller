@@ -26,6 +26,7 @@ class ApiRoutes {
   static String productsApi = '$baseUrl/products';
   static String productFaqsApi = '$baseUrl/product-faqs';
   static String productsEnumsApi = '$productsApi/enums';
+  static String productByBarcodeApi = '$mainUrl/products/barcode';
   static String taxGroupsApi = '$baseUrl/tax-classes';
   static String storesApi = '$baseUrl/stores';
   static String storesEnumsApi = '$storesApi/enums';
