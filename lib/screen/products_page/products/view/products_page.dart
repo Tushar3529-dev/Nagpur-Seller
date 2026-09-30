@@ -213,6 +213,7 @@ class _ProductsPageState extends State<ProductsPage> {
               );
             }
 
+            // Already ordered by price in the bloc (low to high by default).
             final products = state.items;
             return Column(
               children: [
@@ -391,6 +392,7 @@ class _ProductsPageState extends State<ProductsPage> {
                                   ? product.variants![0].specialPrice
                                   : '0',
                               'status': product.status,
+                              'stock': ProductsState.totalStock(product),
                             },
                             onTap: () {
                               context.push(

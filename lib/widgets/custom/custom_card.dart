@@ -90,6 +90,13 @@ class CustomCard extends StatelessWidget {
                     ),
                   ),
 
+                  // Stock badge, shown for cards that carry a stock quantity.
+                  if (data['stock'] != null)
+                    _buildStockBadge(
+                      context,
+                      (data['stock'] as num).toInt(),
+                    ),
+
                   if (onEdit != null || onDelete != null)
                     CustomDropMenu(
                       items: [
@@ -130,6 +137,77 @@ class CustomCard extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  /// Stock quantity below which a product counts as low on stock.
+  static const int lowStockThreshold = 20;
+
+  /// Green "In stock" from [lowStockThreshold] up, red "Low stock" below it and
+  /// a red "Out of stock" badge once nothing is left.
+  Widget _buildStockBadge(BuildContext context, int stock) {
+    final isOutOfStock = stock <= 0;
+    final isLowStock = stock < lowStockThreshold;
+
+    final Color bgColor;
+    final Color borderColor;
+    final Color contentColor;
+    final IconData icon;
+    final String label;
+
+    if (isOutOfStock) {
+      bgColor = Colors.red.shade50;
+      borderColor = Colors.red.shade200;
+      contentColor = Colors.red.shade900;
+      icon = Icons.remove_shopping_cart_outlined;
+      label = 'Out of stock';
+    } else if (isLowStock) {
+      bgColor = Colors.red.shade50;
+      borderColor = Colors.red.shade100;
+      contentColor = Colors.red.shade700;
+      icon = Icons.warning_amber_rounded;
+      label = 'Low stock';
+    } else {
+      bgColor = Colors.green.shade50;
+      borderColor = Colors.green.shade100;
+      contentColor = Colors.green.shade800;
+      icon = Icons.check_rounded;
+      label = 'In stock';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: UIUtils.body(screenType), color: contentColor),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: UIUtils.caption(screenType),
+              fontWeight: FontWeight.w600,
+              color: contentColor,
+            ),
+          ),
+          if (!isOutOfStock) ...[
+            const SizedBox(width: 6),
+            Text(
+              '$stock',
+              style: TextStyle(
+                fontSize: UIUtils.body(screenType),
+                fontWeight: UIUtils.bold,
+                color: contentColor,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

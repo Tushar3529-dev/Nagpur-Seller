@@ -34,12 +34,14 @@ class ApplyProductFilter extends ProductsEvent {
   final String? status;
   final String? verificationStatus;
   final String? productFilter;
+  final String sortBy;
 
   ApplyProductFilter({
     this.type,
     this.status,
     this.verificationStatus,
     this.productFilter,
+    this.sortBy = ProductSort.defaultSort,
   });
 }
 

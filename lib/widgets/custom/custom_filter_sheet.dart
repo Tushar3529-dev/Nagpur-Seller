@@ -31,6 +31,7 @@ class _FilterSheetState extends State<FilterSheet> {
   String? _productStatus;
   String? _productVerificationStatus;
   String? _productFilter;
+  String _productSort = ProductSort.defaultSort;
 
   // Store filters
   String? _storeStatus;
@@ -57,6 +58,7 @@ class _FilterSheetState extends State<FilterSheet> {
         _productStatus = state.selectedStatus;
         _productVerificationStatus = state.selectedVerificationStatus;
         _productFilter = state.selectedProductFilter;
+        _productSort = state.sortBy;
         context.read<ProductsBloc>().add(LoadProductFilters());
         break;
       case FilterType.store:
@@ -236,6 +238,18 @@ class _FilterSheetState extends State<FilterSheet> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _buildSectionTitle('Sort by'),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _buildSortChip('Stock: Low to High', ProductSort.stockLowToHigh),
+                  _buildSortChip('Stock: High to Low', ProductSort.stockHighToLow),
+                  _buildSortChip('Price: Low to High', ProductSort.priceLowToHigh),
+                  _buildSortChip('Price: High to Low', ProductSort.priceHighToLow),
+                ],
+              ),
+              const SizedBox(height: 16),
               if (options.type != null) ...[
                 _buildSectionTitle(l10n?.type ?? 'Type'),
                 _buildChipGroup(
@@ -324,6 +338,15 @@ class _FilterSheetState extends State<FilterSheet> {
     ];
   }
 
+  /// Single select chip for the product sort options (stock and price).
+  Widget _buildSortChip(String label, String value) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: _productSort == value,
+      onSelected: (_) => setState(() => _productSort = value),
+    );
+  }
+
   Widget _buildChipGroup(
     List<String> items,
     String? selectedValue,
@@ -375,6 +398,7 @@ class _FilterSheetState extends State<FilterSheet> {
             status: _productStatus,
             verificationStatus: _productVerificationStatus,
             productFilter: _productFilter,
+            sortBy: _productSort,
           ),
         );
         break;
