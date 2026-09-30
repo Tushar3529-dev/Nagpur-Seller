@@ -225,6 +225,46 @@ class ScanBottomBar extends StatelessWidget {
   }
 }
 
+/// Decoration for the typed-barcode field. The light theme's primary colour
+/// is the pale container colour, which a focused field would otherwise use
+/// for its label and border.
+InputDecoration scanCodeFieldDecoration(
+  BuildContext context, {
+  String? errorText,
+}) {
+  final color = scanFieldColor(context);
+  final hint = Theme.of(context).hintColor;
+  OutlineInputBorder border(Color color, [double width = 1]) =>
+      OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: color, width: width),
+      );
+  return InputDecoration(
+    labelText: 'Barcode',
+    labelStyle: TextStyle(color: hint),
+    floatingLabelStyle: WidgetStateTextStyle.resolveWith(
+      (states) => TextStyle(
+        color: states.contains(WidgetState.error)
+            ? Colors.red.shade600
+            : color,
+      ),
+    ),
+    prefixIcon: const Icon(Icons.keyboard_outlined),
+    prefixIconColor: color,
+    errorText: errorText,
+    errorMaxLines: 3,
+    border: border(Colors.grey.shade400),
+    enabledBorder: border(Colors.grey.shade400),
+    focusedBorder: border(color, 1.5),
+  );
+}
+
+/// Text, cursor and focus colour for the typed-barcode field.
+Color scanFieldColor(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+    ? Colors.white
+    : Colors.black;
+
 /// Outlined style for the left-hand scan buttons. The light theme's primary
 /// colour is the pale container colour, which OutlinedButton would otherwise
 /// use for its text and icon.

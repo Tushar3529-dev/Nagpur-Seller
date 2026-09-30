@@ -351,13 +351,8 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
             if (_error != null) setState(() => _error = null);
           },
           onSubmitted: _checkCode,
-          decoration: InputDecoration(
-            labelText: 'Barcode',
-            prefixIcon: const Icon(Icons.keyboard_outlined),
-            errorText: _error,
-            errorMaxLines: 3,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
+          cursorColor: scanFieldColor(context),
+          decoration: scanCodeFieldDecoration(context, errorText: _error),
         ),
       ],
     );
