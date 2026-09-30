@@ -134,6 +134,17 @@ void main() {
 
   late FakePendingOrdersRepo repo;
   late IncomingOrdersCubit cubit;
+  bool confirmScannedQuantity(PendingOrderItem item, int quantity) {
+    final order = cubit.state.orders.firstWhere(
+      (order) =>
+          order.items.any((line) => line.orderItemId == item.orderItemId),
+    );
+    final current = order.items.firstWhere(
+      (line) => line.orderItemId == item.orderItemId,
+    );
+    cubit.matchCode(order, current.barcode ?? '');
+    return cubit.confirmQuantity(item, quantity);
+  }
 
   setUp(() async {
     await HiveStorage.setAccessToken('test-token');
@@ -365,7 +376,7 @@ void main() {
     expect(reported.last, isTrue);
     final order = cubit.state.orders.first;
     for (final item in order.items) {
-      cubit.confirmQuantity(item, item.quantity);
+      confirmScannedQuantity(item, item.quantity);
     }
     await tester.runAsync(() => cubit.markPreparing(order));
     await tester.pump();
@@ -411,7 +422,7 @@ void main() {
     expect(find.text('0 of 1'), findsOneWidget);
     final order = cubit.state.orders.first;
     for (final item in order.items) {
-      cubit.confirmQuantity(item, item.quantity);
+      confirmScannedQuantity(item, item.quantity);
     }
     await tester.pump();
     await tester.tap(find.text('Mark as preparing'));
@@ -551,7 +562,7 @@ void main() {
     'manual quantity stepper, typing, errors, tick and already verified',
     (tester) async {
       await startScan(tester);
-      await manual(tester, ' a1 ');
+      await manual(tester, ' A1 ');
       expect(find.text('Ordered quantity: 3'), findsOneWidget);
       String qty() =>
           tester.widget<TextField>(find.byType(TextField)).controller!.text;
@@ -666,7 +677,7 @@ void main() {
   testWidgets('back and backgrounding preserve scan progress', (tester) async {
     await startScan(tester);
     final item = cubit.state.orders.first.items.first;
-    cubit.confirmQuantity(item, 3);
+    confirmScannedQuantity(item, 3);
     await tester.pump();
     expect(await tester.binding.handlePopRoute(), isTrue);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);

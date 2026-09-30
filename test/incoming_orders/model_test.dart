@@ -17,13 +17,14 @@ void main() {
     }
   });
   test(
-    'matchesCode trims and ignores case, rejects missing and empty codes',
+    'matchesCode trims, respects case and rejects missing and empty codes',
     () {
       final item = PendingOrder.fromJson(orderJson(1)).items.single;
       expect(item.matchesCode(''), isFalse);
       expect(item.copyWith(barcode: '').matchesCode(''), isFalse);
-      expect(item.copyWith(barcode: ' A1 ').matchesCode(' a1 '), isTrue);
+      expect(item.copyWith(barcode: ' A1 ').matchesCode(' A1 '), isTrue);
       expect(item.copyWith(barcode: 'A1').matchesCode('A2'), isFalse);
+      expect(item.copyWith(barcode: 'A1').matchesCode('a1'), isFalse);
     },
   );
 

@@ -45,7 +45,7 @@ Map<String, dynamic> orderJson(
           'variant': 'Variant $id',
           'image': ?image,
           'quantity': quantities[id] ?? 3,
-          'barcode': barcodes[id],
+          'barcode': barcodes[id] ?? 'A${itemIds.indexOf(id) + 1}',
           'subtotal': '1266.00',
         },
     ],
@@ -98,6 +98,42 @@ class FakePendingOrdersRepo extends PendingOrdersRepo {
   }
 
   @override
+  Future<PendingOrder> acceptOrder(
+    PendingOrder order, {
+    Set<int> skipItemIds = const {},
+    void Function(int)? onItemAccepted,
+  }) async {
+    for (final item in order.items) {
+      if (skipItemIds.contains(item.orderItemId)) continue;
+      await acceptItem(item.orderItemId);
+      onItemAccepted?.call(item.orderItemId);
+    }
+    return order.copyWith(
+      items: [
+        for (final item in order.items) item.copyWith(status: 'accepted'),
+      ],
+    );
+  }
+
+  @override
+  Future<void> markOrderPreparing(
+    PendingOrder order, {
+    Map<int, String> verifiedBarcodes = const {},
+    Set<int> skipItemIds = const {},
+    void Function(int)? onItemDone,
+  }) async {
+    for (final item in order.items) {
+      if (skipItemIds.contains(item.orderItemId) ||
+          statuses[order.sellerOrderId]?[item.orderItemId] == 'preparing')
+        continue;
+      await markItemPreparing(item.orderItemId);
+      statuses.putIfAbsent(order.sellerOrderId, () => {})[item.orderItemId] =
+          'preparing';
+      onItemDone?.call(item.orderItemId);
+    }
+  }
+
+  @override
   Future<dynamic> acceptItem(int orderItemId) async {
     if (acceptGate != null) await acceptGate!.future;
     if (failAcceptOnce.remove(orderItemId)) throw Exception('accept failed');
@@ -105,7 +141,11 @@ class FakePendingOrdersRepo extends PendingOrdersRepo {
   }
 
   @override
-  Future<dynamic> markItemPreparing(int orderItemId) async {
+  Future<dynamic> markItemPreparing(
+    int orderItemId, {
+    String? barcode,
+    int? quantity,
+  }) async {
     if (preparingGate != null) await preparingGate!.future;
     if (failPreparingOnce.remove(orderItemId)) {
       throw Exception('preparing failed');

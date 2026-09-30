@@ -13,6 +13,7 @@ import 'helpers.dart';
 void main() {
   late HttpServer server;
   late List<HttpRequest> requests;
+  late List<String> requestBodies;
   late Map<String, dynamic> Function(HttpRequest) respond;
   late int Function(HttpRequest) statusFor;
 
@@ -22,12 +23,13 @@ void main() {
 
   setUp(() async {
     requests = [];
+    requestBodies = [];
     statusFor = (_) => 200;
     respond = (_) => listResponse([]);
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     server.listen((request) async {
       requests.add(request);
-      await request.drain<void>();
+      requestBodies.add(await utf8.decoder.bind(request).join());
       request.response
         ..statusCode = statusFor(request)
         ..headers.contentType = ContentType.json
@@ -264,7 +266,7 @@ void main() {
   });
 
   test(
-    'acceptOrder skips accepted items, assigns dummy codes and preserves server codes',
+    'acceptOrder posts one idempotent order request and preserves supplied codes',
     () async {
       respond = (_) => {'success': true};
       final order = PendingOrder.fromJson(
@@ -277,31 +279,34 @@ void main() {
         onItemAccepted: completed.add,
       );
       expect(requests.map((r) => '${r.method} ${r.uri.path}'), [
-        'POST /api/seller/orders/12/accept',
-        'POST /api/seller/orders/13/accept',
+        'POST /api/seller/orders/1/accept-items',
       ]);
-      expect(completed, [12, 13]);
+      expect(completed, [11, 12, 13]);
       expect(accepted.items.map((i) => i.barcode), ['A1', 'REAL', 'A3']);
     },
   );
-  test(
-    'markOrderPreparing posts each remaining item and reports progress',
-    () async {
-      respond = (_) => {'success': true};
-      final order = PendingOrder.fromJson(orderJson(1, itemIds: [11, 12, 13]));
-      final completed = <int>[];
-      await PendingOrdersRepo().markOrderPreparing(
-        order,
-        skipItemIds: {12},
-        onItemDone: completed.add,
-      );
-      expect(requests.map((r) => '${r.method} ${r.uri.path}'), [
-        'POST /api/seller/orders/11/preparing',
-        'POST /api/seller/orders/13/preparing',
-      ]);
-      expect(completed, [11, 13]);
-    },
-  );
+  test('markOrderPreparing sends the full verified order atomically', () async {
+    respond = (_) => {'success': true};
+    final order = PendingOrder.fromJson(orderJson(1, itemIds: [11, 12, 13]));
+    final completed = <int>[];
+    await PendingOrdersRepo().markOrderPreparing(
+      order,
+      skipItemIds: {12},
+      verifiedBarcodes: {11: 'A1', 12: 'A2', 13: 'A3'},
+      onItemDone: completed.add,
+    );
+    expect(requests.map((r) => '${r.method} ${r.uri.path}'), [
+      'POST /api/seller/orders/1/verify-and-prepare',
+    ]);
+    expect(completed, [11, 12, 13]);
+    expect(jsonDecode(requestBodies.single), {
+      'items': [
+        {'order_item_id': 11, 'barcode': 'A1', 'quantity': 3},
+        {'order_item_id': 12, 'barcode': 'A2', 'quantity': 3},
+        {'order_item_id': 13, 'barcode': 'A3', 'quantity': 3},
+      ],
+    });
+  });
   test('itemStatuses reads nested ids and lowercases statuses', () async {
     respond = (_) => {
       'success': true,
@@ -330,7 +335,7 @@ void main() {
       respond = (_) => {'success': true, 'message': 'ok'};
       final repo = PendingOrdersRepo();
       await repo.acceptItem(789);
-      await repo.markItemPreparing(789);
+      await repo.markItemPreparing(789, barcode: '8901234500021', quantity: 2);
 
       expect(requests.map((r) => '${r.method} ${r.uri.path}'), [
         'POST /api/seller/orders/789/accept',

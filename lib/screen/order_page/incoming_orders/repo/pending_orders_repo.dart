@@ -16,9 +16,9 @@ class PendingOrdersRepo {
   /// every poll.
   final Set<int> _imageLookupMisses = {};
 
-  /// Orders waiting for the seller to accept, across all of their stores.
+  /// Orders awaiting acceptance or scanning, across all seller stores.
   ///
-  /// - regular: every order awaiting a response
+  /// - regular: every order awaiting a response or still accepted
   /// - wholesale: `popup=1` makes the backend return only orders whose
   ///   delivery slot ends within 30 minutes, so no time filtering here.
   Future<List<PendingOrder>> getPendingOrders(OrderMode mode) async {
@@ -55,39 +55,60 @@ class PendingOrdersRepo {
     return _withImages(parsed, mode);
   }
 
-  /// Accepts [order] and returns the details the seller packs against,
-  /// with a barcode on every item.
-  ///
-  /// [skipItemIds] were already accepted by an earlier, partly failed
-  /// attempt; [onItemAccepted] reports each item as it goes through.
-  ///
-  /// TODO(api): switch to the order-level accept endpoint once it's live.
-  /// Its response carries the order details with a `barcode` per product,
-  /// which replaces the per-item calls and [_withDummyBarcodes].
+  /// The pending response already supplies packing details and barcodes.
+  /// Acceptance is idempotent and applies to the complete seller order.
   Future<PendingOrder> acceptOrder(
     PendingOrder order, {
     Set<int> skipItemIds = const {},
     void Function(int orderItemId)? onItemAccepted,
   }) async {
+    await _helper.post(
+      '${ApiRoutes.ordersApi}/${order.sellerOrderId}/accept-items',
+      {},
+    );
     for (final item in order.items) {
-      if (skipItemIds.contains(item.orderItemId)) continue;
-      await acceptItem(item.orderItemId);
       onItemAccepted?.call(item.orderItemId);
     }
-    return _withDummyBarcodes(order);
+    return order.copyWith(
+      items: [
+        for (final item in order.items) item.copyWith(status: 'accepted'),
+      ],
+    );
   }
 
-  /// Moves every item of a scanned and verified [order] to preparing.
-  ///
-  /// TODO(api): switch to the order-level preparing endpoint once it's live.
+  /// Submit every locally verified value; the server checks the entire set
+  /// atomically before preparing. Never fall back to per-item status calls.
+  /// TODO(backend): confirm retry behavior after a successful response is lost.
   Future<void> markOrderPreparing(
     PendingOrder order, {
+    Map<int, String> verifiedBarcodes = const {},
     Set<int> skipItemIds = const {},
     void Function(int orderItemId)? onItemDone,
   }) async {
     for (final item in order.items) {
-      if (skipItemIds.contains(item.orderItemId)) continue;
-      await markItemPreparing(item.orderItemId);
+      if (!item.hasBarcode) {
+        throw ApiException(
+          'Barcode missing for ${item.product}. Contact support.',
+        );
+      }
+      if (!item.matchesCode(verifiedBarcodes[item.orderItemId] ?? '')) {
+        throw ApiException('Scan and verify ${item.product} before preparing.');
+      }
+    }
+    await _helper.post(
+      '${ApiRoutes.ordersApi}/${order.sellerOrderId}/verify-and-prepare',
+      {
+        'items': [
+          for (final item in order.items)
+            {
+              'order_item_id': item.orderItemId,
+              'barcode': verifiedBarcodes[item.orderItemId],
+              'quantity': item.quantity,
+            },
+        ],
+      },
+    );
+    for (final item in order.items) {
       onItemDone?.call(item.orderItemId);
     }
   }
@@ -96,8 +117,23 @@ class PendingOrdersRepo {
     return _helper.post('${ApiRoutes.ordersApi}/$orderItemId/accept', {});
   }
 
-  Future<dynamic> markItemPreparing(int orderItemId) {
-    return _helper.post('${ApiRoutes.ordersApi}/$orderItemId/preparing', {});
+  Future<dynamic> markItemPreparing(
+    int orderItemId, {
+    String? barcode,
+    int? quantity,
+  }) {
+    if (barcode == null ||
+        barcode.trim().isEmpty ||
+        quantity == null ||
+        quantity < 1) {
+      throw ApiException(
+        'Scan the barcode and confirm the quantity before preparing.',
+      );
+    }
+    return _helper.post('${ApiRoutes.ordersApi}/$orderItemId/preparing', {
+      'barcode': barcode,
+      'quantity': quantity,
+    });
   }
 
   /// Current status of each item of a seller order, keyed by order_item_id,
@@ -114,19 +150,6 @@ class PendingOrdersRepo {
             case final id?)
           id: '${(item['orderItem'] as Map?)?['status'] ?? ''}'.toLowerCase(),
     };
-  }
-
-  /// Until the backend sends barcodes, item N of an order gets `A<N>` so the
-  /// scan flow can be tested (type it in manual entry, or scan a barcode
-  /// that encodes it).
-  // TODO(api): remove once the accept response carries real barcodes.
-  PendingOrder _withDummyBarcodes(PendingOrder order) {
-    return order.copyWith(
-      items: [
-        for (final (index, item) in order.items.indexed)
-          item.barcode != null ? item : item.copyWith(barcode: 'A${index + 1}'),
-      ],
-    );
   }
 
   Future<List<PendingOrder>> _withImages(

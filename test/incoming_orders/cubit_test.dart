@@ -10,6 +10,18 @@ import 'helpers.dart';
 void main() {
   late FakePendingOrdersRepo repo;
   late IncomingOrdersCubit cubit;
+  bool confirmScannedQuantity(PendingOrderItem item, int quantity) {
+    final order = cubit.state.orders.firstWhere(
+      (order) =>
+          order.items.any((line) => line.orderItemId == item.orderItemId),
+    );
+    final current = order.items.firstWhere(
+      (line) => line.orderItemId == item.orderItemId,
+    );
+    cubit.matchCode(order, current.barcode ?? '');
+    return cubit.confirmQuantity(item, quantity);
+  }
+
   late FakeScanSessionStore store;
 
   setUpAll(() => initTestHive());
@@ -84,7 +96,7 @@ void main() {
         shown.add(top.sellerOrderId);
         expect(await cubit.accept(top), isTrue);
         for (final item in top.items) {
-          cubit.confirmQuantity(item, item.quantity);
+          confirmScannedQuantity(item, item.quantity);
         }
         expect(await cubit.markPreparing(top), isTrue);
       }
@@ -204,7 +216,7 @@ void main() {
         expect(queueIds(), [1, 2]);
         final order = queued(1);
         for (final item in order.items) {
-          cubit.confirmQuantity(item, item.quantity);
+          confirmScannedQuantity(item, item.quantity);
         }
         await cubit.markPreparing(order);
         expect(queueIds(), [2]);
@@ -376,7 +388,7 @@ void main() {
         final top = cubit.state.orders.first;
         expect(await cubit.accept(top), isTrue);
         for (final item in top.items) {
-          cubit.confirmQuantity(item, item.quantity);
+          confirmScannedQuantity(item, item.quantity);
         }
         expect(await cubit.markPreparing(top), isTrue);
       }

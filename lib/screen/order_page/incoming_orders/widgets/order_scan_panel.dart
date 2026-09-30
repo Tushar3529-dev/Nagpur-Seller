@@ -204,7 +204,11 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (final item in widget.order.items)
-          _ChecklistRow(item: item, verified: widget.state.isVerified(item)),
+          _ChecklistRow(
+            item: item,
+            verified: widget.state.isVerified(item),
+            errors: widget.state.itemErrors[item.orderItemId] ?? const {},
+          ),
       ],
     );
   }
@@ -233,18 +237,28 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
         ],
       );
     }
-    return Row(
+    final error = state.failedOrderId == orderId ? state.errorMessage : null;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        ScanManualEntryButton(onPressed: () => _go(_Mode.manual)),
-        const SizedBox(width: 10),
-        Expanded(
-          child: ScanPrimaryButton(
-            label: state.verifiedCount(widget.order) == 0
-                ? 'Scan item'
-                : 'Scan next item',
-            icon: Icons.qr_code_scanner,
-            onPressed: () => _go(_Mode.camera),
-          ),
+        if (error != null) ...[
+          ScanErrorText("Couldn't mark as preparing. $error"),
+          const SizedBox(height: 8),
+        ],
+        Row(
+          children: [
+            ScanManualEntryButton(onPressed: () => _go(_Mode.manual)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: ScanPrimaryButton(
+                label: state.verifiedCount(widget.order) == 0
+                    ? 'Scan item'
+                    : 'Scan next item',
+                icon: Icons.qr_code_scanner,
+                onPressed: () => _go(_Mode.camera),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -600,8 +614,13 @@ class _ScanHeader extends StatelessWidget {
 class _ChecklistRow extends StatelessWidget {
   final PendingOrderItem item;
   final bool verified;
+  final Map<String, String> errors;
 
-  const _ChecklistRow({required this.item, required this.verified});
+  const _ChecklistRow({
+    required this.item,
+    required this.verified,
+    required this.errors,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -628,8 +647,16 @@ class _ChecklistRow extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            verified ? Icons.check_circle : Icons.radio_button_unchecked,
-            color: verified ? green : theme.hintColor,
+            verified
+                ? Icons.check_circle
+                : errors.isNotEmpty || !item.hasBarcode
+                ? Icons.error_outline
+                : Icons.radio_button_unchecked,
+            color: verified
+                ? green
+                : errors.isNotEmpty || !item.hasBarcode
+                ? Colors.red.shade600
+                : theme.hintColor,
           ),
           const SizedBox(width: 10),
           _Thumb(image: item.image),
@@ -651,14 +678,25 @@ class _ChecklistRow extends StatelessWidget {
                   [
                     if (item.variant != null) item.variant!,
                     'Qty ${item.quantity}',
-                    // Dummy barcodes can't be guessed; show them while testing.
-                    if (kDebugMode && item.barcode != null)
-                      'Code ${item.barcode}',
+                    if (item.sku != null) 'SKU ${item.sku}',
+                    if (item.variantWeight != null)
+                      'Weight ${item.variantWeight}',
+                    if (item.variantDimensions != null) item.variantDimensions!,
                   ].join(' · '),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.hintColor,
                   ),
                 ),
+                if (!item.hasBarcode)
+                  Text(
+                    'Barcode missing for ${item.product}. Contact support.',
+                    style: TextStyle(color: Colors.red.shade600),
+                  ),
+                for (final error in errors.entries)
+                  Text(
+                    '${error.key}: ${error.value}',
+                    style: TextStyle(color: Colors.red.shade600),
+                  ),
               ],
             ),
           ),

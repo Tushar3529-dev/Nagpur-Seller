@@ -15,6 +15,8 @@ class IncomingOrdersState extends Equatable {
 
   /// Items (by order_item_id) whose barcode and quantity are verified.
   final Set<int> verifiedItemIds;
+  final Map<int, String> verifiedBarcodes;
+  final Map<int, Map<String, String>> itemErrors;
   final int? acceptingOrderId;
   final int? preparingOrderId;
   final int? failedOrderId;
@@ -25,6 +27,8 @@ class IncomingOrdersState extends Equatable {
     this.shownAt = const {},
     this.acceptedOrderIds = const {},
     this.verifiedItemIds = const {},
+    this.verifiedBarcodes = const {},
+    this.itemErrors = const {},
     this.acceptingOrderId,
     this.preparingOrderId,
     this.failedOrderId,
@@ -46,7 +50,15 @@ class IncomingOrdersState extends Equatable {
 
   int verifiedCount(PendingOrder order) => order.items.where(isVerified).length;
 
-  bool isFullyVerified(PendingOrder order) => order.items.every(isVerified);
+  bool isFullyVerified(PendingOrder order) =>
+      order.items.isNotEmpty &&
+      isAccepted(order) &&
+      order.items.every(
+        (item) =>
+            isVerified(item) &&
+            item.hasBarcode &&
+            item.matchesCode(verifiedBarcodes[item.orderItemId] ?? ''),
+      );
 
   /// Start of the waiting timer: order time for regular orders, popup time
   /// for wholesale orders (placed long before their popup window opens).
@@ -59,6 +71,8 @@ class IncomingOrdersState extends Equatable {
     Map<int, DateTime>? shownAt,
     Set<int>? acceptedOrderIds,
     Set<int>? verifiedItemIds,
+    Map<int, String>? verifiedBarcodes,
+    Map<int, Map<String, String>>? itemErrors,
     int? acceptingOrderId,
     int? preparingOrderId,
     int? failedOrderId,
@@ -72,6 +86,8 @@ class IncomingOrdersState extends Equatable {
       shownAt: shownAt ?? this.shownAt,
       acceptedOrderIds: acceptedOrderIds ?? this.acceptedOrderIds,
       verifiedItemIds: verifiedItemIds ?? this.verifiedItemIds,
+      verifiedBarcodes: verifiedBarcodes ?? this.verifiedBarcodes,
+      itemErrors: clearError ? const {} : (itemErrors ?? this.itemErrors),
       acceptingOrderId: clearAccepting
           ? null
           : (acceptingOrderId ?? this.acceptingOrderId),
@@ -89,6 +105,8 @@ class IncomingOrdersState extends Equatable {
     shownAt,
     acceptedOrderIds,
     verifiedItemIds,
+    verifiedBarcodes,
+    itemErrors,
     acceptingOrderId,
     preparingOrderId,
     failedOrderId,

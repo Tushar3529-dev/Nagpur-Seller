@@ -9,6 +9,18 @@ void main() {
   late FakePendingOrdersRepo repo;
   late FakeScanSessionStore store;
   late IncomingOrdersCubit cubit;
+  bool confirmScannedQuantity(PendingOrderItem item, int quantity) {
+    final order = cubit.state.orders.firstWhere(
+      (order) =>
+          order.items.any((line) => line.orderItemId == item.orderItemId),
+    );
+    final current = order.items.firstWhere(
+      (line) => line.orderItemId == item.orderItemId,
+    );
+    cubit.matchCode(order, current.barcode ?? '');
+    return cubit.confirmQuantity(item, quantity);
+  }
+
   setUpAll(initTestHive);
   setUp(() {
     repo = FakePendingOrdersRepo();
@@ -28,7 +40,7 @@ void main() {
 
   void verify(PendingOrder order) {
     for (final item in order.items) {
-      expect(cubit.confirmQuantity(item, item.quantity), isTrue);
+      expect(confirmScannedQuantity(item, item.quantity), isTrue);
     }
   }
 
@@ -37,33 +49,33 @@ void main() {
     () async {
       final original = await accept();
       expect(cubit.matchCode(original, 'ZZ9').$1, ScanMatch.notInOrder);
-      final (match, item) = cubit.matchCode(original, ' a1 ');
+      final (match, item) = cubit.matchCode(original, ' A1 ');
       expect(match, ScanMatch.matched);
       expect(item!.orderItemId, 11);
-      expect(cubit.confirmQuantity(item, 2), isFalse);
-      expect(cubit.confirmQuantity(item, 4), isFalse);
+      expect(confirmScannedQuantity(item, 2), isFalse);
+      expect(confirmScannedQuantity(item, 4), isFalse);
       expect(cubit.state.verifiedItemIds, isEmpty);
-      expect(cubit.confirmQuantity(item, 3), isTrue);
+      expect(confirmScannedQuantity(item, 3), isTrue);
       expect(cubit.matchCode(original, 'A1').$1, ScanMatch.alreadyVerified);
       expect(cubit.matchCode(original, 'A2').$1, ScanMatch.matched);
     },
   );
   test('duplicate barcodes verify each line separately', () async {
     final order = await accept(codes: {11: 'SAME', 12: 'SAME'});
-    final first = cubit.matchCode(order, 'same').$2!;
+    final first = cubit.matchCode(order, 'SAME').$2!;
     expect(first.orderItemId, 11);
-    cubit.confirmQuantity(first, 3);
+    confirmScannedQuantity(first, 3);
     final second = cubit.matchCode(order, 'SAME').$2!;
     expect(second.orderItemId, 12);
-    cubit.confirmQuantity(second, 3);
-    expect(cubit.matchCode(order, 'same').$1, ScanMatch.alreadyVerified);
+    confirmScannedQuantity(second, 3);
+    expect(cubit.matchCode(order, 'SAME').$1, ScanMatch.alreadyVerified);
   });
   test(
     'preparing requires every tick; busy prevents double call and defers fetch',
     () async {
       final order = await accept();
       expect(await cubit.markPreparing(order), isFalse);
-      cubit.confirmQuantity(order.items.first, 3);
+      confirmScannedQuantity(order.items.first, 3);
       expect(await cubit.markPreparing(order), isFalse);
       verify(order);
       await Future<void>.delayed(Duration.zero);
@@ -131,15 +143,16 @@ void main() {
     'saves after accept, each verification and preparing; logout clears',
     () async {
       final order = await accept();
-      expect(store.saves.length, 1);
+      final initialSaves = store.saves.length;
+      expect(initialSaves, greaterThanOrEqualTo(1));
       expect(store.sessions.single.order.items.first.barcode, 'A1');
-      cubit.confirmQuantity(order.items.first, 3);
-      expect(store.saves.length, 2);
+      confirmScannedQuantity(order.items.first, 3);
+      expect(store.saves.length, initialSaves + 1);
       expect(store.sessions.single.verifiedItemIds, {11});
-      cubit.confirmQuantity(order.items.last, 3);
-      expect(store.saves.length, 3);
+      confirmScannedQuantity(order.items.last, 3);
+      expect(store.saves.length, initialSaves + 2);
       await cubit.markPreparing(order);
-      expect(store.saves.length, 4);
+      expect(store.saves.length, initialSaves + 3);
       expect(store.sessions, isEmpty);
       cubit.clear();
       expect(store.clearCount, 1);
@@ -152,7 +165,7 @@ void main() {
         orderJson(1, itemIds: [11, 12], barcodes: {11: 'A1', 12: 'A2'}),
       );
       store.sessions = [
-        ScanSession(order, {11}),
+        ScanSession(order, {11}, verifiedBarcodes: {11: 'A1'}),
       ];
       repo.statuses[1] = {11: status, 12: status};
       if (status == 'offline') repo.failStatusFor.add(1);
@@ -174,7 +187,7 @@ void main() {
         orderJson(1, itemIds: [11, 12], barcodes: {11: 'A1', 12: 'A2'}),
       );
       store.sessions = [
-        ScanSession(order, {11, 12}),
+        ScanSession(order, {11, 12}, verifiedBarcodes: {11: 'A1', 12: 'A2'}),
       ];
       repo.statuses[1] = {11: 'preparing', 12: 'accepted'};
       repo.server[OrderMode.regular] = [

@@ -130,7 +130,7 @@ class ApiBaseHelper {
             return responseBody;
           } else {
             // If success is false, throw the message
-            throw ApiException(message);
+            throw ApiException(message, responseData: responseBody);
           }
         }
 
@@ -156,6 +156,16 @@ class ApiBaseHelper {
       final int? statusCode = error.response?.statusCode;
 
       if (data is Map<String, dynamic>) {
+        // Preserve item/field errors from the order verification endpoint.
+        if (statusCode == 422 &&
+            data['data'] is Map &&
+            (data['data'] as Map)['errors'] is List) {
+          return ApiException(
+            data['message'],
+            statusCode: statusCode,
+            responseData: data,
+          );
+        }
         // Handle validation errors (422)
         if (statusCode == 422 && data.containsKey('errors')) {
           final errors = data['errors'] as Map<String, dynamic>;
@@ -248,7 +258,9 @@ class ApiException implements Exception {
   /// HTTP status of the failed response, when there was one.
   final int? statusCode;
 
-  ApiException(dynamic message, {this.statusCode})
+  final Map<String, dynamic>? responseData;
+
+  ApiException(dynamic message, {this.statusCode, this.responseData})
     : message = message?.toString() ?? '';
 
   @override

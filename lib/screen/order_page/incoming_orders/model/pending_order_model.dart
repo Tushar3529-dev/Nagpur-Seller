@@ -83,6 +83,14 @@ class PendingOrder extends Equatable {
 
   bool get isWholesale => mode == OrderMode.wholesale;
 
+  bool get needsAcceptance =>
+      items.any((item) => item.status == 'awaiting_store_response');
+
+  bool get isAcceptedOnServer =>
+      items.isNotEmpty &&
+      !needsAcceptance &&
+      items.any((item) => item.status == 'accepted');
+
   int get itemCount => items.fold(0, (sum, item) => sum + item.quantity);
 
   Map<String, dynamic> toJson() => {
@@ -141,6 +149,12 @@ class PendingOrderItem extends Equatable {
 
   /// Code the seller must scan to verify this item before preparing.
   final String? barcode;
+  final String status;
+  final String? sku;
+  final String? variantWeight;
+  final String? variantDimensions;
+
+  bool get hasBarcode => barcode?.trim().isNotEmpty ?? false;
 
   const PendingOrderItem({
     required this.orderItemId,
@@ -150,6 +164,10 @@ class PendingOrderItem extends Equatable {
     required this.quantity,
     required this.subtotal,
     this.barcode,
+    this.status = 'awaiting_store_response',
+    this.sku,
+    this.variantWeight,
+    this.variantDimensions,
   });
 
   factory PendingOrderItem.fromJson(Map<String, dynamic> json) {
@@ -161,6 +179,11 @@ class PendingOrderItem extends Equatable {
       quantity: _toInt(json['quantity'], fallback: 1),
       subtotal: json['subtotal']?.toString() ?? '0',
       barcode: _nonEmpty(json['barcode']),
+      status: (_nonEmpty(json['status']) ?? 'awaiting_store_response')
+          .toLowerCase(),
+      sku: _nonEmpty(json['sku']),
+      variantWeight: _nonEmpty(json['variant_weight']),
+      variantDimensions: _nonEmpty(json['variant_dimensions']),
     );
   }
 
@@ -172,9 +195,13 @@ class PendingOrderItem extends Equatable {
     'quantity': quantity,
     'subtotal': subtotal,
     'barcode': barcode,
+    'status': status,
+    'sku': sku,
+    'variant_weight': variantWeight,
+    'variant_dimensions': variantDimensions,
   };
 
-  PendingOrderItem copyWith({String? image, String? barcode}) {
+  PendingOrderItem copyWith({String? image, String? barcode, String? status}) {
     return PendingOrderItem(
       orderItemId: orderItemId,
       product: product,
@@ -183,15 +210,17 @@ class PendingOrderItem extends Equatable {
       quantity: quantity,
       subtotal: subtotal,
       barcode: barcode ?? this.barcode,
+      status: status ?? this.status,
+      sku: sku,
+      variantWeight: variantWeight,
+      variantDimensions: variantDimensions,
     );
   }
 
-  /// Whether [code] (scanned or typed) is this item's barcode.
+  /// Exact, case-sensitive comparison, matching the backend contract.
   bool matchesCode(String code) {
-    final expected = barcode?.trim().toLowerCase();
-    return expected != null &&
-        expected.isNotEmpty &&
-        expected == code.trim().toLowerCase();
+    final expected = barcode?.trim();
+    return expected != null && expected.isNotEmpty && expected == code.trim();
   }
 
   @override
@@ -203,6 +232,10 @@ class PendingOrderItem extends Equatable {
     quantity,
     subtotal,
     barcode,
+    status,
+    sku,
+    variantWeight,
+    variantDimensions,
   ];
 }
 

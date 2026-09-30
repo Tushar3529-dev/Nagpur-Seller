@@ -1,5 +1,7 @@
 # Incoming order: accept → scan barcodes → prepare
 
+> **Backend update (30 September 2026):** [order-scan-backend-integration.md](order-scan-backend-integration.md) and [seller-order-popup-flow-api.md](seller-order-popup-flow-api.md) supersede the draft API, dummy-barcode, case-insensitive matching and debug expected-code rules below. Preparing retry idempotency remains an explicitly deferred backend question.
+
 Build spec for the seller app (Flutter, `hyper_local_seller`). It covers every screen, state, edge case and test for the new incoming-order flow.
 
 > **For the implementing agent (Codex):** read the whole document before changing code. Section 12 lists what already exists in the working tree. Treat that code as a draft: check it against this spec and fix or replace anything that doesn't match. Don't commit unless you're asked to.

@@ -10,12 +10,17 @@ class ScanSession {
   final PendingOrder order;
   final Set<int> verifiedItemIds;
 
-  const ScanSession(this.order, this.verifiedItemIds);
+  final Map<int, String> verifiedBarcodes;
+
+  const ScanSession(
+    this.order,
+    this.verifiedItemIds, {
+    this.verifiedBarcodes = const {},
+  });
 }
 
-/// Keeps accepted-but-not-prepared orders on the device. Once accepted, an
-/// order drops out of the pending endpoint, so without this an app restart
-/// mid-scan would lose the popup.
+/// Keeps scanned values and packing progress across restarts. The pending
+/// endpoint restores accepted orders; this store restores their local ticks.
 class ScanSessionStore {
   final String _boxName;
 
@@ -39,6 +44,11 @@ class ScanSessionStore {
                 for (final id in (entry['verified'] as List? ?? const []))
                   if (id is int) id,
               },
+              verifiedBarcodes: {
+                for (final entry in ((entry['barcodes'] as Map?) ?? {}).entries)
+                  if (int.tryParse('${entry.key}') case final id?)
+                    id: '${entry.value}',
+              },
             ),
       ];
     } catch (e) {
@@ -57,6 +67,10 @@ class ScanSessionStore {
             {
               'order': session.order.toJson(),
               'verified': session.verifiedItemIds.toList(),
+              'barcodes': {
+                for (final entry in session.verifiedBarcodes.entries)
+                  '${entry.key}': entry.value,
+              },
             },
         ]),
       );

@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hyper_local_seller/config/hive_storage.dart';
+import 'package:hyper_local_seller/service/api_base_helper.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/model/pending_order_model.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/repo/pending_orders_repo.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/repo/scan_session_store.dart';
@@ -17,7 +18,7 @@ part 'incoming_orders_state.dart';
 ///
 /// The server is the source of truth for new orders: pushes, app resume and
 /// a periodic poll all just call [fetch]. Accepted orders are kept here (and
-/// on the device) because the pending endpoint stops listing them.
+/// on the device) to preserve local verification progress across restarts.
 class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
   final PendingOrdersRepo _repo;
   final ScanSessionStore _store;
@@ -30,6 +31,7 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
   bool _refetchQueued = false;
   bool _restored = false;
   int _sessionGeneration = 0;
+  final Map<int, String> _matchedCodes = {};
 
   /// Last list received per mode. If one endpoint fails, the other mode's
   /// orders (and the failed mode's last known orders) stay on screen.
@@ -108,8 +110,9 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
 
     final accepted = <int>{};
     final verified = <int>{};
+    final verifiedBarcodes = <int, String>{};
     for (final session in sessions) {
-      final order = session.order;
+      var order = session.order;
       Map<int, String>? statuses;
       try {
         statuses = await _repo.itemStatuses(order.sellerOrderId);
@@ -124,9 +127,28 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
         debugPrint('[IncomingOrders] dropped stale ${order.sellerOrderId}');
         continue;
       }
+      // Old per-item flows can have a mix of accepted and preparing lines.
+      if (statuses != null && statuses.isNotEmpty) {
+        order = order.copyWith(
+          items: [
+            for (final item in order.items)
+              if (statuses[item.orderItemId] == 'accepted')
+                item.copyWith(status: 'accepted'),
+          ],
+        );
+      }
       _held[order.sellerOrderId] = order;
       accepted.add(order.sellerOrderId);
-      verified.addAll(session.verifiedItemIds);
+      for (final item in order.items) {
+        final code = session.verifiedBarcodes[item.orderItemId];
+        // Legacy sessions lack scanned values and must be scanned again.
+        if (code != null &&
+            session.verifiedItemIds.contains(item.orderItemId) &&
+            item.matchesCode(code)) {
+          verified.add(item.orderItemId);
+          verifiedBarcodes[item.orderItemId] = code;
+        }
+      }
       for (final item in order.items) {
         final done = _doneSteps.putIfAbsent(item.orderItemId, () => {})
           ..add(_Step.accept);
@@ -140,6 +162,7 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
       state.copyWith(
         acceptedOrderIds: {...state.acceptedOrderIds, ...accepted},
         verifiedItemIds: {...state.verifiedItemIds, ...verified},
+        verifiedBarcodes: {...state.verifiedBarcodes, ...verifiedBarcodes},
       ),
     );
     _save();
@@ -184,7 +207,6 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
       );
       _publish();
     }
-    _save();
     _resumeFetching();
     return true;
   }
@@ -200,7 +222,10 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
         order;
     for (final item in current.items) {
       if (!item.matchesCode(code)) continue;
-      if (!state.isVerified(item)) return (ScanMatch.matched, item);
+      if (!state.isVerified(item)) {
+        _matchedCodes[item.orderItemId] = code.trim();
+        return (ScanMatch.matched, item);
+      }
       alreadyVerified = item;
     }
     return alreadyVerified != null
@@ -210,10 +235,29 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
 
   /// Marks [item] verified if [quantity] is exactly what was ordered.
   bool confirmQuantity(PendingOrderItem item, int quantity) {
-    if (quantity != item.quantity) return false;
+    final currentOrder = state.orders
+        .where(
+          (order) =>
+              order.items.any((line) => line.orderItemId == item.orderItemId),
+        )
+        .firstOrNull;
+    final current = currentOrder?.items
+        .where((line) => line.orderItemId == item.orderItemId)
+        .firstOrNull;
+    final code = _matchedCodes[item.orderItemId];
+    if (currentOrder == null ||
+        !state.isAccepted(currentOrder) ||
+        current == null ||
+        quantity != current.quantity ||
+        code == null ||
+        !current.matchesCode(code)) {
+      return false;
+    }
     emit(
       state.copyWith(
         verifiedItemIds: {...state.verifiedItemIds, item.orderItemId},
+        verifiedBarcodes: {...state.verifiedBarcodes, item.orderItemId: code},
+        itemErrors: {...state.itemErrors}..remove(item.orderItemId),
       ),
     );
     _save();
@@ -222,7 +266,13 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
 
   /// Moves a fully verified [order] to preparing and out of the popup.
   Future<bool> markPreparing(PendingOrder order) async {
-    if (state.isBusy || !state.isFullyVerified(order)) return false;
+    if (state.isBusy) return false;
+    order =
+        state.orders
+            .where((o) => o.sellerOrderId == order.sellerOrderId)
+            .firstOrNull ??
+        order;
+    if (!state.isFullyVerified(order)) return false;
     final generation = _sessionGeneration;
     emit(
       state.copyWith(preparingOrderId: order.sellerOrderId, clearError: true),
@@ -231,7 +281,7 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
     try {
       await _repo.markOrderPreparing(
         order,
-        skipItemIds: _itemsDone(order, _Step.preparing),
+        verifiedBarcodes: state.verifiedBarcodes,
         onItemDone: (id) {
           if (!isClosed && generation == _sessionGeneration) {
             _doneSteps.putIfAbsent(id, () => {}).add(_Step.preparing);
@@ -248,6 +298,7 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
     if (isClosed || generation != _sessionGeneration) return false;
     final itemIds = order.items.map((item) => item.orderItemId);
     itemIds.forEach(_doneSteps.remove);
+    itemIds.forEach(_matchedCodes.remove);
     _handled.add(order.sellerOrderId);
     _held.remove(order.sellerOrderId);
     if (!isClosed) {
@@ -257,6 +308,8 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
           acceptedOrderIds: {...state.acceptedOrderIds}
             ..remove(order.sellerOrderId),
           verifiedItemIds: {...state.verifiedItemIds}..removeAll(itemIds),
+          verifiedBarcodes: {...state.verifiedBarcodes}
+            ..removeWhere((id, _) => itemIds.contains(id)),
         ),
       );
       _publish();
@@ -277,15 +330,41 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
       '[IncomingOrders] $action failed for ${order.sellerOrderId}: $error',
     );
     if (!isClosed) {
+      final itemErrors = <int, Map<String, String>>{};
+      if (error is ApiException) {
+        final data = error.responseData?['data'];
+        final errors = data is Map ? data['errors'] : null;
+        if (errors is List) {
+          for (final detail in errors.whereType<Map>()) {
+            final id = int.tryParse('${detail['order_item_id']}');
+            if (id == null ||
+                !order.items.any((item) => item.orderItemId == id)) {
+              continue;
+            }
+            itemErrors.putIfAbsent(
+                  id,
+                  () => {},
+                )['${detail['field'] ?? 'item'}'] =
+                '${detail['message'] ?? error.message}';
+            _matchedCodes.remove(id);
+          }
+        }
+      }
       emit(
         state.copyWith(
           clearAccepting: true,
           clearPreparing: true,
+          itemErrors: itemErrors,
+          verifiedItemIds: {...state.verifiedItemIds}
+            ..removeAll(itemErrors.keys),
+          verifiedBarcodes: {...state.verifiedBarcodes}
+            ..removeWhere((id, _) => itemErrors.containsKey(id)),
           failedOrderId: order.sellerOrderId,
           errorMessage: error.toString(),
         ),
       );
     }
+    _save();
     _resumeFetching();
   }
 
@@ -298,10 +377,18 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
     _store.save([
       for (final id in state.acceptedOrderIds)
         if (_held[id] case final order?)
-          ScanSession(order, {
-            for (final item in order.items)
-              if (state.isVerified(item)) item.orderItemId,
-          }),
+          ScanSession(
+            order,
+            {
+              for (final item in order.items)
+                if (state.isVerified(item)) item.orderItemId,
+            },
+            verifiedBarcodes: {
+              for (final item in order.items)
+                if (state.verifiedBarcodes[item.orderItemId] case final code?)
+                  item.orderItemId: code,
+            },
+          ),
     ]);
   }
 
@@ -311,6 +398,7 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
     _sessionGeneration++;
     _refetchQueued = false;
     _doneSteps.clear();
+    _matchedCodes.clear();
     _held.clear();
     _handled.clear();
     _latest.updateAll((_, _) => const []);
@@ -325,11 +413,34 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
   void _publish() {
     final now = DateTime.now();
     final byId = <int, PendingOrder>{};
+    final accepted = {...state.acceptedOrderIds};
+    final verified = {...state.verifiedItemIds};
+    final codes = {...state.verifiedBarcodes};
     for (final order in [
       ..._latest[OrderMode.regular]!,
       ..._latest[OrderMode.wholesale]!,
     ]) {
       if (_handled.contains(order.sellerOrderId)) continue;
+      if (order.isAcceptedOnServer) {
+        final old = _held[order.sellerOrderId];
+        for (final item in order.items) {
+          final previous = old?.items
+              .where((line) => line.orderItemId == item.orderItemId)
+              .firstOrNull;
+          if (previous?.quantity != item.quantity ||
+              !item.matchesCode(codes[item.orderItemId] ?? '')) {
+            verified.remove(item.orderItemId);
+            codes.remove(item.orderItemId);
+          }
+          final matched = _matchedCodes[item.orderItemId];
+          if (previous?.quantity != item.quantity ||
+              (matched != null && !item.matchesCode(matched))) {
+            _matchedCodes.remove(item.orderItemId);
+          }
+        }
+        accepted.add(order.sellerOrderId);
+        _held[order.sellerOrderId] = order;
+      }
       byId.putIfAbsent(order.sellerOrderId, () => order);
     }
     byId.addAll(_held);
@@ -343,7 +454,8 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
     DateTime appeared(PendingOrder o) => o.isWholesale
         ? shownAt[o.sellerOrderId]!
         : (o.createdAt?.toLocal() ?? shownAt[o.sellerOrderId]!);
-    int acceptedFirst(PendingOrder o) => state.isAccepted(o) ? 0 : 1;
+    int acceptedFirst(PendingOrder o) =>
+        accepted.contains(o.sellerOrderId) ? 0 : 1;
 
     final queue = byId.values.toList()
       ..sort((a, b) {
@@ -371,7 +483,31 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
         debugPrint('[IncomingOrders] queue $before -> $ids');
       }
     }
-    emit(state.copyWith(orders: queue, shownAt: shownAt));
+    final activeItems = queue
+        .expand((order) => order.items)
+        .map((item) => item.orderItemId)
+        .toSet();
+    verified.retainAll(activeItems);
+    codes.removeWhere((id, _) => !verified.contains(id));
+    final sessionsChanged =
+        !setEquals(accepted, state.acceptedOrderIds) ||
+        !setEquals(verified, state.verifiedItemIds) ||
+        !listEquals(
+          queue
+              .where((order) => accepted.contains(order.sellerOrderId))
+              .toList(),
+          state.orders.where(state.isAccepted).toList(),
+        );
+    emit(
+      state.copyWith(
+        orders: queue,
+        shownAt: shownAt,
+        acceptedOrderIds: accepted..retainAll(byId.keys),
+        verifiedItemIds: verified,
+        verifiedBarcodes: codes,
+      ),
+    );
+    if (sessionsChanged) _save();
   }
 }
 

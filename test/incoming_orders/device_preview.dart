@@ -66,13 +66,25 @@ class _PreviewRepo extends FakePendingOrdersRepo {
   @override
   Future<List<PendingOrder>> getPendingOrders(OrderMode mode) async {
     final orders = await super.getPendingOrders(mode);
-    return orders
-        .where(
-          (order) => order.items.any(
-            (item) => statuses[order.sellerOrderId]?[item.orderItemId] == null,
+    return [
+      for (final order in orders)
+        if (order.items.any(
+          (item) =>
+              statuses[order.sellerOrderId]?[item.orderItemId] != 'preparing',
+        ))
+          order.copyWith(
+            items: [
+              for (final item in order.items)
+                if (statuses[order.sellerOrderId]?[item.orderItemId] !=
+                    'preparing')
+                  item.copyWith(
+                    status:
+                        statuses[order.sellerOrderId]?[item.orderItemId] ??
+                        item.status,
+                  ),
+            ],
           ),
-        )
-        .toList();
+    ];
   }
 
   @override
@@ -88,7 +100,11 @@ class _PreviewRepo extends FakePendingOrdersRepo {
   }
 
   @override
-  Future<dynamic> markItemPreparing(int id) async {
+  Future<dynamic> markItemPreparing(
+    int id, {
+    String? barcode,
+    int? quantity,
+  }) async {
     await Future<void>.delayed(const Duration(milliseconds: 350));
     final connection = await Connectivity().checkConnectivity();
     if (connection.contains(ConnectivityResult.none)) {
