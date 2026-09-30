@@ -24,6 +24,7 @@ class ApiRoutes {
   static String attributesApi = '$baseUrl/attributes';
   static String attributeValueApi = '$baseUrl/attribute-values';
   static String productsApi = '$baseUrl/products';
+  static String productInventoryBaseUrl = '$baseUrl/products';
   static String productFaqsApi = '$baseUrl/product-faqs';
   static String productsEnumsApi = '$productsApi/enums';
   static String productByBarcodeApi = '$mainUrl/products/barcode';
@@ -65,5 +66,4 @@ class ApiRoutes {
   static String buySubscriptionPlanApi = '$baseUrl/subscription/buy';
   static String currentSubscriptionPlanApi = '$baseUrl/subscription/current';
   static String subscriptionPlanHistoryApi = '$baseUrl/subscription/history';
-
 }

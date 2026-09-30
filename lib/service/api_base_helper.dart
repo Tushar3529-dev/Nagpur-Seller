@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:curl_logger_dio_interceptor/curl_logger_dio_interceptor.dart';
 import 'package:hyper_local_seller/service/security.dart';
@@ -38,6 +39,11 @@ class ApiBaseHelper {
         onRequest: (options, handler) async {
           final headers = await Security.headers;
           options.headers.addAll(headers);
+          if (kDebugMode && options.extra['debugInventory'] == true) {
+            debugPrint(
+              '[Inventory] outgoing headers | Accept: ${options.headers['Accept']} | Content-Type: ${options.contentType} | Authorization: ${headers.containsKey('Authorization') ? 'Bearer [REDACTED]' : 'MISSING'}',
+            );
+          }
           return handler.next(options);
         },
         onError: (DioException e, handler) {
@@ -52,11 +58,35 @@ class ApiBaseHelper {
     return dio;
   }
 
-  Future<dynamic> post(String url, Map<String, dynamic> body) async {
+  Future<dynamic> post(
+    String url,
+    Map<String, dynamic> body, {
+    bool debugInventory = false,
+  }) async {
     try {
-      final response = await _dio.post(url, data: body);
+      if (kDebugMode && debugInventory) {
+        debugPrint('[Inventory] POST $url | request: $body');
+      }
+      final response = await _dio.post(
+        url,
+        data: body,
+        options: Options(extra: {'debugInventory': debugInventory}),
+      );
+      if (kDebugMode && debugInventory) {
+        debugPrint(
+          '[Inventory] POST $url | HTTP ${response.statusCode} | response: ${response.data}',
+        );
+      }
       return _returnResponse(response);
     } on DioException catch (e) {
+      if (kDebugMode && debugInventory) {
+        debugPrint(
+          '[Inventory] redirect location: ${e.response?.headers.value('location')}',
+        );
+        debugPrint(
+          '[Inventory] POST $url | HTTP ${e.response?.statusCode} | type: ${e.type} | message: ${e.message} | response: ${e.response?.data}',
+        );
+      }
       throw _handleError(e);
     }
   }

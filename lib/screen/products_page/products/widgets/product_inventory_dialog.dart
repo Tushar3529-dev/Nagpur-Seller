@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:hyper_local_seller/config/colors.dart';
 import 'package:hyper_local_seller/config/hive_storage.dart';
 import 'package:hyper_local_seller/screen/products_page/add_products/widgets/stock_quantity_field.dart';
@@ -63,6 +64,13 @@ class _ProductInventoryDialogState extends State<ProductInventoryDialog> {
       _error = null;
     });
     try {
+      if (kDebugMode) {
+        final requested = int.parse(_quantity.trim());
+        final previous = _store?.stock;
+        debugPrint(
+          '[Inventory] quantity change | product_id: ${widget.productId} | store_id: ${_store?.storeId} | store_product_variant_id: $id | previous_stock: $previous | requested_stock: $requested | delta: ${previous == null ? "unknown" : requested - previous}',
+        );
+      }
       final stock = await _repo.updateInventory(
         productId: widget.productId,
         storeProductVariantId: id,
@@ -72,6 +80,11 @@ class _ProductInventoryDialogState extends State<ProductInventoryDialog> {
       _store!.stock = stock;
       Navigator.of(context).pop(true);
     } catch (e) {
+      if (kDebugMode) {
+        debugPrint(
+          '[Inventory] quantity update failed | product_id: ${widget.productId} | error: $e',
+        );
+      }
       if (!mounted) return;
       setState(() {
         _saving = false;

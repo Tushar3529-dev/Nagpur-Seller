@@ -13,11 +13,11 @@ void main() {
   final paths = <String>[];
   setUpAll(() => initTestHive(token: 'inventory-test-token'));
   setUp(() async {
-    originalRoute = ApiRoutes.productsApi;
+    originalRoute = ApiRoutes.productInventoryBaseUrl;
     bodies.clear();
     paths.clear();
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    ApiRoutes.productsApi =
+    ApiRoutes.productInventoryBaseUrl =
         'http://${server.address.host}:${server.port}/api/seller/products';
     server.listen((request) async {
       paths.add(request.uri.path);
@@ -27,6 +27,7 @@ void main() {
       bodies.add(body);
       expect(request.method, 'POST');
       expect(request.headers.contentType?.mimeType, 'application/json');
+      expect(request.headers.value('accept'), 'application/json');
       expect(
         request.headers.value('authorization'),
         'Bearer inventory-test-token',
@@ -44,7 +45,7 @@ void main() {
     });
   });
   tearDown(() async {
-    ApiRoutes.productsApi = originalRoute;
+    ApiRoutes.productInventoryBaseUrl = originalRoute;
     await server.close(force: true);
   });
   for (final stock in [0, 5, 25]) {

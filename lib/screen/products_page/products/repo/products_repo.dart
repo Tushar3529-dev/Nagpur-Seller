@@ -14,8 +14,9 @@ class ProductsRepo {
       throw ApiException('Enter a valid inventory record and stock quantity.');
     }
     final response = await _helper.post(
-      '${ApiRoutes.productsApi}/$productId/inventory',
+      '${ApiRoutes.productInventoryBaseUrl}/$productId/inventory',
       {'store_product_variant_id': storeProductVariantId, 'stock': stock},
+      debugInventory: true,
     );
     final data = response is Map ? response['data'] : null;
     final value = data is Map ? data['new_stock'] : null;
