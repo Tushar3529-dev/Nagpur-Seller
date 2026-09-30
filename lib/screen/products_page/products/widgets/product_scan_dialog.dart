@@ -31,9 +31,25 @@ Future<void> openProductScanner(BuildContext context) async {
 
 enum _Mode { camera, manual, review }
 
+/// Reads a barcode for a product form without looking up an existing product.
+Future<String?> scanProductBarcode(BuildContext context) => showDialog<String>(
+  context: context,
+  builder: (_) => Dialog(
+    insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+    clipBehavior: Clip.antiAlias,
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 480),
+      child: const ProductScanDialog(returnBarcode: true),
+    ),
+  ),
+);
+
 /// Scans (or takes a typed) product barcode, looks the product up and pops
 /// with it.
 class ProductScanDialog extends StatefulWidget {
+  /// Product forms need the confirmed code, including codes for new products.
+  final bool returnBarcode;
   @visibleForTesting
   final ProductsRepo? repo;
 
@@ -41,7 +57,12 @@ class ProductScanDialog extends StatefulWidget {
   final Widget Function(void Function(String code, Uint8List? image) onCode)?
   cameraBuilder;
 
-  const ProductScanDialog({super.key, this.repo, this.cameraBuilder});
+  const ProductScanDialog({
+    super.key,
+    this.repo,
+    this.cameraBuilder,
+    this.returnBarcode = false,
+  });
 
   @override
   State<ProductScanDialog> createState() => _ProductScanDialogState();
@@ -113,6 +134,10 @@ class _ProductScanDialogState extends State<ProductScanDialog> {
       setState(() => _error = 'Enter a barcode');
       return;
     }
+    if (widget.returnBarcode) {
+      Navigator.of(context).pop(barcode);
+      return;
+    }
     setState(() {
       _isSearching = true;
       _error = null;
@@ -151,7 +176,8 @@ class _ProductScanDialogState extends State<ProductScanDialog> {
         children: [
           _Header(
             title: switch (_mode) {
-              _Mode.camera => 'Scan product',
+              _Mode.camera =>
+                widget.returnBarcode ? 'Scan barcode' : 'Scan product',
               _Mode.manual => 'Enter barcode',
               _Mode.review => 'Is this code correct?',
             },
@@ -230,7 +256,9 @@ class _ProductScanDialogState extends State<ProductScanDialog> {
         ],
         const SizedBox(height: 4),
         Text(
-          'Confirm to find the product, or retake the scan.',
+          widget.returnBarcode
+              ? 'Confirm to use this barcode, or retake the scan.'
+              : 'Confirm to find the product, or retake the scan.',
           textAlign: TextAlign.center,
           style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
         ),
@@ -277,7 +305,9 @@ class _ProductScanDialogState extends State<ProductScanDialog> {
           controller: _codeController,
           autofocus: true,
           enabled: !_isSearching,
-          textInputAction: TextInputAction.search,
+          textInputAction: widget.returnBarcode
+              ? TextInputAction.done
+              : TextInputAction.search,
           onChanged: (_) {
             if (_error != null) setState(() => _error = null);
           },
@@ -301,8 +331,8 @@ class _ProductScanDialogState extends State<ProductScanDialog> {
         const SizedBox(width: 10),
         Expanded(
           child: ScanPrimaryButton(
-            label: 'Search',
-            icon: Icons.search,
+            label: widget.returnBarcode ? 'Use barcode' : 'Search',
+            icon: widget.returnBarcode ? Icons.check : Icons.search,
             isLoading: _isSearching,
             onPressed: () => _search(_codeController.text),
           ),

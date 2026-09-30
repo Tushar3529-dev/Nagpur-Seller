@@ -18,6 +18,7 @@ import 'package:hyper_local_seller/widgets/custom/custom_textfield.dart';
 import 'package:hyper_local_seller/utils/image_picker_utils.dart';
 import 'package:hyper_local_seller/widgets/custom/custom_upload_area.dart';
 import 'package:hyper_local_seller/widgets/custom/custom_loading_indicator.dart';
+import 'package:hyper_local_seller/screen/products_page/products/widgets/product_scan_dialog.dart';
 
 class ProductVariationStep extends StatefulWidget {
   const ProductVariationStep({super.key});
@@ -233,8 +234,12 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
     return merged;
   }
 
-  void _maybeHydrateAttributeSelections(List<attr_model.Attribute> allAttributes) {
-    if (_didHydrateAttributeSelections || _isHydratingAttributeSelections) return;
+  void _maybeHydrateAttributeSelections(
+    List<attr_model.Attribute> allAttributes,
+  ) {
+    if (_didHydrateAttributeSelections || _isHydratingAttributeSelections) {
+      return;
+    }
     if (_productType != 'variant') {
       _didHydrateAttributeSelections = true;
       return;
@@ -358,7 +363,8 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
 
       // Index for variant normalization.
       final Map<int, Map<int, values_model.AttributeValue>> valuesById = {};
-      final Map<int, Map<String, values_model.AttributeValue>> valuesByTitle = {};
+      final Map<int, Map<String, values_model.AttributeValue>> valuesByTitle =
+          {};
 
       for (final agg in aggregates.values) {
         attr_model.Attribute? attribute;
@@ -391,8 +397,7 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
                 attribute = (agg.attrSlug != null)
                     ? _findAttributeBySlug(items, agg.attrSlug!)
                     : null;
-                attribute ??=
-                    _findAttributeByTitle(items, agg.attrName.trim());
+                attribute ??= _findAttributeByTitle(items, agg.attrName.trim());
                 attribute ??= items.first;
               }
             } catch (_) {
@@ -408,20 +413,23 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
         final attrId = attribute.id;
         final alreadyInAll = allAttributes.any((a) => a.id == attrId);
         if (!alreadyInAll) {
-          final exists =
-              _extraAvailableAttributes.any((a) => a.id == attrId);
+          final exists = _extraAvailableAttributes.any((a) => a.id == attrId);
           if (!exists) _extraAvailableAttributes.add(attribute);
         }
 
-        final controller =
-            AttributeSelectionController(onChanged: _generateVariantsAuto);
+        final controller = AttributeSelectionController(
+          onChanged: _generateVariantsAuto,
+        );
         controller.selectedAttributeId = attribute.id;
         controller.selectedAttributeName = attribute.title;
 
         try {
-          final response = await _attributesRepo.getAttributeValues(attribute.id);
-          final valuesResponse =
-              values_model.AttributeValuesResponse.fromJson(response);
+          final response = await _attributesRepo.getAttributeValues(
+            attribute.id,
+          );
+          final valuesResponse = values_model.AttributeValuesResponse.fromJson(
+            response,
+          );
           controller.availableValues = valuesResponse.data?.values ?? [];
 
           // Selected by id (preferred) or by title.
@@ -540,7 +548,8 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
           newAttrs.add({
             "attribute_id": attrId,
             "value_id": value.id,
-            "attribute_name": attrNameById[attrId] ?? raw['attribute_name'] ?? "",
+            "attribute_name":
+                attrNameById[attrId] ?? raw['attribute_name'] ?? "",
             "value_name": value.title,
           });
         }
@@ -765,17 +774,54 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
     );
   }
 
+  Widget _buildBarcodeField(
+    TextEditingController controller,
+    FocusNode focusNode,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: CustomTextField(
+            label: AppLocalizations.of(context)!.barcode,
+            isRequired: true,
+            hint: AppLocalizations.of(context)!.enterBarcode,
+            focusNode: focusNode,
+            controller: controller,
+          ),
+        ),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 52,
+          height: 50,
+          child: IconButton.filled(
+            tooltip: 'Scan barcode',
+            style: IconButton.styleFrom(
+              backgroundColor: AppColors.primaryColor,
+              foregroundColor: Colors.white,
+            ),
+            icon: const Icon(Icons.qr_code_scanner),
+            onPressed: () async {
+              FocusManager.instance.primaryFocus?.unfocus();
+              final code = await scanProductBarcode(context);
+              if (!mounted || code == null) return;
+              // The existing listener writes this into the product/variant bloc.
+              controller.value = TextEditingValue(
+                text: code,
+                selection: TextSelection.collapsed(offset: code.length),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSimpleProductUI() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CustomTextField(
-          label: AppLocalizations.of(context)!.barcode,
-          isRequired: true,
-          hint: AppLocalizations.of(context)!.enterBarcode,
-          focusNode: _barcodeFocus,
-          controller: _barcodeController,
-        ),
+        _buildBarcodeField(_barcodeController, _barcodeFocus),
         const SizedBox(height: 20),
 
         Row(
@@ -916,8 +962,9 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
     return BlocBuilder<AttributesBloc, AttributesState>(
       builder: (context, attributesState) {
         final isLoadingAttributes = attributesState.isInitialLoading;
-        final availableAttributes =
-            _mergeAvailableAttributes(attributesState.items);
+        final availableAttributes = _mergeAvailableAttributes(
+          attributesState.items,
+        );
 
         if (!isLoadingAttributes) {
           _maybeHydrateAttributeSelections(availableAttributes);
@@ -1123,12 +1170,9 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
             controller: controller.nameController,
           ),
           const SizedBox(height: 15),
-          CustomTextField(
-            label: AppLocalizations.of(context)!.barcode,
-            hint: "123456",
-            isRequired: true,
-            controller: controller.barcodeController,
-            focusNode: controller.barcodeFocus,
+          _buildBarcodeField(
+            controller.barcodeController,
+            controller.barcodeFocus,
           ),
           const SizedBox(height: 15),
           Row(

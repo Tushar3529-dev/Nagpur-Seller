@@ -44,20 +44,23 @@ void main() {
   late _FakeRepo repo;
   late void Function(String code, Uint8List? image) scan;
   Product? popped;
+  String? barcodePopped;
 
-  Future<void> open(WidgetTester tester) async {
+  Future<void> open(WidgetTester tester, {bool returnBarcode = false}) async {
     popped = null;
+    barcodePopped = null;
     await tester.pumpWidget(
       MaterialApp(
         home: Builder(
           builder: (context) => Scaffold(
             body: TextButton(
               onPressed: () async {
-                popped = await showDialog<Product>(
+                final result = await showDialog<Object>(
                   context: context,
                   builder: (_) => Dialog(
                     child: ProductScanDialog(
                       repo: repo,
+                      returnBarcode: returnBarcode,
                       cameraBuilder: (onCode) {
                         scan = onCode;
                         return const SizedBox(
@@ -68,6 +71,12 @@ void main() {
                     ),
                   ),
                 );
+                if (result is Product) {
+                  popped = result;
+                }
+                if (result is String) {
+                  barcodePopped = result;
+                }
               },
               child: const Text('open'),
             ),
@@ -80,6 +89,55 @@ void main() {
   }
 
   setUp(() => repo = _FakeRepo({'8901234500021': 123}));
+
+  testWidgets('form scan confirms a new barcode without product lookup', (
+    tester,
+  ) async {
+    await open(tester, returnBarcode: true);
+    expect(find.text('Scan barcode'), findsOneWidget);
+    scan(' 8901234500099 ', null);
+    await tester.pumpAndSettle();
+    expect(barcodePopped, isNull);
+    expect(find.text('8901234500099'), findsOneWidget);
+    await tester.tap(find.text('Confirm'));
+    await tester.pumpAndSettle();
+    expect(barcodePopped, '8901234500099');
+    expect(repo.barcodeCalls, isEmpty);
+    expect(repo.idCalls, isEmpty);
+  });
+
+  testWidgets('form scan retakes and cancellation returns no replacement', (
+    tester,
+  ) async {
+    await open(tester, returnBarcode: true);
+    scan('8901234500099', null);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Retake'));
+    await tester.pumpAndSettle();
+    expect(find.text('camera'), findsOneWidget);
+    expect(barcodePopped, isNull);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(barcodePopped, isNull);
+    expect(repo.barcodeCalls, isEmpty);
+  });
+
+  testWidgets(
+    'form scanner manual entry validates and returns code without lookup',
+    (tester) async {
+      await open(tester, returnBarcode: true);
+      await tester.tap(find.byTooltip('Enter code manually'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Use barcode'));
+      await tester.pumpAndSettle();
+      expect(find.text('Enter a barcode'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), ' 8901234500099 ');
+      await tester.tap(find.text('Use barcode'));
+      await tester.pumpAndSettle();
+      expect(barcodePopped, '8901234500099');
+      expect(repo.barcodeCalls, isEmpty);
+    },
+  );
 
   testWidgets('camera scan asks to confirm, then pops with the product', (
     tester,
@@ -111,9 +169,7 @@ void main() {
     expect(repo.barcodeCalls, isEmpty);
   });
 
-  testWidgets('unknown barcode shows not found and stays open', (
-    tester,
-  ) async {
+  testWidgets('unknown barcode shows not found and stays open', (tester) async {
     await open(tester);
     scan('000', null);
     await tester.pumpAndSettle();
