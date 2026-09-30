@@ -1,3 +1,4 @@
+import 'package:hyper_local_seller/screen/products_page/products/widgets/product_inventory_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -400,6 +401,33 @@ class _ProductsPageState extends State<ProductsPage> {
                                 extra: product,
                               );
                             },
+                            onEditQty:
+                                PermissionChecker.hasPermission(
+                                  AppPermissions.productEdit,
+                                )
+                                ? () async {
+                                    if (!DemoGuard.shouldProceed(context)) {
+                                      return;
+                                    }
+                                    final saved = await showDialog<bool>(
+                                      context: context,
+                                      barrierDismissible: false,
+                                      builder: (_) => ProductInventoryLoader(
+                                        productId: product.id,
+                                      ),
+                                    );
+                                    if (!context.mounted || saved != true) {
+                                      return;
+                                    }
+                                    context.read<ProductsBloc>().add(
+                                      RefreshProducts(),
+                                    );
+                                    showCustomSnackbar(
+                                      context: context,
+                                      message: 'Stock updated successfully',
+                                    );
+                                  }
+                                : null,
                             onEdit: () async {
                               if (!PermissionChecker.hasPermission(
                                 AppPermissions.productEdit,

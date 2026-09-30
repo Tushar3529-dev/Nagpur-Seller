@@ -28,10 +28,18 @@ class _StockQuantityFieldState extends State<StockQuantityField> {
     super.didUpdateWidget(oldWidget);
     final text = widget.value ?? '';
     if (oldWidget.value != widget.value && text != _controller.text) {
-      _controller.value = TextEditingValue(
-        text: text,
-        selection: TextSelection.collapsed(offset: text.length),
-      );
+      // A surrounding Form must not be notified during its child build.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted ||
+            (widget.value ?? '') != text ||
+            _controller.text == text) {
+          return;
+        }
+        _controller.value = TextEditingValue(
+          text: text,
+          selection: TextSelection.collapsed(offset: text.length),
+        );
+      });
     }
   }
 

@@ -29,3 +29,9 @@ No live product stock was modified during implementation.
 - `flutter test`: 134 passed, 0 failed. New tests cover blank creation values, zero payloads, integer filtering, editing/hydration, cancel, missing inventory IDs, failures/retry, and the exact JSON request with quantities 0, 5 and 25 against a local HTTP server.
 - `flutter analyze lib test`: 0 errors, 2 pre-existing warnings and 32 informational findings; no findings in the changed stock code.
 - `flutter build apk --debug`: successful. The updated APK was installed on Pixel_10_Pro.
+
+## Product listing shortcut
+
+Each editable product card now shows **Edit qty** beside its stock badge, including low/out-of-stock products. It opens a popup in the list, loads fresh product details for inventory IDs/current stock, and offers variation/store selection when needed. Success refreshes the current list; failures offer retry. Tapping the shortcut does not open Product Details. Narrow card headers wrap the badge/button to avoid overflow.
+
+Current verification: 141 tests passed, 0 failed; analyzer 0 errors with the same 2 warnings and 32 informational findings. Debug APK rebuilt and installed on Pixel_10_Pro. The inventory ID mapping and CSRF questions above still await backend confirmation; no live inventory quantity was modified.

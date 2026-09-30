@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hyper_local_seller/config/colors.dart';
 import 'package:hyper_local_seller/config/hive_storage.dart';
 import 'package:hyper_local_seller/screen/products_page/add_products/widgets/stock_quantity_field.dart';
 import 'package:hyper_local_seller/screen/products_page/products/model/product_model.dart';
@@ -7,11 +8,13 @@ import 'package:hyper_local_seller/screen/products_page/products/repo/products_r
 class ProductInventoryDialog extends StatefulWidget {
   final int productId;
   final Variant variant;
+  final List<Variant>? variants;
   final ProductsRepo? repo;
   const ProductInventoryDialog({
     super.key,
     required this.productId,
     required this.variant,
+    this.variants,
     this.repo,
   });
 
@@ -22,7 +25,9 @@ class ProductInventoryDialog extends StatefulWidget {
 class _ProductInventoryDialogState extends State<ProductInventoryDialog> {
   final _formKey = GlobalKey<FormState>();
   late final _repo = widget.repo ?? ProductsRepo();
-  late final _stores = widget.variant.stores ?? <VariantStore>[];
+  late final _variants = widget.variants ?? [widget.variant];
+  late Variant _variant = widget.variant;
+  List<VariantStore> get _stores => _variant.stores ?? <VariantStore>[];
   VariantStore? _store;
   String _quantity = '';
   bool _saving = false;
@@ -31,6 +36,10 @@ class _ProductInventoryDialogState extends State<ProductInventoryDialog> {
   @override
   void initState() {
     super.initState();
+    _selectStore();
+  }
+
+  void _selectStore() {
     _store =
         _stores
             .where((store) => store.storeId == HiveStorage.selectedStoreId)
@@ -83,10 +92,35 @@ class _ProductInventoryDialogState extends State<ProductInventoryDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(widget.variant.title ?? 'Product'),
+              if (_variants.length > 1)
+                DropdownButtonFormField<Variant>(
+                  initialValue: _variant,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Variation'),
+                  items: [
+                    for (final variant in _variants)
+                      DropdownMenuItem(
+                        value: variant,
+                        child: Text(variant.title ?? 'Variation'),
+                      ),
+                  ],
+                  onChanged: _saving
+                      ? null
+                      : (variant) {
+                          if (variant == null) return;
+                          setState(() {
+                            _variant = variant;
+                            _selectStore();
+                            _error = null;
+                          });
+                        },
+                )
+              else
+                Text(_variant.title ?? 'Product'),
               const SizedBox(height: 12),
               if (_stores.length > 1) ...[
                 DropdownButtonFormField<VariantStore>(
+                  key: ObjectKey(_variant),
                   initialValue: _store,
                   isExpanded: true,
                   decoration: const InputDecoration(labelText: 'Store'),
@@ -137,12 +171,19 @@ class _ProductInventoryDialogState extends State<ProductInventoryDialog> {
           child: const Text('Cancel'),
         ),
         FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.primaryColor,
+            foregroundColor: Colors.white,
+          ),
           onPressed: _saving ? null : _save,
           child: _saving
               ? const SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 )
               : const Text('Save stock'),
         ),
