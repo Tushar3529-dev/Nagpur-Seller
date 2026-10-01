@@ -218,6 +218,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get badgeRecommended => 'RECOMMENDED';
 
   @override
+  String get bagInventory => 'Bag Inventory';
+
+  @override
+  String get bagInventorySubtitle => 'Track and manage bag stock';
+
+  @override
   String get balance => 'Balance: ';
 
   @override

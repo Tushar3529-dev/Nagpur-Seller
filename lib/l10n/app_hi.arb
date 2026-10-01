@@ -60,6 +60,8 @@
   "awaiting_store_response": "स्टोर प्रतिक्रिया की प्रतीक्षा",
   "backToLogin": "लॉगिन पर वापस जाएँ",
   "badgeRecommended": "सिफारिश की गई",
+  "bagInventory": "बैग इन्वेंटरी",
+  "bagInventorySubtitle": "बैग स्टॉक ट्रैक और प्रबंधित करें",
   "balance": "बैलेंस: ",
   "bank": "बैंक",
   "bankAccountType": "बैंक खाता प्रकार",

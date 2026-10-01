@@ -218,6 +218,12 @@ class AppLocalizationsHi extends AppLocalizations {
   String get badgeRecommended => 'सिफारिश की गई';
 
   @override
+  String get bagInventory => 'बैग इन्वेंटरी';
+
+  @override
+  String get bagInventorySubtitle => 'बैग स्टॉक ट्रैक और प्रबंधित करें';
+
+  @override
   String get balance => 'बैलेंस: ';
 
   @override

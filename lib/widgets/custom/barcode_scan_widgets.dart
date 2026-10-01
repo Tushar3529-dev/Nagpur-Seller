@@ -380,3 +380,44 @@ class ScanSecondaryButton extends StatelessWidget {
     );
   }
 }
+
+/// Blue title bar with a close button, shared by the scanner dialogs.
+class ScanDialogHeader extends StatelessWidget {
+  final String title;
+  final VoidCallback onClose;
+
+  const ScanDialogHeader({
+    super.key,
+    required this.title,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppColors.primaryColor,
+      padding: const EdgeInsets.fromLTRB(20, 10, 8, 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Close',
+            onPressed: onClose,
+            icon: const Icon(Icons.close, color: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+}

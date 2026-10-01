@@ -218,6 +218,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get badgeRecommended => 'موصى به';
 
   @override
+  String get bagInventory => 'مخزون الأكياس';
+
+  @override
+  String get bagInventorySubtitle => 'تتبع وإدارة مخزون الأكياس';
+
+  @override
   String get balance => 'الرصيد: ';
 
   @override

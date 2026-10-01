@@ -36,6 +36,7 @@ class ApiRoutes {
   static String permissionsApi = '$baseUrl/permissions';
   static String systemUsersApi = '$baseUrl/system-users';
   static String notificationsApi = '$baseUrl/notifications';
+  static String bagsApi = '$baseUrl/bags';
 
   static String dashboardDataApi = '$baseUrl/dashboard';
   static String ordersApi = '$baseUrl/orders';

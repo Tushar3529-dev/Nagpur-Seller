@@ -60,6 +60,8 @@
   "awaiting_store_response": "بانتظار رد المتجر",
   "backToLogin": "العودة إلى تسجيل الدخول",
   "badgeRecommended": "موصى به",
+  "bagInventory": "مخزون الأكياس",
+  "bagInventorySubtitle": "تتبع وإدارة مخزون الأكياس",
   "balance": "الرصيد: ",
   "bank": "البنك",
   "bankAccountType": "نوع الحساب البنكي",

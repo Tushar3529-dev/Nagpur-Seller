@@ -184,7 +184,7 @@ class _ProductScanDialogState extends State<ProductScanDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _Header(
+          ScanDialogHeader(
             title: switch (_mode) {
               _Mode.camera =>
                 widget.returnBarcode ? 'Scan barcode' : 'Scan product',
@@ -388,42 +388,6 @@ class _ProductScanDialogState extends State<ProductScanDialog> {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  final String title;
-  final VoidCallback onClose;
-
-  const _Header({required this.title, required this.onClose});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.primaryColor,
-      padding: const EdgeInsets.fromLTRB(20, 10, 8, 10),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          IconButton(
-            tooltip: 'Close',
-            onPressed: onClose,
-            icon: const Icon(Icons.close, color: Colors.white),
-          ),
-        ],
-      ),
     );
   }
 }

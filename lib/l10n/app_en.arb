@@ -68,6 +68,8 @@
   "awaiting_store_response": "Awaiting Store Response",
   "backToLogin": "Back to Login",
   "badgeRecommended": "RECOMMENDED",
+  "bagInventory": "Bag Inventory",
+  "bagInventorySubtitle": "Track and manage bag stock",
   "balance": "Balance: ",
   "bank": "Bank",
   "bankAccountType": "Bank Account Type",

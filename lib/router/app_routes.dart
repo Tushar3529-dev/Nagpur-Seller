@@ -48,6 +48,7 @@ import 'package:hyper_local_seller/screen/splash_screen/widgets/intro_slider.dar
 import 'package:hyper_local_seller/screen/more_page/view/tax_group/view/tax_groups_page.dart';
 import 'package:hyper_local_seller/screen/more_page/view/earning/view/earning_page.dart';
 import 'package:hyper_local_seller/screen/products_page/products/view/product_faqs_page.dart';
+import 'package:hyper_local_seller/screen/more_page/view/bag_inventory/view/bag_inventory_page.dart';
 import 'package:hyper_local_seller/screen/more_page/view/delivery_zone/view/delivery_zones_page.dart';
 import 'package:hyper_local_seller/screen/home_page/view/notification_list_page.dart';
 
@@ -90,6 +91,7 @@ class AppRoutes {
   static const String transactionHistory = '/transaction-history';
   static const String earnings = '/earnings';
   static const String productFaqs = '/product-faqs';
+  static const String bagInventory = '/bag-inventory';
   static const String storeConfiguration = '/store-configuration';
   static const String profilePage = '/profile';
   static const String privacyPolicy = '/privacy-policy';
@@ -321,6 +323,11 @@ class MyAppRoutes {
           final productId = int.tryParse(productIdStr ?? '');
           return platformPage(ProductFaqsPage(productId: productId));
         },
+      ),
+      GoRoute(
+        path: AppRoutes.bagInventory,
+        name: '/bag-inventory',
+        pageBuilder: (context, state) => platformPage(const BagInventoryPage()),
       ),
       GoRoute(
         path: AppRoutes.profilePage,

@@ -152,6 +152,16 @@ class _MorePageState extends State<MorePage> {
             },
           ),
           SettingsTileData(
+            img: ImagesPath.bagInventorySvg,
+            title: l10n?.bagInventory ?? "Bag Inventory",
+            subtitle:
+                l10n?.bagInventorySubtitle ?? "Track and manage bag stock",
+            onTap: () {
+              debugPrint('Bag Inventory button pressed');
+              context.pushNamed(AppRoutes.bagInventory);
+            },
+          ),
+          SettingsTileData(
             img: ImagesPath.ordersSvg,
             title: l10n?.orders ?? "Orders",
             subtitle:

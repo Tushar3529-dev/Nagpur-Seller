@@ -508,6 +508,18 @@ abstract class AppLocalizations {
   /// **'RECOMMENDED'**
   String get badgeRecommended;
 
+  /// No description provided for @bagInventory.
+  ///
+  /// In en, this message translates to:
+  /// **'Bag Inventory'**
+  String get bagInventory;
+
+  /// No description provided for @bagInventorySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Track and manage bag stock'**
+  String get bagInventorySubtitle;
+
   /// No description provided for @balance.
   ///
   /// In en, this message translates to:
