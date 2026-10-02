@@ -1,10 +1,13 @@
+import 'dart:math' as math;
+
 import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:hyper_local_seller/config/colors.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 /// Building blocks shared by the barcode scanners: the incoming-order scan
-/// panel and the product scan dialog.
+/// panel, the product scan dialog and the bag scanner. They all open full
+/// screen.
 
 /// First non-empty barcode value in [capture], or null.
 String? firstBarcodeValue(BarcodeCapture capture) {
@@ -15,77 +18,189 @@ String? firstBarcodeValue(BarcodeCapture capture) {
   return null;
 }
 
-/// Live camera with an aiming frame and a flashlight button.
+/// Full-screen live camera: everything outside the scan window is dimmed,
+/// the window has corner marks and a red aiming line, and only barcodes
+/// inside the window are read. The flashlight button sits under the window.
 class ScanCameraView extends StatelessWidget {
-  final MobileScannerController controller;
-  final void Function(BarcodeCapture capture) onDetect;
+  final MobileScannerController? controller;
+  final void Function(BarcodeCapture capture)? onDetect;
   final VoidCallback onManualEntry;
   final String hint;
 
+  /// Stands in for the live camera (tests).
+  final Widget? preview;
+
+  /// Pinned to the bottom of the camera, e.g. a summary of scanned codes.
+  final Widget? footer;
+
   const ScanCameraView({
     super.key,
-    required this.controller,
-    required this.onDetect,
+    this.controller,
+    this.onDetect,
     required this.onManualEntry,
     this.hint = "Point the camera at the product's barcode.",
+    this.preview,
+    this.footer,
   });
+
+  /// Scan window for a camera of [size]: wide and short like a barcode,
+  /// a little above the middle.
+  static Rect windowFor(Size size) {
+    final width = math.min(size.width * 0.82, 420.0);
+    final height = math.min(width * 0.62, size.height * 0.4);
+    return Rect.fromCenter(
+      center: Offset(size.width / 2, size.height * 0.42),
+      width: width,
+      height: height,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: SizedBox(
-            height: 280,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final window = windowFor(constraints.biggest);
+        final overlays = <Widget>[
+          IgnorePointer(
+            child: CustomPaint(painter: _ScanWindowPainter(window)),
+          ),
+          Positioned(
+            top: 14,
+            left: 16,
+            right: 16,
+            child: Center(child: _ScanHint(hint)),
+          ),
+          if (controller != null)
+            Positioned(
+              top: window.bottom + 14,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: IconButton.filledTonal(
+                  tooltip: 'Flashlight',
+                  onPressed: controller!.toggleTorch,
+                  icon: const Icon(Icons.flashlight_on_outlined),
+                ),
+              ),
+            ),
+        ];
+        return ClipRect(
+          child: ColoredBox(
+            color: Colors.black,
             child: Stack(
               fit: StackFit.expand,
               children: [
-                MobileScanner(
-                  controller: controller,
-                  onDetect: onDetect,
-                  errorBuilder: (context, error) => ScanCameraError(
-                    permissionDenied:
-                        error.errorCode ==
-                        MobileScannerErrorCode.permissionDenied,
-                    onManualEntry: onManualEntry,
-                  ),
-                ),
-                IgnorePointer(
-                  child: Center(
-                    child: Container(
-                      width: 240,
-                      height: 130,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.white, width: 2),
-                        borderRadius: BorderRadius.circular(12),
+                preview ??
+                    MobileScanner(
+                      controller: controller,
+                      onDetect: onDetect,
+                      scanWindow: window,
+                      errorBuilder: (context, error) => ScanCameraError(
+                        permissionDenied:
+                            error.errorCode ==
+                            MobileScannerErrorCode.permissionDenied,
+                        onManualEntry: onManualEntry,
                       ),
                     ),
+                // No aiming marks over the camera error and its buttons.
+                if (controller == null)
+                  ...overlays
+                else
+                  ValueListenableBuilder<MobileScannerState>(
+                    valueListenable: controller!,
+                    builder: (context, state, _) => state.error != null
+                        ? const SizedBox.shrink()
+                        : Stack(fit: StackFit.expand, children: overlays),
                   ),
-                ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: IconButton.filledTonal(
-                    tooltip: 'Flashlight',
-                    onPressed: controller.toggleTorch,
-                    icon: const Icon(Icons.flashlight_on_outlined),
-                  ),
-                ),
+                if (footer != null)
+                  Positioned(left: 12, right: 12, bottom: 12, child: footer!),
               ],
             ),
           ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          hint,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-      ],
+        );
+      },
     );
   }
+}
+
+class _ScanHint extends StatelessWidget {
+  final String text;
+
+  const _ScanHint(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.qr_code_scanner, color: Colors.white, size: 18),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              text,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScanWindowPainter extends CustomPainter {
+  final Rect window;
+
+  const _ScanWindowPainter(this.window);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rounded = RRect.fromRectAndRadius(window, const Radius.circular(4));
+    canvas.drawPath(
+      Path.combine(
+        PathOperation.difference,
+        Path()..addRect(Offset.zero & size),
+        Path()..addRRect(rounded),
+      ),
+      Paint()..color = Colors.black.withValues(alpha: 0.55),
+    );
+
+    final corner = Paint()
+      ..color = const Color(0xFF2F6BFF)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.square;
+    const arm = 24.0;
+    final w = window;
+    for (final (point, dx, dy) in [
+      (w.topLeft, 1.0, 1.0),
+      (w.topRight, -1.0, 1.0),
+      (w.bottomLeft, 1.0, -1.0),
+      (w.bottomRight, -1.0, -1.0),
+    ]) {
+      canvas
+        ..drawLine(point, point.translate(arm * dx, 0), corner)
+        ..drawLine(point, point.translate(0, arm * dy), corner);
+    }
+
+    canvas.drawLine(
+      Offset(w.left + 10, w.center.dy),
+      Offset(w.right - 10, w.center.dy),
+      Paint()
+        ..color = Colors.redAccent
+        ..strokeWidth = 1.5,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_ScanWindowPainter oldDelegate) =>
+      oldDelegate.window != window;
 }
 
 class ScanCodeBox extends StatelessWidget {
@@ -220,7 +335,7 @@ class ScanBottomBar extends StatelessWidget {
           ),
         ),
       ),
-      child: child,
+      child: SafeArea(top: false, child: child),
     );
   }
 }
@@ -244,9 +359,7 @@ InputDecoration scanCodeFieldDecoration(
     labelStyle: TextStyle(color: hint),
     floatingLabelStyle: WidgetStateTextStyle.resolveWith(
       (states) => TextStyle(
-        color: states.contains(WidgetState.error)
-            ? Colors.red.shade600
-            : color,
+        color: states.contains(WidgetState.error) ? Colors.red.shade600 : color,
       ),
     ),
     prefixIcon: const Icon(Icons.keyboard_outlined),
@@ -396,28 +509,45 @@ class ScanDialogHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: AppColors.primaryColor,
-      padding: const EdgeInsets.fromLTRB(20, 10, 8, 10),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 8, 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
-            ),
+              IconButton(
+                tooltip: 'Close',
+                onPressed: onClose,
+                icon: const Icon(Icons.close, color: Colors.white),
+              ),
+            ],
           ),
-          IconButton(
-            tooltip: 'Close',
-            onPressed: onClose,
-            icon: const Icon(Icons.close, color: Colors.white),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
+
+/// Opens a scanner dialog that covers the whole screen.
+Future<T?> showFullScreenScanner<T>(
+  BuildContext context,
+  Widget scanner, {
+  bool barrierDismissible = true,
+}) => showDialog<T>(
+  context: context,
+  useSafeArea: false,
+  barrierDismissible: barrierDismissible,
+  builder: (_) => Dialog.fullscreen(child: scanner),
+);

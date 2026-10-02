@@ -124,6 +124,7 @@ void main() {
         cubit.matchCode(order, item.barcode!);
         expect(cubit.confirmQuantity(item, item.quantity), isTrue);
       }
+      expect(await cubit.assignBag(order, 'BAG-1'), isNull);
       expect(await cubit.markPreparing(order), isFalse);
       expect(repo.submittedCodes, {11: '8901234500021', 12: '8901234500022'});
       expect(cubit.state.itemErrors, {

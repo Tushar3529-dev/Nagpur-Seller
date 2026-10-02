@@ -92,7 +92,9 @@ class _IncomingOrdersControllerState extends State<IncomingOrdersController>
   @override
   Future<bool> didPopRoute() async {
     // true = handled, so neither the router nor Android closes anything.
-    return _cubit.state.hasPending;
+    // Bag inventory, opened from the popup, keeps its normal back button.
+    final state = _cubit.state;
+    return state.hasPending && !state.isManagingBags;
   }
 
   @override

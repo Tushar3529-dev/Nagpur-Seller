@@ -40,6 +40,7 @@ void main() {
     final base = 'http://${server.address.host}:${server.port}/api/seller';
     ApiRoutes.ordersApi = '$base/orders';
     ApiRoutes.pendingRegularOrdersApi = '$base/orders/pending-regular';
+    ApiRoutes.bagsApi = '$base/bags';
   });
 
   tearDown(() => server.close(force: true));
@@ -439,6 +440,111 @@ void main() {
           predicate((e) => e.toString().contains('Order already cancelled')),
         ),
       );
+    });
+  });
+
+  group('bags', () {
+    test('pending orders read an assigned bag for resuming', () async {
+      respond = (_) => listResponse([
+        {
+          ...orderJson(1),
+          'bag': {
+            'id': 33,
+            'barcode': 'BAG-000033',
+            'assigned_at': '2026-10-01T10:15:00.000000Z',
+          },
+        },
+        {...orderJson(2), 'bag': null},
+      ]);
+      final orders = await PendingOrdersRepo().getPendingOrders(
+        OrderMode.regular,
+      );
+      expect(orders.first.bag?.barcode, 'BAG-000033');
+      expect(orders.first.bag?.id, 33);
+      expect(orders.last.bag, isNull);
+      expect(PendingOrder.fromJson(orders.first.toJson()).bag?.id, 33);
+    });
+
+    test('assignBag posts the trimmed barcode to the order', () async {
+      respond = (_) => {
+        'success': true,
+        'message': 'Bag assigned to order successfully.',
+        'data': {
+          'seller_order_id': 701,
+          'bag': {
+            'id': 33,
+            'barcode': 'BAG-000033',
+            'assigned_at': '2026-10-01T10:15:00.000000Z',
+          },
+        },
+      };
+      final order = PendingOrder.fromJson(orderJson(701));
+      final bag = await PendingOrdersRepo().assignBag(order, ' BAG-000033 ');
+
+      final req = requests.single;
+      expect(req.method, 'POST');
+      expect(req.uri.path, '/api/seller/orders/701/assign-bag');
+      expect(req.headers.value('authorization'), 'Bearer seller-token-123');
+      expect(jsonDecode(requestBodies.single), {'barcode': 'BAG-000033'});
+      expect(bag.barcode, 'BAG-000033');
+    });
+
+    test('an unavailable bag surfaces the server message', () async {
+      statusFor = (_) => 422;
+      respond = (_) => {
+        'success': false,
+        'message': 'The bag is not available in your bag pool.',
+      };
+      await expectLater(
+        PendingOrdersRepo().assignBag(
+          PendingOrder.fromJson(orderJson(701)),
+          'BAG-X',
+        ),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.message,
+            'message',
+            'The bag is not available in your bag pool.',
+          ),
+        ),
+      );
+    });
+
+    test('a missing bag on dispatch keeps bag_required in the error', () async {
+      statusFor = (_) => 422;
+      respond = (_) => {
+        'success': false,
+        'message': 'Assign a bag before dispatch.',
+        'bag_required': true,
+      };
+      final order = PendingOrder.fromJson(orderJson(1));
+      await expectLater(
+        PendingOrdersRepo().markOrderPreparing(
+          order,
+          verifiedBarcodes: {1: 'A1'},
+        ),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.responseData?['bag_required'],
+            'bag_required',
+            isTrue,
+          ),
+        ),
+      );
+    });
+
+    test('availableBagCount asks for available bags only', () async {
+      respond = (_) => {
+        'success': true,
+        'message': 'Bags fetched successfully.',
+        'data': {'current_page': 1, 'last_page': 4, 'total': 4, 'items': []},
+      };
+      expect(await PendingOrdersRepo().availableBagCount(), 4);
+      expect(requests.single.uri.path, '/api/seller/bags');
+      expect(requests.single.uri.queryParameters, {
+        'status': 'available',
+        'per_page': '1',
+      });
     });
   });
 }

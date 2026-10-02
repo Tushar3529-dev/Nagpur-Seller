@@ -10,11 +10,12 @@ import 'package:hyper_local_seller/screen/order_page/incoming_orders/repo/scan_s
 part 'incoming_orders_state.dart';
 
 /// Holds the queue of orders (regular and wholesale) in the incoming-order
-/// popup, from arrival until they're marked as preparing:
+/// popup, from arrival until they're dispatched (marked as preparing):
 ///
 /// 1. [accept] — the order stays in the popup, now with a barcode per item.
 /// 2. [matchCode] + [confirmQuantity] — per item, until all are verified.
-/// 3. [markPreparing] — the order leaves the popup.
+/// 3. [assignBag] — one bag from the seller's inventory, which is final.
+/// 4. [markPreparing] — the order leaves the popup.
 ///
 /// The server is the source of truth for new orders: pushes, app resume and
 /// a periodic poll all just call [fetch]. Accepted orders are kept here (and
@@ -266,15 +267,74 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
     return true;
   }
 
-  /// Moves a fully verified [order] to preparing and out of the popup.
+  /// Assigns the bag with [barcode] to a fully verified [order]. Returns
+  /// null on success, otherwise the message to show the seller.
+  Future<String?> assignBag(PendingOrder order, String barcode) async {
+    if (state.isBusy) return 'Please wait for the current step to finish.';
+    order = _current(order);
+    if (!state.isFullyVerified(order)) {
+      return 'Verify every item before assigning a bag.';
+    }
+    if (state.bagFor(order) != null) return null;
+    final generation = _sessionGeneration;
+    emit(
+      state.copyWith(
+        assigningBagOrderId: order.sellerOrderId,
+        clearError: true,
+      ),
+    );
+    try {
+      final bag = await _repo.assignBag(order, barcode);
+      if (isClosed || generation != _sessionGeneration) return null;
+      emit(
+        state.copyWith(
+          clearAssigningBag: true,
+          bags: {...state.bags, order.sellerOrderId: bag},
+        ),
+      );
+      _save();
+      return null;
+    } catch (e) {
+      debugPrint('[IncomingOrders] bag failed for ${order.sellerOrderId}: $e');
+      if (!isClosed && generation == _sessionGeneration) {
+        emit(state.copyWith(clearAssigningBag: true));
+      }
+      return e.toString();
+    } finally {
+      _resumeFetching();
+    }
+  }
+
+  /// Bags the seller can still assign, or null when it couldn't be checked.
+  Future<int?> availableBagCount() async {
+    try {
+      return await _repo.availableBagCount();
+    } catch (e) {
+      debugPrint('[IncomingOrders] bag count failed: $e');
+      return null;
+    }
+  }
+
+  /// Hides the popup while the seller adds bags in Bag inventory, and brings
+  /// it back when they return.
+  void setManagingBags(bool value) {
+    if (!isClosed && state.isManagingBags != value) {
+      emit(state.copyWith(isManagingBags: value));
+    }
+  }
+
+  PendingOrder _current(PendingOrder order) =>
+      state.orders
+          .where((o) => o.sellerOrderId == order.sellerOrderId)
+          .firstOrNull ??
+      order;
+
+  /// Dispatches a fully verified [order] that has a bag: moves it to
+  /// preparing and out of the popup.
   Future<bool> markPreparing(PendingOrder order) async {
     if (state.isBusy) return false;
-    order =
-        state.orders
-            .where((o) => o.sellerOrderId == order.sellerOrderId)
-            .firstOrNull ??
-        order;
-    if (!state.isFullyVerified(order)) return false;
+    order = _current(order);
+    if (!state.isReadyToDispatch(order)) return false;
     final generation = _sessionGeneration;
     emit(
       state.copyWith(preparingOrderId: order.sellerOrderId, clearError: true),
@@ -312,6 +372,7 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
           verifiedItemIds: {...state.verifiedItemIds}..removeAll(itemIds),
           verifiedBarcodes: {...state.verifiedBarcodes}
             ..removeWhere((id, _) => itemIds.contains(id)),
+          bags: {...state.bags}..remove(order.sellerOrderId),
         ),
       );
       _publish();
@@ -333,8 +394,13 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
     );
     if (!isClosed) {
       final itemErrors = <int, Map<String, String>>{};
+      var bagRequired = false;
       if (error is ApiException) {
-        final data = error.responseData?['data'];
+        final response = error.responseData;
+        final data = response?['data'];
+        bagRequired =
+            response?['bag_required'] == true ||
+            (data is Map && data['bag_required'] == true);
         final errors = data is Map ? data['errors'] : null;
         if (errors is List) {
           for (final detail in errors.whereType<Map>()) {
@@ -361,6 +427,8 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
             ..removeAll(itemErrors.keys),
           verifiedBarcodes: {...state.verifiedBarcodes}
             ..removeWhere((id, _) => itemErrors.containsKey(id)),
+          // The server has no bag for this order: ask for one again.
+          bags: bagRequired ? {...state.bags, order.sellerOrderId: null} : null,
           failedOrderId: order.sellerOrderId,
           errorMessage: error.toString(),
         ),
@@ -380,7 +448,10 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
       for (final id in state.acceptedOrderIds)
         if (_held[id] case final order?)
           ScanSession(
-            order,
+            order.copyWith(
+              bag: state.bagFor(order),
+              clearBag: state.bagFor(order) == null,
+            ),
             {
               for (final item in order.items)
                 if (state.isVerified(item)) item.orderItemId,
@@ -418,6 +489,7 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
     final accepted = {...state.acceptedOrderIds};
     final verified = {...state.verifiedItemIds};
     final codes = {...state.verifiedBarcodes};
+    final bags = {...state.bags};
     // The pending contract includes accepted orders. A successful refresh
     // therefore removes saved orders that are no longer pending. Failed modes
     // keep their local progress, and acceptance does not reconcile an old list.
@@ -428,6 +500,7 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
           !_latest[order.mode]!.any((pending) => pending.sellerOrderId == id);
       if (removed) {
         accepted.remove(id);
+        bags.remove(id);
         for (final item in order.items) {
           verified.remove(item.orderItemId);
           codes.remove(item.orderItemId);
@@ -490,6 +563,7 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
     // drops it), so a new order never replaces it mid-read.
     final pinnedId =
         state.acceptingOrderId ??
+        state.assigningBagOrderId ??
         state.preparingOrderId ??
         (state.orders.isEmpty ? null : state.orders.first.sellerOrderId);
     if (pinnedId != null) {
@@ -526,6 +600,7 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
         acceptedOrderIds: accepted..retainAll(byId.keys),
         verifiedItemIds: verified,
         verifiedBarcodes: codes,
+        bags: bags..removeWhere((id, _) => !byId.containsKey(id)),
       ),
     );
     if (sessionsChanged) _save();

@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:hyper_local_seller/bloc/store_switcher/store_switcher_cubit.dart';
 import 'package:hyper_local_seller/config/colors.dart';
 import 'package:hyper_local_seller/config/hive_storage.dart';
+import 'package:hyper_local_seller/router/app_routes.dart';
 import 'package:hyper_local_seller/screen/home_page/bloc/home_page/home_page_bloc.dart';
 import 'package:hyper_local_seller/screen/home_page/bloc/notification/notification_list_bloc.dart';
 import 'package:hyper_local_seller/screen/order_page/bloc/orders/orders_bloc.dart';
@@ -17,8 +18,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 /// Sits in `MaterialApp.builder`, above every route. While there are pending
 /// orders it covers the whole app with a stack of order cards. A card is
-/// cleared only by accepting it, scanning every item and marking it as
-/// preparing — there is no close or reject.
+/// cleared only by accepting it, scanning every item, assigning a bag and
+/// dispatching it — there is no close or reject. The popup steps aside only
+/// while the seller adds bags in Bag inventory.
 class IncomingOrderOverlay extends StatefulWidget {
   final Widget child;
 
@@ -26,10 +28,15 @@ class IncomingOrderOverlay extends StatefulWidget {
   final Widget Function(void Function(String code, Uint8List? image) onCode)?
   cameraBuilder;
 
+  /// Opens Bag inventory and completes when the seller leaves it.
+  @visibleForTesting
+  final Future<void> Function()? openBagInventory;
+
   const IncomingOrderOverlay({
     super.key,
     required this.child,
     this.cameraBuilder,
+    this.openBagInventory,
   });
 
   @override
@@ -41,11 +48,26 @@ class _IncomingOrderOverlayState extends State<IncomingOrderOverlay> {
   bool _routesCanPop = false;
   bool _hasPending = false;
 
+  static bool _isShown(IncomingOrdersState state) =>
+      state.hasPending && !state.isManagingBags;
+
+  /// Hides the popup while Bag inventory is open, then brings it back.
+  Future<void> _openBagInventory() async {
+    final cubit = context.read<IncomingOrdersCubit>();
+    cubit.setManagingBags(true);
+    try {
+      await (widget.openBagInventory?.call() ??
+          MyAppRoutes.router.pushNamed(AppRoutes.bagInventory));
+    } finally {
+      cubit.setManagingBags(false);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     // Orders may already be queued when this mounts (listener only sees changes).
-    if (context.read<IncomingOrdersCubit>().state.hasPending) {
+    if (_isShown(context.read<IncomingOrdersCubit>().state)) {
       _hasPending = true;
       _report(true);
     }
@@ -73,24 +95,25 @@ class _IncomingOrderOverlayState extends State<IncomingOrderOverlay> {
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<IncomingOrdersCubit, IncomingOrdersState>(
-      listenWhen: (prev, curr) => prev.hasPending != curr.hasPending,
+      listenWhen: (prev, curr) => _isShown(prev) != _isShown(curr),
       listener: (context, state) {
-        _hasPending = state.hasPending;
-        _report(state.hasPending || _routesCanPop);
+        _hasPending = _isShown(state);
+        _report(_hasPending || _routesCanPop);
       },
       builder: (context, state) {
-        _hasPending = state.hasPending;
+        _hasPending = _isShown(state);
         return Stack(
           children: [
             NotificationListener<NavigationNotification>(
               onNotification: _onNavigationNotification,
               child: widget.child,
             ),
-            if (state.hasPending)
+            if (_isShown(state))
               Positioned.fill(
                 child: _OrderStackBarrier(
                   state: state,
                   cameraBuilder: widget.cameraBuilder,
+                  onAddBags: _openBagInventory,
                 ),
               ),
           ],
@@ -115,82 +138,87 @@ class _OrderStackBarrier extends StatelessWidget {
 
   final Widget Function(void Function(String code, Uint8List? image) onCode)?
   cameraBuilder;
+  final Future<void> Function() onAddBags;
 
-  const _OrderStackBarrier({required this.state, this.cameraBuilder});
+  const _OrderStackBarrier({
+    required this.state,
+    required this.onAddBags,
+    this.cameraBuilder,
+  });
 
   @override
   Widget build(BuildContext context) {
     final top = state.orders.first;
-    final behind = (state.orders.length - 1).clamp(0, 2);
     final isScanning = state.isAccepted(top);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // This sits above the app's Navigator, so it brings its own Overlay for
     // the scan panel's text fields (selection handles, toolbar).
     return Overlay.wrap(
       child: Material(
-        color: Colors.black.withValues(alpha: 0.6),
+        color: isDark ? AppColors.darkSubCategoryCardColor : Colors.white,
         child: Padding(
           // Keep the text fields above the keyboard.
           padding: EdgeInsets.only(
             bottom: MediaQuery.viewInsetsOf(context).bottom,
           ),
-          child: SafeArea(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 480),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _WaitingBadge(count: state.orders.length),
-                      const SizedBox(height: 14),
-                      // Edges of the cards waiting underneath the top one.
-                      for (var i = behind; i >= 1; i--) _StackEdge(depth: i),
-                      Flexible(
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 280),
-                          transitionBuilder: (child, animation) =>
-                              FadeTransition(
-                                opacity: animation,
-                                child: ScaleTransition(
-                                  scale: Tween(
-                                    begin: 0.96,
-                                    end: 1.0,
-                                  ).animate(animation),
-                                  child: child,
-                                ),
-                              ),
-                          child: isScanning
-                              ? OrderScanPanel(
-                                  key: ValueKey('scan-${top.sellerOrderId}'),
-                                  cameraBuilder: cameraBuilder,
-                                  order: top,
-                                  state: state,
-                                  onPrepared: () =>
-                                      _refreshOrderScreens(context),
-                                )
-                              : _IncomingOrderCard(
-                                  key: ValueKey(top.sellerOrderId),
-                                  order: top,
-                                  position: 1,
-                                  total: state.orders.length,
-                                  waitingSince: state.waitingSince(top),
-                                  isAccepting:
-                                      state.acceptingOrderId ==
-                                      top.sellerOrderId,
-                                  errorMessage:
-                                      state.failedOrderId == top.sellerOrderId
-                                      ? state.errorMessage
-                                      : null,
-                                ),
-                        ),
-                      ),
-                    ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ColoredBox(
+                color: AppColors.primaryColor,
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                    child: Center(
+                      child: _WaitingBadge(count: state.orders.length),
+                    ),
                   ),
                 ),
               ),
-            ),
+              Expanded(
+                child: SafeArea(
+                  top: false,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 280),
+                    layoutBuilder: (current, previous) => Stack(
+                      fit: StackFit.expand,
+                      children: [...previous, ?current],
+                    ),
+                    transitionBuilder: (child, animation) => FadeTransition(
+                      opacity: animation,
+                      child: ScaleTransition(
+                        scale: Tween(begin: 0.96, end: 1.0).animate(animation),
+                        child: child,
+                      ),
+                    ),
+                    child: isScanning
+                        ? OrderScanPanel(
+                            key: ValueKey('scan-${top.sellerOrderId}'),
+                            cameraBuilder: cameraBuilder,
+                            order: top,
+                            state: state,
+                            onPrepared: () => _refreshOrderScreens(context),
+                            onAddBags: onAddBags,
+                          )
+                        : _IncomingOrderCard(
+                            key: ValueKey(top.sellerOrderId),
+                            order: top,
+                            position: 1,
+                            total: state.orders.length,
+                            waitingSince: state.waitingSince(top),
+                            isAccepting:
+                                state.acceptingOrderId == top.sellerOrderId,
+                            errorMessage:
+                                state.failedOrderId == top.sellerOrderId
+                                ? state.errorMessage
+                                : null,
+                          ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -234,26 +262,6 @@ class _WaitingBadge extends StatelessWidget {
   }
 }
 
-class _StackEdge extends StatelessWidget {
-  final int depth;
-
-  const _StackEdge({required this.depth});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final base = isDark ? AppColors.darkProductCardColor : Colors.white;
-    return Container(
-      height: 10,
-      margin: EdgeInsets.symmetric(horizontal: 14.0 * depth),
-      decoration: BoxDecoration(
-        color: base.withValues(alpha: depth == 1 ? 0.85 : 0.6),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-    );
-  }
-}
-
 class _IncomingOrderCard extends StatelessWidget {
   final PendingOrder order;
   final int position;
@@ -282,68 +290,64 @@ class _IncomingOrderCard extends StatelessWidget {
         ? AppColors.darkSubCategoryCardColor
         : Colors.white;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(22),
-      child: ColoredBox(
-        color: cardColor,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Everything but the accept button scrolls, so the card still
-            // fits on small screens with large system font sizes.
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Stack(
-                      clipBehavior: Clip.none,
-                      alignment: Alignment.topCenter,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _Header(
-                              position: position,
-                              total: total,
-                              isWholesale: order.isWholesale,
-                            ),
-                            const SizedBox(height: _timerSize / 2 + 12),
-                          ],
-                        ),
-                        Positioned(
-                          bottom: 12,
-                          child: ResponseTimer(
-                            since: waitingSince,
-                            size: _timerSize,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-                      child: Column(
+    return ColoredBox(
+      color: cardColor,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Everything but the accept button scrolls, so the card still
+          // fits on small screens with large system font sizes.
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.topCenter,
+                    children: [
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          _OrderSummary(order: order),
-                          const SizedBox(height: 12),
-                          for (final item in order.items) _ItemRow(item: item),
+                          _Header(
+                            position: position,
+                            total: total,
+                            isWholesale: order.isWholesale,
+                          ),
+                          const SizedBox(height: _timerSize / 2 + 12),
                         ],
                       ),
+                      Positioned(
+                        bottom: 12,
+                        child: ResponseTimer(
+                          since: waitingSince,
+                          size: _timerSize,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _OrderSummary(order: order),
+                        const SizedBox(height: 12),
+                        for (final item in order.items) _ItemRow(item: item),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-            _AcceptBar(
-              order: order,
-              isAccepting: isAccepting,
-              errorMessage: errorMessage,
-            ),
-          ],
-        ),
+          ),
+          _AcceptBar(
+            order: order,
+            isAccepting: isAccepting,
+            errorMessage: errorMessage,
+          ),
+        ],
       ),
     );
   }

@@ -80,6 +80,30 @@ class FakePendingOrdersRepo extends PendingOrdersRepo {
   final Map<int, Map<int, String>> statuses = {};
   final Set<int> failStatusFor = {};
 
+  /// Bags assigned, as "sellerOrderId barcode".
+  final List<String> bagCalls = [];
+  Object? assignBagError;
+  Completer<void>? bagGate;
+  int availableBags = 5;
+  int bagCountCalls = 0;
+
+  /// Thrown once by the next [markOrderPreparing].
+  Object? prepareError;
+
+  @override
+  Future<AssignedBag> assignBag(PendingOrder order, String barcode) async {
+    if (bagGate != null) await bagGate!.future;
+    if (assignBagError != null) throw assignBagError!;
+    bagCalls.add('${order.sellerOrderId} ${barcode.trim()}');
+    return AssignedBag(id: order.sellerOrderId, barcode: barcode.trim());
+  }
+
+  @override
+  Future<int> availableBagCount() async {
+    bagCountCalls++;
+    return availableBags;
+  }
+
   @override
   Future<Map<int, String>> itemStatuses(int sellerOrderId) async {
     if (failStatusFor.contains(sellerOrderId)) throw Exception('offline');
@@ -122,6 +146,10 @@ class FakePendingOrdersRepo extends PendingOrdersRepo {
     Set<int> skipItemIds = const {},
     void Function(int)? onItemDone,
   }) async {
+    if (prepareError case final error?) {
+      prepareError = null;
+      throw error;
+    }
     for (final item in order.items) {
       if (skipItemIds.contains(item.orderItemId) ||
           statuses[order.sellerOrderId]?[item.orderItemId] == 'preparing') {

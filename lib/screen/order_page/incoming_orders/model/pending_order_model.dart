@@ -34,6 +34,9 @@ class PendingOrder extends Equatable {
 
   /// Delivery date and slot as the backend formats it, e.g. "22 Sep 21:00 - 22:00".
   final String? delivery;
+
+  /// Bag assigned to this order before dispatch, or null when none yet.
+  final AssignedBag? bag;
   final List<PendingOrderItem> items;
 
   const PendingOrder({
@@ -48,6 +51,7 @@ class PendingOrder extends Equatable {
     required this.paymentMethod,
     required this.total,
     required this.delivery,
+    this.bag,
     required this.items,
   });
 
@@ -74,6 +78,9 @@ class PendingOrder extends Equatable {
       paymentMethod: json['payment_method']?.toString() ?? '',
       total: json['total']?.toString() ?? '0',
       delivery: _nonEmpty(json['delivery'] ?? json['delivery_slot']),
+      bag: json['bag'] is Map<String, dynamic>
+          ? AssignedBag.fromJson(json['bag'] as Map<String, dynamic>)
+          : null,
       items: rawItems
           .whereType<Map<String, dynamic>>()
           .map(PendingOrderItem.fromJson)
@@ -107,10 +114,16 @@ class PendingOrder extends Equatable {
     'payment_method': paymentMethod,
     'total': total,
     'delivery': delivery,
+    'bag': bag?.toJson(),
     'items': [for (final item in items) item.toJson()],
   };
 
-  PendingOrder copyWith({List<PendingOrderItem>? items}) {
+  /// [clearBag] drops the bag; otherwise a null [bag] keeps the current one.
+  PendingOrder copyWith({
+    List<PendingOrderItem>? items,
+    AssignedBag? bag,
+    bool clearBag = false,
+  }) {
     return PendingOrder(
       sellerOrderId: sellerOrderId,
       orderId: orderId,
@@ -123,6 +136,7 @@ class PendingOrder extends Equatable {
       paymentMethod: paymentMethod,
       total: total,
       delivery: delivery,
+      bag: clearBag ? null : (bag ?? this.bag),
       items: items ?? this.items,
     );
   }
@@ -135,8 +149,33 @@ class PendingOrder extends Equatable {
     createdAt,
     total,
     delivery,
+    bag,
     items,
   ];
+}
+
+/// A bag from the seller's inventory, assigned to one seller order.
+class AssignedBag extends Equatable {
+  final int id;
+  final String barcode;
+  final DateTime? assignedAt;
+
+  const AssignedBag({required this.id, required this.barcode, this.assignedAt});
+
+  factory AssignedBag.fromJson(Map<String, dynamic> json) => AssignedBag(
+    id: _toInt(json['id']),
+    barcode: json['barcode']?.toString() ?? '',
+    assignedAt: DateTime.tryParse(json['assigned_at']?.toString() ?? ''),
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'barcode': barcode,
+    'assigned_at': assignedAt?.toIso8601String(),
+  };
+
+  @override
+  List<Object?> get props => [id, barcode, assignedAt];
 }
 
 class PendingOrderItem extends Equatable {

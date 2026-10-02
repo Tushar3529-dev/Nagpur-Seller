@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/cubit/incoming_orders_cubit.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/model/pending_order_model.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/repo/scan_session_store.dart';
+import 'package:hyper_local_seller/service/api_base_helper.dart';
 import 'helpers.dart';
 
 void main() {
@@ -78,6 +79,9 @@ void main() {
       confirmScannedQuantity(order.items.first, 3);
       expect(await cubit.markPreparing(order), isFalse);
       verify(order);
+      // Every item verified, but no bag yet.
+      expect(await cubit.markPreparing(order), isFalse);
+      expect(await cubit.assignBag(order, 'BAG-1'), isNull);
       await Future<void>.delayed(Duration.zero);
       repo.preparingGate = Completer<void>();
       final before = repo.totalFetches;
@@ -104,6 +108,7 @@ void main() {
     () async {
       final order = await accept();
       verify(order);
+      await cubit.assignBag(order, 'BAG-1');
       repo.failPreparingOnce.add(12);
       expect(await cubit.markPreparing(order), isFalse);
       expect(cubit.state.isFullyVerified(order), isTrue);
@@ -152,8 +157,11 @@ void main() {
       expect(store.sessions.single.verifiedItemIds, {11});
       confirmScannedQuantity(order.items.last, 3);
       expect(store.saves.length, initialSaves + 2);
-      await cubit.markPreparing(order);
+      await cubit.assignBag(order, 'BAG-1');
       expect(store.saves.length, initialSaves + 3);
+      expect(store.sessions.single.order.bag?.barcode, 'BAG-1');
+      await cubit.markPreparing(order);
+      expect(store.saves.length, initialSaves + 4);
       expect(store.sessions, isEmpty);
       cubit.clear();
       expect(store.clearCount, 1);
@@ -214,6 +222,7 @@ void main() {
       ];
       await cubit.fetch();
       expect(cubit.state.orders.map((o) => o.sellerOrderId), [1, 2]);
+      await cubit.assignBag(order, 'BAG-1');
       await cubit.markPreparing(order);
       expect(repo.calls, ['preparing 12']);
     },
@@ -246,4 +255,79 @@ void main() {
       },
     );
   }
+
+  group('bag', () {
+    test('only a fully verified order can get a bag, once', () async {
+      final order = await accept();
+      expect(await cubit.assignBag(order, 'BAG-1'), isNotNull);
+      expect(repo.bagCalls, isEmpty);
+      verify(order);
+      expect(cubit.state.isReadyToDispatch(order), isFalse);
+      expect(await cubit.assignBag(order, 'BAG-1'), isNull);
+      expect(cubit.state.bagFor(order)?.barcode, 'BAG-1');
+      expect(cubit.state.isReadyToDispatch(order), isTrue);
+      // The bag is final: a second scan doesn't replace it.
+      expect(await cubit.assignBag(order, 'BAG-2'), isNull);
+      expect(repo.bagCalls, ['1 BAG-1']);
+      expect(cubit.state.bagFor(order)?.barcode, 'BAG-1');
+    });
+
+    test('a rejected bag returns the message and keeps the order', () async {
+      final order = await accept();
+      verify(order);
+      repo.assignBagError = ApiException('Not in your bag pool.');
+      expect(await cubit.assignBag(order, 'BAG-X'), 'Not in your bag pool.');
+      expect(cubit.state.assigningBagOrderId, isNull);
+      expect(cubit.state.bagFor(order), isNull);
+      expect(cubit.state.isFullyVerified(order), isTrue);
+    });
+
+    test('busy while assigning: no double call and fetch waits', () async {
+      final order = await accept();
+      verify(order);
+      await Future<void>.delayed(Duration.zero);
+      repo.bagGate = Completer<void>();
+      final pending = cubit.assignBag(order, 'BAG-1');
+      expect(cubit.state.assigningBagOrderId, 1);
+      expect(await cubit.assignBag(order, 'BAG-1'), isNotNull);
+      final before = repo.totalFetches;
+      await cubit.fetch();
+      expect(repo.totalFetches, before);
+      repo.bagGate!.complete();
+      expect(await pending, isNull);
+      expect(repo.bagCalls, ['1 BAG-1']);
+    });
+
+    test('bag_required from dispatch asks for a bag again', () async {
+      final order = await accept();
+      verify(order);
+      await cubit.assignBag(order, 'BAG-1');
+      repo.prepareError = ApiException(
+        'Assign a bag before dispatch.',
+        statusCode: 422,
+        responseData: {'success': false, 'bag_required': true},
+      );
+      expect(await cubit.markPreparing(order), isFalse);
+      expect(cubit.state.bagFor(order), isNull);
+      expect(cubit.state.isFullyVerified(order), isTrue);
+      expect(cubit.state.isReadyToDispatch(order), isFalse);
+    });
+
+    test(
+      'an order resumed with a bag from the server skips the bag step',
+      () async {
+        final json = orderJson(1, itemIds: [11]);
+        (json['items'] as List).first['status'] = 'accepted';
+        json['bag'] = {'id': 33, 'barcode': 'BAG-000033'};
+        repo.server[OrderMode.regular] = [json];
+        await cubit.fetch();
+        final order = cubit.state.orders.single;
+        expect(cubit.state.bagFor(order)?.barcode, 'BAG-000033');
+        verify(order);
+        expect(cubit.state.isReadyToDispatch(order), isTrue);
+        expect(await cubit.markPreparing(order), isTrue);
+        expect(repo.bagCalls, isEmpty);
+      },
+    );
+  });
 }

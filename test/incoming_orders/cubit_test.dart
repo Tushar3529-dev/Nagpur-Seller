@@ -98,6 +98,7 @@ void main() {
         for (final item in top.items) {
           confirmScannedQuantity(item, item.quantity);
         }
+        expect(await cubit.assignBag(top, 'BAG-${top.sellerOrderId}'), isNull);
         expect(await cubit.markPreparing(top), isTrue);
       }
       expect(shown, [1, 2, 3, 4, 5]);
@@ -218,6 +219,7 @@ void main() {
         for (final item in order.items) {
           confirmScannedQuantity(item, item.quantity);
         }
+        await cubit.assignBag(order, 'BAG-1');
         await cubit.markPreparing(order);
         expect(queueIds(), [2]);
 
@@ -390,6 +392,7 @@ void main() {
         for (final item in top.items) {
           confirmScannedQuantity(item, item.quantity);
         }
+        expect(await cubit.assignBag(top, 'BAG-${top.sellerOrderId}'), isNull);
         expect(await cubit.markPreparing(top), isTrue);
       }
       expect(repo.calls.where((c) => c.startsWith('accept')).length, 6);

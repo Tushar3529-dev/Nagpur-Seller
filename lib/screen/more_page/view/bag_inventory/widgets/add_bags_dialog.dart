@@ -11,18 +11,10 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 /// Opens the bag scanner. Completes with true when bags were sent to the
 /// server, so the caller can reload its list.
 Future<bool> openAddBagsDialog(BuildContext context, {BagsRepo? repo}) async {
-  final added = await showDialog<bool>(
-    context: context,
+  final added = await showFullScreenScanner<bool>(
+    context,
+    AddBagsDialog(repo: repo),
     barrierDismissible: false,
-    builder: (_) => Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-      clipBehavior: Clip.antiAlias,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480),
-        child: AddBagsDialog(repo: repo),
-      ),
-    ),
   );
   return added ?? false;
 }
@@ -245,7 +237,6 @@ class _AddBagsDialogState extends State<AddBagsDialog> {
       child: ColoredBox(
         color: isDark ? AppColors.darkSubCategoryCardColor : Colors.white,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             ScanDialogHeader(
@@ -260,21 +251,21 @@ class _AddBagsDialogState extends State<AddBagsDialog> {
               },
               onClose: _close,
             ),
-            if (_mode == _Mode.list)
-              Flexible(child: _buildList())
-            else
-              Flexible(
-                child: SingleChildScrollView(
+            Expanded(
+              child: switch (_mode) {
+                _Mode.camera => _buildCamera(),
+                _Mode.list => _buildList(),
+                _ => SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
                   child: switch (_mode) {
-                    _Mode.camera => _buildCamera(),
                     _Mode.manual => _buildManual(),
                     _Mode.review => _buildReview(),
                     _Mode.result => _buildResult(),
-                    _Mode.list => const SizedBox.shrink(),
+                    _ => const SizedBox.shrink(),
                   },
                 ),
-              ),
+              },
+            ),
             ScanBottomBar(
               child: switch (_mode) {
                 _Mode.camera => _buildCameraActions(),
@@ -295,14 +286,14 @@ class _AddBagsDialogState extends State<AddBagsDialog> {
   }
 
   /// "6 bags in list · Review", shown while scanning or typing.
-  Widget _buildQueueBar() {
+  Widget _buildQueueBar({bool topGap = true}) {
     if (_queue.isEmpty) return const SizedBox.shrink();
     final count = _queue.length;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final color = isDark ? Colors.white : AppColors.primaryColor;
     return Padding(
-      padding: const EdgeInsets.only(top: 12),
+      padding: EdgeInsets.only(top: topGap ? 12 : 0),
       child: Material(
         color: AppColors.primaryColor.withValues(alpha: isDark ? 0.25 : 0.08),
         borderRadius: BorderRadius.circular(12),
@@ -355,20 +346,40 @@ class _AddBagsDialogState extends State<AddBagsDialog> {
   // ── Camera ─────────────────────────────────────────────────────────────
 
   Widget _buildCamera() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        widget.cameraBuilder != null
-            ? widget.cameraBuilder!(_onCode)
-            : ScanCameraView(
-                controller: _scanner!,
-                onDetect: _onDetect,
-                onManualEntry: () => _go(_Mode.manual),
-                hint: "Point the camera at the bag's barcode.",
-              ),
-        _buildNotice(),
-        _buildQueueBar(),
-      ],
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final card = BoxDecoration(
+      color: isDark ? AppColors.darkSubCategoryCardColor : Colors.white,
+      borderRadius: BorderRadius.circular(12),
+    );
+    return ScanCameraView(
+      controller: _scanner,
+      onDetect: _onDetect,
+      onManualEntry: () => _go(_Mode.manual),
+      hint: "Point the camera at the bag's barcode.",
+      preview: widget.cameraBuilder?.call(_onCode),
+      footer: _notice == null && _queue.isEmpty
+          ? null
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_notice != null)
+                  DecoratedBox(
+                    decoration: card,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                      child: _buildNotice(),
+                    ),
+                  ),
+                if (_notice != null && _queue.isNotEmpty)
+                  const SizedBox(height: 8),
+                if (_queue.isNotEmpty)
+                  DecoratedBox(
+                    decoration: card,
+                    child: _buildQueueBar(topGap: false),
+                  ),
+              ],
+            ),
     );
   }
 

@@ -113,6 +113,30 @@ class PendingOrdersRepo {
     }
   }
 
+  /// Assigns an available bag from the seller's inventory to [order]. The
+  /// server rejects unknown bags and bags assigned elsewhere with a 422.
+  Future<AssignedBag> assignBag(PendingOrder order, String barcode) async {
+    final response = await _helper.post(
+      '${ApiRoutes.ordersApi}/${order.sellerOrderId}/assign-bag',
+      {'barcode': barcode.trim()},
+    );
+    final bag = (response as Map<String, dynamic>)['data']?['bag'];
+    if (bag is! Map<String, dynamic>) {
+      throw ApiException('The bag was not assigned. Try again.');
+    }
+    return AssignedBag.fromJson(bag);
+  }
+
+  /// Number of bags in the seller's inventory not yet assigned to an order.
+  Future<int> availableBagCount() async {
+    final response = await _helper.get(
+      ApiRoutes.bagsApi,
+      queryParameters: {'status': 'available', 'per_page': '1'},
+    );
+    final total = (response as Map<String, dynamic>)['data']?['total'];
+    return total is num ? total.toInt() : int.tryParse('$total') ?? 0;
+  }
+
   Future<dynamic> acceptItem(int orderItemId) {
     return _helper.post('${ApiRoutes.ordersApi}/$orderItemId/accept', {});
   }

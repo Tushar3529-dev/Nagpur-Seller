@@ -224,6 +224,7 @@ class ApiBaseHelper {
           return ApiException(
             data['message'],
             statusCode: statusCode,
+            responseData: data,
           ); // Return backend message
         }
       }

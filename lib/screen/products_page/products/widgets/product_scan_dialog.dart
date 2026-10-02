@@ -12,17 +12,9 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 
 /// Opens the product scanner and, when a product is found, its details page.
 Future<void> openProductScanner(BuildContext context) async {
-  final product = await showDialog<Product>(
-    context: context,
-    builder: (_) => Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-      clipBehavior: Clip.antiAlias,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480),
-        child: const ProductScanDialog(searchOnDetect: true),
-      ),
-    ),
+  final product = await showFullScreenScanner<Product>(
+    context,
+    const ProductScanDialog(searchOnDetect: true),
   );
   if (product != null && context.mounted) {
     context.push(AppRoutes.productDetails, extra: product);
@@ -32,18 +24,11 @@ Future<void> openProductScanner(BuildContext context) async {
 enum _Mode { camera, manual, review, lookup }
 
 /// Reads a barcode for a product form without looking up an existing product.
-Future<String?> scanProductBarcode(BuildContext context) => showDialog<String>(
-  context: context,
-  builder: (_) => Dialog(
-    insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-    clipBehavior: Clip.antiAlias,
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 480),
-      child: const ProductScanDialog(returnBarcode: true),
-    ),
-  ),
-);
+Future<String?> scanProductBarcode(BuildContext context) =>
+    showFullScreenScanner<String>(
+      context,
+      const ProductScanDialog(returnBarcode: true),
+    );
 
 /// Scans (or takes a typed) product barcode, looks the product up and pops
 /// with it.
@@ -181,7 +166,6 @@ class _ProductScanDialogState extends State<ProductScanDialog> {
     return ColoredBox(
       color: isDark ? AppColors.darkSubCategoryCardColor : Colors.white,
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ScanDialogHeader(
@@ -194,16 +178,18 @@ class _ProductScanDialogState extends State<ProductScanDialog> {
             },
             onClose: () => Navigator.of(context).pop(),
           ),
-          Flexible(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-              child: switch (_mode) {
-                _Mode.camera => _buildCamera(),
-                _Mode.manual => _buildManual(),
-                _Mode.review => _buildReview(),
-                _Mode.lookup => _buildLookup(),
-              },
-            ),
+          Expanded(
+            child: _mode == _Mode.camera
+                ? _buildCamera()
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+                    child: switch (_mode) {
+                      _Mode.manual => _buildManual(),
+                      _Mode.review => _buildReview(),
+                      _Mode.lookup => _buildLookup(),
+                      _Mode.camera => const SizedBox.shrink(),
+                    },
+                  ),
           ),
           ScanBottomBar(
             child: switch (_mode) {
@@ -258,11 +244,11 @@ class _ProductScanDialogState extends State<ProductScanDialog> {
         );
 
   Widget _buildCamera() {
-    if (widget.cameraBuilder != null) return widget.cameraBuilder!(_onCode);
     return ScanCameraView(
-      controller: _scanner!,
+      controller: _scanner,
       onDetect: _onDetect,
       onManualEntry: () => _go(_Mode.manual),
+      preview: widget.cameraBuilder?.call(_onCode),
     );
   }
 
