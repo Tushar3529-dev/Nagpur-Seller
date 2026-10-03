@@ -17,9 +17,10 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 enum _Phase { items, bag, ready }
 
 /// Shown full screen once an order is accepted. The camera stays open while
-/// a page per product slides past: scanning the product on screen (with the
-/// quantity set on its page) verifies it and moves on to the next one, no
-/// confirm taps. Then a bag is scanned, and "Dispatch order" appears.
+/// a page per product slides past: the seller scans a product, then adds its
+/// quantity (with + or more scans); once it matches the order the next
+/// product slides in, no confirm taps. Then the seller packs the items, scans
+/// a bag, and "Dispatch order" appears.
 class OrderScanPanel extends StatefulWidget {
   final PendingOrder order;
   final IncomingOrdersState state;
@@ -58,9 +59,10 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
   int _page = 0;
   final _codeController = TextEditingController();
 
-  /// Quantity set on each product's page (by order_item_id). Starts at the
-  /// ordered quantity, so a full line needs no taps.
-  final Map<int, int> _quantities = {};
+  /// Units counted per product (by order_item_id). Nothing until its barcode
+  /// is scanned: each scan counts one unit and + / − adjust it. The product
+  /// is verified as soon as the count reaches the ordered quantity.
+  final Map<int, int> _counts = {};
 
   /// Typing codes instead of using the camera.
   bool _manual = false;
@@ -187,19 +189,15 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
     return index < 0 ? 0 : index;
   }
 
-  int _quantityOf(PendingOrderItem item) =>
-      _quantities[item.orderItemId] ?? item.quantity;
+  int _countOf(PendingOrderItem item) => _counts[item.orderItemId] ?? 0;
 
   void _changeQuantity(PendingOrderItem item, int delta) {
+    final count = (_countOf(item) + delta).clamp(1, item.quantity);
     setState(() {
-      _quantities[item.orderItemId] = (_quantityOf(item) + delta).clamp(
-        1,
-        9999,
-      );
+      _counts[item.orderItemId] = count;
       _error = null;
-      // Let the product still under the camera be read again.
-      _lastCode = null;
     });
+    if (count == item.quantity) _verify(item);
   }
 
   void _setManual(bool manual) {
@@ -252,48 +250,64 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
     }
   }
 
-  /// Verifies the product [code] belongs to with the quantity on its page,
-  /// then slides on to the next product still to scan.
+  /// Counts one unit of the product [code] belongs to.
   void _checkItem(String code) {
     final (match, item) = _cubit.matchCode(widget.order, code);
     switch (match) {
       case ScanMatch.matched:
-        final quantity = _quantityOf(item!);
-        if (!_cubit.confirmQuantity(item, quantity)) {
-          _showPage(item);
-          HapticFeedback.heavyImpact();
-          setState(
-            () => _error = quantity != item.quantity
-                ? 'Quantity is $quantity but ${item.quantity} were ordered. '
-                      'Fix it and scan again.'
-                : "Couldn't verify ${item.product}. Scan it again.",
-          );
+        final count = _countOf(item!) + 1;
+        _codeController.clear();
+        if (count >= item.quantity) {
+          _verify(item);
           return;
         }
-        HapticFeedback.mediumImpact();
-        _codeController.clear();
-        _matchedTimer?.cancel();
-        _matchedTimer = Timer(const Duration(milliseconds: 1200), () {
-          if (mounted) setState(() => _matched = null);
-        });
+        // More units to count: ask for the quantity on its page, with the
+        // keyboard out of the way.
+        HapticFeedback.selectionClick();
+        FocusManager.instance.primaryFocus?.unfocus();
+        _showPage(item);
         setState(() {
+          _counts[item.orderItemId] = count;
           _error = null;
-          _matched = item.product;
+          _matched = null;
         });
-        _showNextAfter(item);
       case ScanMatch.alreadyVerified:
         HapticFeedback.heavyImpact();
-        setState(
-          () => _error =
-              '${item!.product} is already verified. Scan the next item.',
-        );
+        setState(() {
+          _matched = null;
+          _error = '${item!.product} is already verified. Scan the next item.';
+        });
       case ScanMatch.notInOrder:
         HapticFeedback.heavyImpact();
-        setState(
-          () => _error =
-              "This barcode isn't in this order. Check the product and try again.",
-        );
+        setState(() {
+          _matched = null;
+          _error =
+              "This barcode isn't in this order. Check the product and try again.";
+        });
     }
+  }
+
+  /// Marks [item] verified with its full quantity, then slides on to the
+  /// next product still to scan.
+  void _verify(PendingOrderItem item) {
+    if (!_cubit.confirmQuantity(item, item.quantity)) {
+      HapticFeedback.heavyImpact();
+      setState(() {
+        _counts.remove(item.orderItemId);
+        _error = "Couldn't verify ${item.product}. Scan it again.";
+      });
+      return;
+    }
+    HapticFeedback.mediumImpact();
+    _matchedTimer?.cancel();
+    _matchedTimer = Timer(const Duration(milliseconds: 1200), () {
+      if (mounted) setState(() => _matched = null);
+    });
+    setState(() {
+      _error = null;
+      _matched = item.product;
+    });
+    _showNextAfter(item);
   }
 
   void _showPage(PendingOrderItem item) {
@@ -362,20 +376,23 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
                 ? _buildSummary()
                 : _packing
                 ? _buildPacking()
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        flex: 4,
-                        child: _manual ? _buildManual() : _buildCamera(),
-                      ),
-                      Expanded(
-                        flex: 5,
-                        child: phase == _Phase.items
-                            ? _buildPages()
-                            : _buildBag(),
-                      ),
-                    ],
+                : LayoutBuilder(
+                    // Short screens give the product page more of the room.
+                    builder: (context, constraints) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          flex: constraints.maxHeight < 520 ? 3 : 4,
+                          child: _manual ? _buildManual() : _buildCamera(),
+                        ),
+                        Expanded(
+                          flex: 5,
+                          child: phase == _Phase.items
+                              ? _buildPages()
+                              : _buildBag(),
+                        ),
+                      ],
+                    ),
                   ),
           ),
           ScanBottomBar(child: _buildActions(phase)),
@@ -457,7 +474,7 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
               final item = items[index];
               return _ItemPage(
                 item: item,
-                quantity: _quantityOf(item),
+                count: _countOf(item),
                 verified: state.isVerified(item),
                 errors: state.itemErrors[item.orderItemId] ?? const {},
                 onQuantity: (delta) => _changeQuantity(item, delta),
@@ -801,14 +818,16 @@ class _ScanMessage extends StatelessWidget {
 /// One product of the order: what to pick and how many.
 class _ItemPage extends StatelessWidget {
   final PendingOrderItem item;
-  final int quantity;
+
+  /// Units counted so far; 0 until the barcode is scanned.
+  final int count;
   final bool verified;
   final Map<String, String> errors;
   final void Function(int delta) onQuantity;
 
   const _ItemPage({
     required this.item,
-    required this.quantity,
+    required this.count,
     required this.verified,
     required this.errors,
     required this.onQuantity,
@@ -818,7 +837,6 @@ class _ItemPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final green = Colors.green.shade600;
-    final mismatch = quantity != item.quantity;
     final details = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -905,6 +923,45 @@ class _ItemPage extends StatelessWidget {
               ],
             ),
           )
+        : count == 0
+        ? Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.primaryColor.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.primaryColor.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.qr_code_scanner,
+                  color: AppColors.primaryColor,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Scan the barcode, then add the quantity.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        'Ordered ${item.quantity}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.hintColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          )
         : Row(
             children: [
               Expanded(
@@ -912,15 +969,15 @@ class _ItemPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Quantity',
+                      'Add quantity',
                       style: theme.textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     Text(
-                      'Ordered ${item.quantity}',
+                      '$count of ${item.quantity} counted',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.hintColor,
+                        color: Colors.orange.shade800,
                       ),
                     ),
                   ],
@@ -928,18 +985,17 @@ class _ItemPage extends StatelessWidget {
               ),
               IconButton.outlined(
                 tooltip: 'Decrease',
-                onPressed: quantity > 1 ? () => onQuantity(-1) : null,
+                onPressed: count > 1 ? () => onQuantity(-1) : null,
                 icon: const Icon(Icons.remove),
               ),
               SizedBox(
                 width: 56,
                 child: Text(
-                  '$quantity',
+                  '$count',
                   key: ValueKey('qty-${item.orderItemId}'),
                   textAlign: TextAlign.center,
                   style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: mismatch ? Colors.orange.shade800 : null,
                   ),
                 ),
               ),
@@ -950,32 +1006,25 @@ class _ItemPage extends StatelessWidget {
               ),
             ],
           );
-    // The quantity stays in view; only the product details scroll. Too
-    // short for that (keyboard open): everything scrolls.
+    // The quantity sits at the bottom of the page; when the page is too
+    // short for everything, the whole page scrolls.
     return LayoutBuilder(
-      builder: (context, constraints) {
-        const padding = EdgeInsets.fromLTRB(16, 12, 16, 8);
-        if (constraints.maxHeight < 150) {
-          return SingleChildScrollView(
-            padding: padding,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [details, const SizedBox(height: 10), status],
-            ),
-          );
-        }
-        return Padding(
-          padding: padding,
+      builder: (context, constraints) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: (constraints.maxHeight - 20).clamp(0, double.infinity),
+          ),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(child: SingleChildScrollView(child: details)),
-              const SizedBox(height: 10),
-              status,
+              details,
+              Padding(padding: const EdgeInsets.only(top: 10), child: status),
             ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

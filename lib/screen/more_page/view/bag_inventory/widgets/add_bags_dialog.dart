@@ -56,6 +56,13 @@ class _AddBagsDialogState extends State<AddBagsDialog> {
   /// Short status line under the camera or the manual entry field.
   String? _notice;
   String? _error;
+
+  /// True while a scanned or typed code is looked up in the inventory.
+  bool _checking = false;
+
+  /// Codes found in the seller's inventory, so a bag still in front of the
+  /// camera isn't looked up again after a retake.
+  final Set<String> _inInventory = {};
   bool _isSubmitting = false;
   BulkAddBagsResult? _result;
 
@@ -89,6 +96,7 @@ class _AddBagsDialogState extends State<AddBagsDialog> {
     setState(() {
       _mode = mode;
       _error = null;
+      _checking = false;
       if (mode != _Mode.camera && mode != _Mode.manual) _notice = null;
     });
   }
@@ -109,6 +117,11 @@ class _AddBagsDialogState extends State<AddBagsDialog> {
       }
       return;
     }
+    if (_inInventory.contains(code)) {
+      final notice = _inInventoryMessage(code);
+      if (_notice != notice) setState(() => _notice = notice);
+      return;
+    }
     if (_isFull) {
       setState(() => _notice = _fullNotice);
       return;
@@ -117,6 +130,35 @@ class _AddBagsDialogState extends State<AddBagsDialog> {
     _scannedCode = code;
     _scannedImage = image;
     _go(_Mode.review);
+    _checkScanned(code);
+  }
+
+  String _inInventoryMessage(String code) =>
+      '$code is already in your bag inventory. Scan a different bag.';
+
+  /// Whether [code] is already in the seller's inventory. False when the
+  /// check fails too: the server still reports it on confirm.
+  Future<bool> _isInInventory(String code) async {
+    if (_inInventory.contains(code)) return true;
+    try {
+      final found = await _repo.findBag(code) != null;
+      if (found) _inInventory.add(code);
+      return found;
+    } catch (e) {
+      debugPrint('[Bags] inventory check failed for $code: $e');
+      return false;
+    }
+  }
+
+  Future<void> _checkScanned(String code) async {
+    setState(() => _checking = true);
+    final exists = await _isInInventory(code);
+    if (!mounted || _mode != _Mode.review || _scannedCode != code) return;
+    setState(() {
+      _checking = false;
+      _error = exists ? _inInventoryMessage(code) : null;
+    });
+    if (exists) HapticFeedback.heavyImpact();
   }
 
   String get _fullNotice =>
@@ -124,6 +166,7 @@ class _AddBagsDialogState extends State<AddBagsDialog> {
       'Confirm these first.';
 
   void _saveScanned({required bool finish}) {
+    if (_checking || _error != null) return;
     final code = _scannedCode;
     if (code != null && !_queue.contains(code) && !_isFull) {
       _queue.add(code);
@@ -136,8 +179,10 @@ class _AddBagsDialogState extends State<AddBagsDialog> {
   }
 
   /// Adds every code typed into the manual field. Several codes can be
-  /// separated by commas, semicolons or new lines.
-  void _addTyped() {
+  /// separated by commas, semicolons or new lines. Codes already in the
+  /// inventory are left out.
+  Future<void> _addTyped() async {
+    if (_checking) return;
     final codes = _codeController.text
         .split(RegExp(r'[,;\n]'))
         .map((c) => c.trim())
@@ -147,26 +192,39 @@ class _AddBagsDialogState extends State<AddBagsDialog> {
       setState(() => _error = 'Enter a barcode');
       return;
     }
+    final fresh = codes.where((c) => !_queue.contains(c)).toList();
+    setState(() {
+      _checking = true;
+      _error = null;
+    });
+    final exists = await Future.wait(fresh.map(_isInInventory));
+    if (!mounted || _mode != _Mode.manual) return;
+    final inInventory = [
+      for (var i = 0; i < fresh.length; i++)
+        if (exists[i]) fresh[i],
+    ];
     var added = 0;
-    var skipped = 0;
-    for (final code in codes) {
-      if (_queue.contains(code)) {
-        skipped++;
-      } else if (!_isFull) {
-        _queue.add(code);
-        added++;
-      }
+    final skipped = codes.length - fresh.length;
+    for (final code in fresh) {
+      if (inInventory.contains(code)) continue;
+      if (_isFull) break;
+      _queue.add(code);
+      added++;
     }
-    final notFitting = codes.length - added - skipped;
+    final notFitting = fresh.length - inInventory.length - added;
     _codeController.clear();
     setState(() {
-      _error = null;
+      _checking = false;
       _notice = [
         'Added $added ${added == 1 ? 'bag' : 'bags'}.',
         if (skipped > 0) '$skipped already in your list.',
+        if (inInventory.isNotEmpty)
+          '${inInventory.join(', ')} ${inInventory.length == 1 ? 'is' : 'are'} '
+              'already in your bag inventory.',
         if (notFitting > 0) _fullNotice,
       ].join(' ');
     });
+    if (inInventory.isNotEmpty) HapticFeedback.heavyImpact();
   }
 
   void _remove(String code) {
@@ -414,17 +472,46 @@ class _AddBagsDialogState extends State<AddBagsDialog> {
         ),
         const SizedBox(height: 12),
         ScanCodeBox(label: 'Detected code', code: _scannedCode ?? ''),
-        const SizedBox(height: 8),
-        Text(
-          'Save to scan the next bag, or finish if this is the last one.',
-          textAlign: TextAlign.center,
-          style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
-        ),
+        const SizedBox(height: 10),
+        if (_checking)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Checking your inventory…',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.hintColor,
+                ),
+              ),
+            ],
+          )
+        else if (_error != null)
+          ScanErrorText(_error!)
+        else
+          Text(
+            'Save to scan the next bag, or finish if this is the last one.',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+          ),
       ],
     );
   }
 
   Widget _buildReviewActions() {
+    // A bag already in the inventory can only be retaken.
+    if (_error != null) {
+      return ScanPrimaryButton(
+        label: 'Retake',
+        icon: Icons.qr_code_scanner,
+        onPressed: () => _go(_Mode.camera),
+      );
+    }
     final total = _queue.length + 1;
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -445,6 +532,7 @@ class _AddBagsDialogState extends State<AddBagsDialog> {
               child: ScanPrimaryButton(
                 label: 'Save & next',
                 icon: Icons.add,
+                isLoading: _checking,
                 onPressed: () => _saveScanned(finish: false),
               ),
             ),
@@ -455,6 +543,7 @@ class _AddBagsDialogState extends State<AddBagsDialog> {
           label: 'Save and finish ($total)',
           icon: Icons.check,
           color: Colors.green.shade600,
+          isLoading: _checking,
           onPressed: () => _saveScanned(finish: true),
         ),
       ],
@@ -505,6 +594,7 @@ class _AddBagsDialogState extends State<AddBagsDialog> {
           child: ScanPrimaryButton(
             label: 'Add to list',
             icon: Icons.add,
+            isLoading: _checking,
             onPressed: _addTyped,
           ),
         ),

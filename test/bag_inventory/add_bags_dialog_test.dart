@@ -16,6 +16,20 @@ class _FakeRepo extends BagsRepo {
   Object? addError;
   Completer<void>? addGate;
 
+  /// Barcodes already in the seller's inventory.
+  Set<String> inventory = {};
+  final List<String> findCalls = [];
+  bool findFails = false;
+
+  @override
+  Future<Bag?> findBag(String barcode) async {
+    findCalls.add(barcode);
+    if (findFails) throw ApiException('No Internet Connection');
+    return inventory.contains(barcode)
+        ? Bag(id: 1, barcode: barcode, status: Bag.available)
+        : null;
+  }
+
   @override
   Future<BulkAddBagsResult> addBags(List<String> barcodes) async {
     addCalls.add(barcodes);
@@ -262,5 +276,69 @@ void main() {
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     expect(closedWith, isFalse);
+  });
+
+  testWidgets('a bag already in the inventory is stopped at scan time', (
+    tester,
+  ) async {
+    repo.inventory = {'BAG-OLD'};
+    await open(tester);
+    scan('BAG-OLD', null);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'BAG-OLD is already in your bag inventory. Scan a different bag.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Save & next'), findsNothing);
+    expect(find.textContaining('Save and finish'), findsNothing);
+
+    await tester.tap(find.text('Retake'));
+    await tester.pumpAndSettle();
+    // Still in front of the camera: flagged there without another lookup.
+    scan('BAG-OLD', null);
+    await tester.pumpAndSettle();
+    expect(find.text('camera'), findsOneWidget);
+    expect(
+      find.text(
+        'BAG-OLD is already in your bag inventory. Scan a different bag.',
+      ),
+      findsOneWidget,
+    );
+    expect(repo.findCalls, ['BAG-OLD']);
+
+    await scanAndSave(tester, 'BAG-NEW');
+    expect(find.text('1 bag in list'), findsOneWidget);
+    await tester.tap(find.text('Review'));
+    await tester.pumpAndSettle();
+    expect(find.text('BAG-OLD'), findsNothing);
+  });
+
+  testWidgets('typed codes already in the inventory are left out', (
+    tester,
+  ) async {
+    repo.inventory = {'BAG-OLD'};
+    await open(tester);
+    await tester.tap(find.byTooltip('Enter code manually'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'BAG-OLD, BAG-NEW');
+    await tester.tap(find.text('Add to list'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Added 1 bag. BAG-OLD is already in your bag inventory.'),
+      findsOneWidget,
+    );
+    expect(find.text('1 bag in list'), findsOneWidget);
+  });
+
+  testWidgets('a failed inventory check still lets the bag be saved', (
+    tester,
+  ) async {
+    repo.findFails = true;
+    await open(tester);
+    await scanAndSave(tester, 'BAG-1');
+    expect(find.text('1 bag in list'), findsOneWidget);
   });
 }

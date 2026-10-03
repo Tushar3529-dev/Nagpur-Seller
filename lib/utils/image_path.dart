@@ -92,4 +92,5 @@ class ImagesPath {
 
 class AudioPath {
   static const inAppNotificationSound = 'audio/notification_sound.mp3';
+  static const scannerBeep = 'audio/scanner_beep.mp3';
 }

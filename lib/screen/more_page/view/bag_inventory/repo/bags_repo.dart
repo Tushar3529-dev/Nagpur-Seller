@@ -27,6 +27,14 @@ class BagsRepo {
     return BagsPage.fromJson(response as Map<String, dynamic>);
   }
 
+  /// The seller's bag with exactly [barcode], or null when they have none.
+  /// The list search matches partial barcodes, so the match is checked here.
+  Future<Bag?> findBag(String barcode) async {
+    final code = barcode.trim();
+    final page = await getBags(search: code, perPage: 100);
+    return page.items.where((bag) => bag.barcode == code).firstOrNull;
+  }
+
   Future<BulkAddBagsResult> addBags(List<String> barcodes) async {
     final response = await _helper.post('${ApiRoutes.bagsApi}/bulk', {
       'barcodes': barcodes,

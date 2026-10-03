@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:hyper_local_seller/config/colors.dart';
+import 'package:hyper_local_seller/service/scan_beep_service.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 /// Building blocks shared by the barcode scanners: the incoming-order scan
@@ -43,6 +44,14 @@ class ScanCameraView extends StatelessWidget {
     this.footer,
   });
 
+  /// Beeps for every code the camera reads, even one the screen then
+  /// rejects, and hands the capture on.
+  void _onDetect(BarcodeCapture capture) {
+    final code = firstBarcodeValue(capture);
+    if (code != null) ScanBeepService().onCodeRead(code);
+    onDetect?.call(capture);
+  }
+
   /// Scan window for a camera of [size]: wide and short like a barcode,
   /// a little above the middle.
   static Rect windowFor(Size size) {
@@ -57,6 +66,8 @@ class ScanCameraView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Load the beep while the camera starts so the first scan isn't silent.
+    if (preview == null) ScanBeepService().preload();
     return LayoutBuilder(
       builder: (context, constraints) {
         final window = windowFor(constraints.biggest);
@@ -93,7 +104,7 @@ class ScanCameraView extends StatelessWidget {
                 preview ??
                     MobileScanner(
                       controller: controller,
-                      onDetect: onDetect,
+                      onDetect: _onDetect,
                       scanWindow: window,
                       errorBuilder: (context, error) => ScanCameraError(
                         permissionDenied:
