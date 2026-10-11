@@ -113,7 +113,10 @@ class FakePendingOrdersRepo extends PendingOrdersRepo {
   int get totalFetches => fetchCount.values.fold(0, (a, b) => a + b);
 
   @override
-  Future<List<PendingOrder>> getPendingOrders(OrderMode mode) async {
+  Future<List<PendingOrder>> getPendingOrders(
+    OrderMode mode, {
+    bool popupWindowOnly = true,
+  }) async {
     fetchCount[mode] = fetchCount[mode]! + 1;
     if (failing.contains(mode)) throw Exception('${mode.name} is down');
     return server[mode]!
@@ -183,9 +186,16 @@ class FakePendingOrdersRepo extends PendingOrdersRepo {
   }
 }
 
+/// Signed-in user for tests: allowed to see the incoming-order popup.
+const Map<String, dynamic> testUser = {
+  'id': 1,
+  'assigned_permissions': ['order.view', 'order.update_status', 'order.popup'],
+};
+
 Future<void> initTestHive({String? token = 'test-token'}) async {
   Hive.init(Directory.systemTemp.createTempSync('hive_test').path);
   await HiveStorage.setAccessToken(token);
+  await HiveStorage.setUserData(Map.of(testUser));
 }
 
 class FakeScanSessionStore extends ScanSessionStore {

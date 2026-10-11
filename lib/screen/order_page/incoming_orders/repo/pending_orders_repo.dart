@@ -21,12 +21,17 @@ class PendingOrdersRepo {
   /// - regular: every order awaiting a response or still accepted
   /// - wholesale: `popup=1` makes the backend return only orders whose
   ///   delivery slot ends within 30 minutes, so no time filtering here.
-  Future<List<PendingOrder>> getPendingOrders(OrderMode mode) async {
+  ///   [popupWindowOnly] false drops that filter, for an order the seller
+  ///   opened from the orders list.
+  Future<List<PendingOrder>> getPendingOrders(
+    OrderMode mode, {
+    bool popupWindowOnly = true,
+  }) async {
     final response = await _helper.get(
       ApiRoutes.pendingRegularOrdersApi,
       queryParameters: {
         'order_mode': mode.name,
-        if (mode == OrderMode.wholesale) 'popup': '1',
+        if (mode == OrderMode.wholesale && popupWindowOnly) 'popup': '1',
       },
       allowMissingSuccessFlag: true,
     );

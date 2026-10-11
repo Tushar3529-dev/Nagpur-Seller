@@ -51,6 +51,13 @@ class AppPermissions {
   static const String orderView = "order.view";
   static const String orderEdit = "order.edit";
   static const String orderUpdateStatus = "order.update_status";
+  static const String orderPopup = "order.popup";
+
+  // Bag
+  static const String bagView = "bag.view";
+  static const String bagCreate = "bag.create";
+  static const String bagEdit = "bag.edit";
+  static const String bagDelete = "bag.delete";
 
   // Earning
   static const String earningView = "earning.view";

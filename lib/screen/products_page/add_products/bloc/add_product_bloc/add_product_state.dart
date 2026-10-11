@@ -29,7 +29,29 @@ final class AddProductSuccess extends AddProductState {
 
 final class AddProductFailure extends AddProductState {
   final String error;
-  const AddProductFailure(super.productData, this.error);
+
+  /// Server validation errors keyed by request field (e.g. `pricing`,
+  /// `variants_json`, `net_quantity_unit`). Empty for non-validation errors.
+  final Map<String, String> fieldErrors;
+
+  const AddProductFailure(
+    super.productData,
+    this.error, {
+    this.fieldErrors = const {},
+  });
+}
+
+String? _blankToNull(String? v) {
+  final t = v?.trim();
+  return (t == null || t.isEmpty) ? null : t;
+}
+
+/// The basis pair is optional, but both halves must travel together.
+Map<String, dynamic> _unitPriceBasisJson(String? quantity, String? unit) {
+  final q = _blankToNull(quantity);
+  final u = _blankToNull(unit);
+  if (q == null || u == null) return const {};
+  return {"unit_price_basis_quantity": q, "unit_price_basis_unit": u};
 }
 
 class StorePricing {
@@ -37,6 +59,9 @@ class StorePricing {
   final String storeName;
   final String? price;
   final String? specialPrice;
+  final String? wholesalePrice;
+  final String? unitPriceBasisQuantity;
+  final String? unitPriceBasisUnit;
   final String? cost;
   final String? stock;
   final String? sku;
@@ -46,6 +71,9 @@ class StorePricing {
     required this.storeName,
     this.price,
     this.specialPrice,
+    this.wholesalePrice,
+    this.unitPriceBasisQuantity,
+    this.unitPriceBasisUnit,
     this.cost,
     this.stock,
     this.sku,
@@ -56,6 +84,9 @@ class StorePricing {
     String? storeName,
     String? price,
     String? specialPrice,
+    String? wholesalePrice,
+    String? unitPriceBasisQuantity,
+    String? unitPriceBasisUnit,
     String? cost,
     String? stock,
     String? sku,
@@ -65,6 +96,10 @@ class StorePricing {
       storeName: storeName ?? this.storeName,
       price: price ?? this.price,
       specialPrice: specialPrice ?? this.specialPrice,
+      wholesalePrice: wholesalePrice ?? this.wholesalePrice,
+      unitPriceBasisQuantity:
+          unitPriceBasisQuantity ?? this.unitPriceBasisQuantity,
+      unitPriceBasisUnit: unitPriceBasisUnit ?? this.unitPriceBasisUnit,
       cost: cost ?? this.cost,
       stock: stock ?? this.stock,
       sku: sku ?? this.sku,
@@ -76,6 +111,8 @@ class StorePricing {
       "store_id": storeId.toString(),
       "price": price ?? "",
       "special_price": specialPrice ?? "",
+      "wholesale_price": _blankToNull(wholesalePrice),
+      ..._unitPriceBasisJson(unitPriceBasisQuantity, unitPriceBasisUnit),
       "cost": cost ?? "",
       "stock": stock ?? "",
       "sku": sku ?? "",
@@ -88,6 +125,9 @@ class VariantStorePricing {
   final String variantId;
   final String? price;
   final String? specialPrice;
+  final String? wholesalePrice;
+  final String? unitPriceBasisQuantity;
+  final String? unitPriceBasisUnit;
   final String? cost;
   final String? stock;
   final String? sku;
@@ -97,6 +137,9 @@ class VariantStorePricing {
     required this.variantId,
     this.price,
     this.specialPrice,
+    this.wholesalePrice,
+    this.unitPriceBasisQuantity,
+    this.unitPriceBasisUnit,
     this.cost,
     this.stock,
     this.sku,
@@ -107,6 +150,9 @@ class VariantStorePricing {
     String? variantId,
     String? price,
     String? specialPrice,
+    String? wholesalePrice,
+    String? unitPriceBasisQuantity,
+    String? unitPriceBasisUnit,
     String? cost,
     String? stock,
     String? sku,
@@ -116,6 +162,10 @@ class VariantStorePricing {
       variantId: variantId ?? this.variantId,
       price: price ?? this.price,
       specialPrice: specialPrice ?? this.specialPrice,
+      wholesalePrice: wholesalePrice ?? this.wholesalePrice,
+      unitPriceBasisQuantity:
+          unitPriceBasisQuantity ?? this.unitPriceBasisQuantity,
+      unitPriceBasisUnit: unitPriceBasisUnit ?? this.unitPriceBasisUnit,
       cost: cost ?? this.cost,
       stock: stock ?? this.stock,
       sku: sku ?? this.sku,
@@ -128,6 +178,8 @@ class VariantStorePricing {
       "variant_id": variantId,
       "price": price ?? "",
       "special_price": specialPrice ?? "",
+      "wholesale_price": _blankToNull(wholesalePrice),
+      ..._unitPriceBasisJson(unitPriceBasisQuantity, unitPriceBasisUnit),
       "cost": cost ?? "",
       "stock": stock ?? "",
       "sku": sku ?? "",
@@ -151,6 +203,12 @@ class ProductData {
   String? cancelableTill;
   String type = 'simple'; // 'simple' or 'variant'
   String? barcode;
+  // Simple-product package contents; variants carry their own copy.
+  String? netQuantity;
+  String? netQuantityUnit;
+  String? unitCount;
+  String? unitCountType;
+  bool isInclusiveTax = false;
   String? mainImage;
   List<String> otherImages = [];
   List<int> taxGroupIds = [];
@@ -194,6 +252,11 @@ class ProductData {
     String? cancelableTill,
     String? type,
     String? barcode,
+    String? netQuantity,
+    String? netQuantityUnit,
+    String? unitCount,
+    String? unitCountType,
+    bool? isInclusiveTax,
     String? mainImage,
     List<String>? otherImages,
     List<int>? taxGroupIds,
@@ -238,6 +301,11 @@ class ProductData {
     newData.cancelableTill = cancelableTill ?? this.cancelableTill;
     newData.type = type ?? this.type;
     newData.barcode = barcode ?? this.barcode;
+    newData.netQuantity = netQuantity ?? this.netQuantity;
+    newData.netQuantityUnit = netQuantityUnit ?? this.netQuantityUnit;
+    newData.unitCount = unitCount ?? this.unitCount;
+    newData.unitCountType = unitCountType ?? this.unitCountType;
+    newData.isInclusiveTax = isInclusiveTax ?? this.isInclusiveTax;
     newData.mainImage = clearMainImage ? null : (mainImage ?? this.mainImage);
     newData.otherImages = otherImages ?? this.otherImages;
     newData.taxGroupIds = taxGroupIds ?? this.taxGroupIds;
@@ -248,8 +316,9 @@ class ProductData {
     newData.imageFit = imageFit ?? this.imageFit;
     newData.videoType = videoType ?? this.videoType;
     newData.videoLink = clearVideoLink ? null : (videoLink ?? this.videoLink);
-    newData.productVideo =
-        clearProductVideo ? null : (productVideo ?? this.productVideo);
+    newData.productVideo = clearProductVideo
+        ? null
+        : (productVideo ?? this.productVideo);
     newData.shortDescription = shortDescription ?? this.shortDescription;
     newData.description = description ?? this.description;
     newData.minimumOrderQuantity =
@@ -283,6 +352,11 @@ class VariantData {
   String? height;
   String? length;
   String? breadth;
+  // Package contents of one inner unit, parsed from the package attribute.
+  String? netQuantity;
+  String? netQuantityUnit;
+  String? unitCount;
+  String? unitCountType;
   bool isAvailable;
   bool isDefault;
   String? image; // New variant image
@@ -298,6 +372,10 @@ class VariantData {
     this.height,
     this.length,
     this.breadth,
+    this.netQuantity,
+    this.netQuantityUnit,
+    this.unitCount,
+    this.unitCountType,
     this.isAvailable = true,
     this.isDefault = false,
     this.image,
@@ -314,6 +392,10 @@ class VariantData {
     String? height,
     String? length,
     String? breadth,
+    String? netQuantity,
+    String? netQuantityUnit,
+    String? unitCount,
+    String? unitCountType,
     bool? isAvailable,
     bool? isDefault,
     String? image,
@@ -330,6 +412,10 @@ class VariantData {
       height: height ?? this.height,
       length: length ?? this.length,
       breadth: breadth ?? this.breadth,
+      netQuantity: netQuantity ?? this.netQuantity,
+      netQuantityUnit: netQuantityUnit ?? this.netQuantityUnit,
+      unitCount: unitCount ?? this.unitCount,
+      unitCountType: unitCountType ?? this.unitCountType,
       isAvailable: isAvailable ?? this.isAvailable,
       isDefault: isDefault ?? this.isDefault,
       image: clearImage ? null : (image ?? this.image),

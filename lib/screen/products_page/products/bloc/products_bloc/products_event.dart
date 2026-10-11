@@ -60,4 +60,3 @@ class ProductFilterApplied extends ProductsEvent {
 }
 
 class ClearProducts extends ProductsEvent {}
-

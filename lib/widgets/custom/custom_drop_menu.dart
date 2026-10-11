@@ -7,12 +7,16 @@ class MenuItem {
   final Color? textColor;
   final Color? iconColor;
 
+  /// Disabled items are shown greyed out and can't be tapped.
+  final bool enabled;
+
   MenuItem({
     required this.label,
     required this.icon,
     required this.onTap,
     this.textColor,
     this.iconColor,
+    this.enabled = true,
   });
 }
 
@@ -179,8 +183,9 @@ class _CustomDropMenuState extends State<CustomDropMenu>
   Widget _buildMenu() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final defaultBgColor = isDark ? const Color(0xFF1E1E2E) : Colors.white;
-    final defaultBorderColor =
-    isDark ? Colors.white.withAlpha(30) : Colors.grey.shade300;
+    final defaultBorderColor = isDark
+        ? Colors.white.withAlpha(30)
+        : Colors.grey.shade300;
 
     return Container(
       constraints: BoxConstraints(
@@ -212,42 +217,51 @@ class _CustomDropMenuState extends State<CustomDropMenu>
               Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  onTap: () {
-                    item.onTap();
-                    _closeMenu();
-                  },
+                  onTap: item.enabled
+                      ? () {
+                          item.onTap();
+                          _closeMenu();
+                        }
+                      : null,
                   borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: widget.menuPadding ??
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          item.icon,
-                          size: 16,
-                          color: item.iconColor ??
-                              (isDark
-                                  ? Colors.white70
-                                  : Colors.grey.shade700),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            item.label,
-                            style: TextStyle(
-                              color: item.textColor ??
-                                  (isDark
-                                      ? Colors.white
-                                      : Colors.black87),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                  child: Opacity(
+                    opacity: item.enabled ? 1 : 0.4,
+                    child: Padding(
+                      padding:
+                          widget.menuPadding ??
+                          const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
                           ),
-                        ),
-                      ],
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            item.icon,
+                            size: 16,
+                            color:
+                                item.iconColor ??
+                                (isDark
+                                    ? Colors.white70
+                                    : Colors.grey.shade700),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              item.label,
+                              style: TextStyle(
+                                color:
+                                    item.textColor ??
+                                    (isDark ? Colors.white : Colors.black87),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -280,7 +294,8 @@ class _CustomDropMenuState extends State<CustomDropMenu>
         child: Icon(
           Icons.more_vert,
           size: widget.dotsSize,
-          color: widget.dotsColor ??
+          color:
+              widget.dotsColor ??
               (isDark ? Colors.white70 : Colors.grey.shade600),
         ),
       ),

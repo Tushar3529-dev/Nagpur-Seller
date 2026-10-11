@@ -14,6 +14,8 @@ import 'package:hyper_local_seller/config/colors.dart';
 import 'package:hyper_local_seller/widgets/custom/custom_dropdown.dart';
 import 'package:hyper_local_seller/widgets/custom/custom_textfield.dart';
 import 'package:hyper_local_seller/screen/products_page/add_products/widgets/stock_quantity_field.dart';
+import 'package:hyper_local_seller/screen/products_page/add_products/widgets/unit_price_editor.dart';
+import 'package:hyper_local_seller/utils/unit_price_calculator.dart';
 
 class PricingTaxesStep extends StatefulWidget {
   const PricingTaxesStep({super.key});
@@ -198,6 +200,9 @@ class _PricingTaxesStepState extends State<PricingTaxesStep> {
     int storeId, {
     String? price,
     String? specialPrice,
+    String? wholesalePrice,
+    String? unitPriceBasisQuantity,
+    String? unitPriceBasisUnit,
     String? cost,
     String? stock,
     String? sku,
@@ -212,6 +217,9 @@ class _PricingTaxesStepState extends State<PricingTaxesStep> {
       currentPricing[index] = currentPricing[index].copyWith(
         price: price,
         specialPrice: specialPrice,
+        wholesalePrice: wholesalePrice,
+        unitPriceBasisQuantity: unitPriceBasisQuantity,
+        unitPriceBasisUnit: unitPriceBasisUnit,
         cost: cost,
         stock: stock,
         sku: sku,
@@ -229,6 +237,9 @@ class _PricingTaxesStepState extends State<PricingTaxesStep> {
     String variantId, {
     String? price,
     String? specialPrice,
+    String? wholesalePrice,
+    String? unitPriceBasisQuantity,
+    String? unitPriceBasisUnit,
     String? cost,
     String? stock,
     String? sku,
@@ -245,6 +256,9 @@ class _PricingTaxesStepState extends State<PricingTaxesStep> {
       currentPricing[index] = currentPricing[index].copyWith(
         price: price,
         specialPrice: specialPrice,
+        wholesalePrice: wholesalePrice,
+        unitPriceBasisQuantity: unitPriceBasisQuantity,
+        unitPriceBasisUnit: unitPriceBasisUnit,
         cost: cost,
         stock: stock,
         sku: sku,
@@ -256,6 +270,9 @@ class _PricingTaxesStepState extends State<PricingTaxesStep> {
           variantId: variantId,
           price: price,
           specialPrice: specialPrice,
+          wholesalePrice: wholesalePrice,
+          unitPriceBasisQuantity: unitPriceBasisQuantity,
+          unitPriceBasisUnit: unitPriceBasisUnit,
           cost: cost,
           stock: stock,
           sku: sku,
@@ -346,6 +363,24 @@ class _PricingTaxesStepState extends State<PricingTaxesStep> {
         const Text(
           "Leave empty for zero tax",
           style: TextStyle(fontSize: 12, color: Colors.grey),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(
+            AppLocalizations.of(context)!.taxInclusivePrices,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          ),
+          value: productData.isInclusiveTax,
+          activeThumbColor: Colors.white,
+          activeTrackColor: AppColors.primaryColor,
+          onChanged: (v) {
+            final bloc = context.read<AddProductBloc>();
+            bloc.add(
+              UpdateProductData(
+                bloc.state.productData.copyWith(isInclusiveTax: v),
+              ),
+            );
+          },
         ),
         // const SizedBox(height: 5),
         // const Text(
@@ -585,7 +620,7 @@ class _PricingTaxesStepState extends State<PricingTaxesStep> {
           if (isExpanded) ...[
             const Divider(height: 1),
             if (productData.type == 'simple')
-              _buildSimplePricingUI(pricing)
+              _buildSimplePricingUI(pricing, productData)
             else
               _buildVariantPricingUI(pricing, productData),
           ],
@@ -651,7 +686,7 @@ class _PricingTaxesStepState extends State<PricingTaxesStep> {
     );
   }
 
-  Widget _buildSimplePricingUI(StorePricing pricing) {
+  Widget _buildSimplePricingUI(StorePricing pricing, ProductData productData) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -668,6 +703,36 @@ class _PricingTaxesStepState extends State<PricingTaxesStep> {
             AppLocalizations.of(context)!.specialPrice,
             pricing.specialPrice,
             (v) => _updateStorePricing(pricing.storeId, specialPrice: v),
+            errorText: _specialPriceError(pricing.price, pricing.specialPrice),
+          ),
+          const SizedBox(height: 16),
+          UnitPriceEditor(
+            key: ValueKey('unit_price_${pricing.storeId}'),
+            price: pricing.price,
+            specialPrice: pricing.specialPrice,
+            basisQuantity: pricing.unitPriceBasisQuantity,
+            basisUnit: pricing.unitPriceBasisUnit,
+            packageSize: _packageSize(
+              productData.netQuantity,
+              productData.netQuantityUnit,
+            ),
+            unitCount: int.tryParse(productData.unitCount ?? ''),
+            onBasisChanged: (quantity, unit) => _updateStorePricing(
+              pricing.storeId,
+              unitPriceBasisQuantity: quantity,
+              unitPriceBasisUnit: unit,
+            ),
+            onPackPriceChanged: ({price, specialPrice}) => _updateStorePricing(
+              pricing.storeId,
+              price: price,
+              specialPrice: specialPrice,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildMiniField(
+            AppLocalizations.of(context)!.wholesalePrice,
+            pricing.wholesalePrice,
+            (v) => _updateStorePricing(pricing.storeId, wholesalePrice: v),
           ),
           const SizedBox(height: 16),
           _buildMiniField(
@@ -740,6 +805,47 @@ class _PricingTaxesStepState extends State<PricingTaxesStep> {
                     pricing.storeId,
                     variant.id!,
                     specialPrice: v,
+                  ),
+                  errorText: _specialPriceError(
+                    vPricing.price,
+                    vPricing.specialPrice,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                UnitPriceEditor(
+                  key: ValueKey('unit_price_${pricing.storeId}_${variant.id}'),
+                  price: vPricing.price,
+                  specialPrice: vPricing.specialPrice,
+                  basisQuantity: vPricing.unitPriceBasisQuantity,
+                  basisUnit: vPricing.unitPriceBasisUnit,
+                  packageSize: _packageSize(
+                    variant.netQuantity,
+                    variant.netQuantityUnit,
+                  ),
+                  unitCount: int.tryParse(variant.unitCount ?? ''),
+                  onBasisChanged: (quantity, unit) =>
+                      _updateVariantStorePricing(
+                        pricing.storeId,
+                        variant.id!,
+                        unitPriceBasisQuantity: quantity,
+                        unitPriceBasisUnit: unit,
+                      ),
+                  onPackPriceChanged: ({price, specialPrice}) =>
+                      _updateVariantStorePricing(
+                        pricing.storeId,
+                        variant.id!,
+                        price: price,
+                        specialPrice: specialPrice,
+                      ),
+                ),
+                const SizedBox(height: 16),
+                _buildMiniField(
+                  AppLocalizations.of(context)!.wholesalePrice,
+                  vPricing.wholesalePrice,
+                  (v) => _updateVariantStorePricing(
+                    pricing.storeId,
+                    variant.id!,
+                    wholesalePrice: v,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -824,6 +930,7 @@ class _PricingTaxesStepState extends State<PricingTaxesStep> {
     bool showPrefix = true,
     bool isRequired = false,
     bool isStock = false,
+    String? errorText,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -880,8 +987,30 @@ class _PricingTaxesStepState extends State<PricingTaxesStep> {
                 ? TextInputType.text
                 : TextInputType.number,
           ),
+        if (errorText != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            errorText,
+            style: const TextStyle(fontSize: 12, color: Colors.red),
+          ),
+        ],
       ],
     );
+  }
+
+  PackageSize? _packageSize(String? quantity, String? unit) {
+    final q = double.tryParse(quantity?.trim() ?? '');
+    final u = unit?.trim() ?? '';
+    if (q == null || q <= 0 || u.isEmpty) return null;
+    return PackageSize(q, u);
+  }
+
+  /// The API requires special price to be strictly below the regular price.
+  String? _specialPriceError(String? price, String? specialPrice) {
+    final p = double.tryParse(price?.trim() ?? '');
+    final sp = double.tryParse(specialPrice?.trim() ?? '');
+    if (p == null || sp == null || sp < p) return null;
+    return AppLocalizations.of(context)!.specialPriceMustBeLower;
   }
 }
 

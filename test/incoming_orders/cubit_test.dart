@@ -46,6 +46,123 @@ void main() {
       .subtract(Duration(seconds: seconds))
       .toIso8601String();
 
+  group('popup permission', () {
+    Future<void> login(Map<String, dynamic> user) async {
+      await HiveStorage.setUserData(user);
+      addTearDown(() => HiveStorage.setUserData(Map.of(testUser)));
+    }
+
+    test('a role without order.popup never polls', () async {
+      await login({
+        'roles': ['Inventory Manager'],
+        'assigned_permissions': ['order.view', 'bag.view'],
+      });
+      repo.server[OrderMode.regular] = [orderJson(1)];
+
+      await cubit.fetch();
+
+      expect(repo.totalFetches, 0);
+      expect(cubit.state.hasPending, isFalse);
+    });
+
+    test('without role info, only order.popup decides', () async {
+      await login({
+        'assigned_permissions': ['order.view'],
+      });
+      repo.server[OrderMode.regular] = [orderJson(1)];
+
+      await cubit.fetch();
+
+      expect(repo.totalFetches, 0);
+    });
+
+    Map<String, dynamic> acceptedJson(int id) {
+      final json = orderJson(id);
+      for (final item in json['items'] as List) {
+        (item as Map)['status'] = 'accepted';
+      }
+      return json;
+    }
+
+    test('without order.popup, an accepted order opens for scanning and '
+        'stays without polling', () async {
+      await login({
+        'assigned_permissions': ['order.update_status'],
+      });
+      repo.server[OrderMode.regular] = [acceptedJson(5), orderJson(6)];
+
+      expect(await cubit.openForScan(5), isNull);
+      expect(queueIds(), [5]);
+      expect(cubit.state.isAccepted(queued(5)), isTrue);
+      expect(cubit.state.hasUnaccepted, isFalse);
+
+      final fetches = repo.totalFetches;
+      await cubit.fetch();
+      expect(repo.totalFetches, fetches);
+      expect(queueIds(), [5]);
+    });
+
+    test('an order not accepted yet does not open for scanning', () async {
+      await login({
+        'assigned_permissions': ['order.update_status'],
+      });
+      repo.server[OrderMode.regular] = [orderJson(6)];
+
+      expect(await cubit.openForScan(6), isNotNull);
+      expect(cubit.state.hasPending, isFalse);
+    });
+
+    test('an order missing from the pending list reports why', () async {
+      await login({
+        'assigned_permissions': ['order.update_status'],
+      });
+
+      expect(await cubit.openForScan(7), contains("Couldn't load"));
+      expect(cubit.state.hasPending, isFalse);
+    });
+
+    test('a role with order.popup polls', () async {
+      await login({
+        'roles': [
+          {'id': 12, 'name': 'Inventory Manager'},
+        ],
+        'assigned_permissions': ['order.popup'],
+      });
+      repo.server[OrderMode.regular] = [orderJson(1)];
+
+      await cubit.fetch();
+
+      expect(queueIds(), [1]);
+    });
+
+    test('the default seller role polls without order.popup', () async {
+      await login({'role': 'seller', 'assigned_permissions': <String>[]});
+      repo.server[OrderMode.regular] = [orderJson(1)];
+
+      await cubit.fetch();
+
+      expect(queueIds(), [1]);
+    });
+
+    test('losing order.popup clears the queue', () async {
+      await login({
+        'roles': ['Packer'],
+        'assigned_permissions': ['order.popup'],
+      });
+      repo.server[OrderMode.regular] = [orderJson(1)];
+      await cubit.fetch();
+      expect(queueIds(), [1]);
+
+      await HiveStorage.setUserData({
+        'roles': ['Packer'],
+        'assigned_permissions': <String>[],
+      });
+      await cubit.fetch();
+
+      expect(cubit.state.hasPending, isFalse);
+    });
+  });
+
   group('fetch', () {
     test('polls both modes and merges them into one queue', () async {
       repo.server[OrderMode.regular] = [orderJson(1), orderJson(2)];

@@ -3,6 +3,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hyper_local_seller/l10n/app_localizations.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hyper_local_seller/config/colors.dart';
@@ -19,6 +20,7 @@ import 'package:hyper_local_seller/utils/image_picker_utils.dart';
 import 'package:hyper_local_seller/widgets/custom/custom_upload_area.dart';
 import 'package:hyper_local_seller/widgets/custom/custom_loading_indicator.dart';
 import 'package:hyper_local_seller/screen/products_page/products/widgets/product_scan_dialog.dart';
+import 'package:hyper_local_seller/utils/unit_price_calculator.dart';
 
 class ProductVariationStep extends StatefulWidget {
   const ProductVariationStep({super.key});
@@ -44,11 +46,20 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
   final TextEditingController _breadthController = TextEditingController();
   final TextEditingController _lengthController = TextEditingController();
 
-  // Dimensions Units (Simple)
-  String _weightUnit = 'kg';
-  String _heightUnit = 'cm';
-  String _breadthUnit = 'cm';
-  String _lengthUnit = 'cm';
+  // The API stores shipping weight in kg and dimensions in cm, so these
+  // units are fixed rather than selectable.
+  static const String _weightUnit = 'kg';
+  static const String _dimensionUnit = 'cm';
+  static final TextInputFormatter _unitLengthLimit =
+      LengthLimitingTextInputFormatter(UnitPriceCalculator.maxUnitLength);
+
+  // Package contents (Simple). Variants derive these from attributes.
+  final TextEditingController _netQuantityController = TextEditingController();
+  final TextEditingController _netQuantityUnitController =
+      TextEditingController();
+  final TextEditingController _unitCountController = TextEditingController();
+  final TextEditingController _unitCountTypeController =
+      TextEditingController();
 
   // Focus Nodes
   final FocusNode _barcodeFocus = FocusNode();
@@ -69,6 +80,10 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
     final productData = context.read<AddProductBloc>().state.productData;
     _productType = productData.type;
     _barcodeController.text = productData.barcode ?? "";
+    _netQuantityController.text = productData.netQuantity ?? "";
+    _netQuantityUnitController.text = productData.netQuantityUnit ?? "";
+    _unitCountController.text = productData.unitCount ?? "";
+    _unitCountTypeController.text = productData.unitCountType ?? "";
 
     if (_productType == 'simple' && productData.variants.isNotEmpty) {
       final v = productData.variants.first;
@@ -120,6 +135,10 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
         vc.isAvailable = v.isAvailable;
         vc.isDefault = v.isDefault;
         vc.image = v.image;
+        vc.savedNetQuantity = v.netQuantity;
+        vc.savedNetQuantityUnit = v.netQuantityUnit;
+        vc.unitCountController.text = v.unitCount ?? "";
+        vc.unitCountTypeController.text = v.unitCountType ?? "";
 
         vc.nameController.addListener(_updateBloc);
         vc.barcodeController.addListener(_updateBloc);
@@ -127,6 +146,8 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
         vc.heightController.addListener(_updateBloc);
         vc.lengthController.addListener(_updateBloc);
         vc.breadthController.addListener(_updateBloc);
+        vc.unitCountController.addListener(_updateBloc);
+        vc.unitCountTypeController.addListener(_updateBloc);
 
         return vc;
       }).toList();
@@ -138,6 +159,10 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
     _heightController.addListener(_updateBloc);
     _lengthController.addListener(_updateBloc);
     _breadthController.addListener(_updateBloc);
+    _netQuantityController.addListener(_updateBloc);
+    _netQuantityUnitController.addListener(_updateBloc);
+    _unitCountController.addListener(_updateBloc);
+    _unitCountTypeController.addListener(_updateBloc);
   }
 
   @override
@@ -159,12 +184,20 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
     _heightController.removeListener(_updateBloc);
     _lengthController.removeListener(_updateBloc);
     _breadthController.removeListener(_updateBloc);
+    _netQuantityController.removeListener(_updateBloc);
+    _netQuantityUnitController.removeListener(_updateBloc);
+    _unitCountController.removeListener(_updateBloc);
+    _unitCountTypeController.removeListener(_updateBloc);
 
     _barcodeController.dispose();
     _weightController.dispose();
     _heightController.dispose();
     _breadthController.dispose();
     _lengthController.dispose();
+    _netQuantityController.dispose();
+    _netQuantityUnitController.dispose();
+    _unitCountController.dispose();
+    _unitCountTypeController.dispose();
 
     _barcodeFocus.dispose();
     _weightFocus.dispose();
@@ -595,25 +628,30 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
       v.breadthController.text = _breadthController.text;
     }
 
-    final variants = _variantControllers
-        .map(
-          (vc) => VariantData(
-            id: vc.id,
-            title: vc.title,
-            name: vc.nameController.text,
-            attributeValueIds: vc.attributeValueIds,
-            attributes: vc.attributes,
-            barcode: vc.barcodeController.text,
-            weight: vc.weightController.text,
-            height: vc.heightController.text,
-            length: vc.lengthController.text,
-            breadth: vc.breadthController.text,
-            isAvailable: vc.isAvailable,
-            isDefault: vc.isDefault,
-            image: vc.image,
-          ),
-        )
-        .toList();
+    final variants = _variantControllers.map((vc) {
+      final package = _packageSizeFor(vc);
+      return VariantData(
+        id: vc.id,
+        title: vc.title,
+        name: vc.nameController.text,
+        attributeValueIds: vc.attributeValueIds,
+        attributes: vc.attributes,
+        barcode: vc.barcodeController.text,
+        weight: vc.weightController.text,
+        height: vc.heightController.text,
+        length: vc.lengthController.text,
+        breadth: vc.breadthController.text,
+        isAvailable: vc.isAvailable,
+        isDefault: vc.isDefault,
+        image: vc.image,
+        netQuantity: _productType == 'variant' && package != null
+            ? UnitPriceCalculator.formatNumber(package.quantity)
+            : null,
+        netQuantityUnit: _productType == 'variant' ? package?.unit : null,
+        unitCount: vc.unitCountController.text.trim(),
+        unitCountType: vc.unitCountTypeController.text.trim(),
+      );
+    }).toList();
 
     bloc.add(
       UpdateProductData(
@@ -621,6 +659,10 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
           type: _productType,
           barcode: _barcodeController.text,
           variants: variants,
+          netQuantity: _netQuantityController.text.trim(),
+          netQuantityUnit: _netQuantityUnitController.text.trim(),
+          unitCount: _unitCountController.text.trim(),
+          unitCountType: _unitCountTypeController.text.trim(),
         ),
       ),
     );
@@ -688,6 +730,8 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
         v.heightController.addListener(_updateBloc);
         v.lengthController.addListener(_updateBloc);
         v.breadthController.addListener(_updateBloc);
+        v.unitCountController.addListener(_updateBloc);
+        v.unitCountTypeController.addListener(_updateBloc);
         newVariants.add(v);
       }
     }
@@ -818,6 +862,7 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
   }
 
   Widget _buildSimpleProductUI() {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -828,27 +873,19 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
           children: [
             Expanded(
               child: _buildDimensionField(
-                AppLocalizations.of(context)!.weight,
+                l10n.weight,
                 _weightController,
                 _weightFocus,
                 _weightUnit,
-                (v) {
-                  setState(() => _weightUnit = v!);
-                  _updateBloc();
-                },
               ),
             ),
             const SizedBox(width: 15),
             Expanded(
               child: _buildDimensionField(
-                AppLocalizations.of(context)!.height,
+                l10n.height,
                 _heightController,
                 _heightFocus,
-                _heightUnit,
-                (v) {
-                  setState(() => _heightUnit = v!);
-                  _updateBloc();
-                },
+                _dimensionUnit,
               ),
             ),
           ],
@@ -858,32 +895,182 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
           children: [
             Expanded(
               child: _buildDimensionField(
-                AppLocalizations.of(context)!.length,
+                l10n.length,
                 _lengthController,
                 _lengthFocus,
-                _lengthUnit,
-                (v) {
-                  setState(() => _lengthUnit = v!);
-                  _updateBloc();
-                },
+                _dimensionUnit,
               ),
             ),
             const SizedBox(width: 15),
             Expanded(
               child: _buildDimensionField(
-                AppLocalizations.of(context)!.breadth,
+                l10n.breadth,
                 _breadthController,
                 _breadthFocus,
-                _breadthUnit,
-                (v) {
-                  setState(() => _breadthUnit = v!);
-                  _updateBloc();
-                },
+                _dimensionUnit,
               ),
             ),
           ],
         ),
+        const SizedBox(height: 25),
+        _buildSectionHeading(l10n.packageContents, l10n.packageContentsHint),
+        const SizedBox(height: 12),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: CustomTextField(
+                label: l10n.netQuantity,
+                hint: "500",
+                controller: _netQuantityController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+              ),
+            ),
+            const SizedBox(width: 15),
+            Expanded(
+              child: CustomTextField(
+                label: l10n.packageUnit,
+                hint: l10n.packageUnitHint,
+                controller: _netQuantityUnitController,
+                inputFormatters: [_unitLengthLimit],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 15),
+        _buildUnitCountFields(_unitCountController, _unitCountTypeController),
       ],
+    );
+  }
+
+  Widget _buildSectionHeading(String title, String subtitle) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUnitCountFields(
+    TextEditingController countController,
+    TextEditingController typeController,
+  ) {
+    final l10n = AppLocalizations.of(context)!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: CustomTextField(
+                label: l10n.innerUnitCount,
+                hint: l10n.innerUnitCountHint,
+                controller: countController,
+                keyboardType: TextInputType.number,
+              ),
+            ),
+            const SizedBox(width: 15),
+            Expanded(
+              child: CustomTextField(
+                label: l10n.innerUnitType,
+                hint: l10n.innerUnitTypeHint,
+                controller: typeController,
+                inputFormatters: [_unitLengthLimit],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          l10n.innerUnitsHelp,
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        ),
+      ],
+    );
+  }
+
+  /// Package size of a variant, parsed from its Size/Weight/Volume/
+  /// Quantity/Pack attribute value. Falls back to the saved package data
+  /// for variants loaded from the API whose attributes can't be parsed.
+  PackageSize? _packageSizeFor(VariantController vc) {
+    for (final attr in vc.attributes) {
+      final name = (attr['attribute_name'] ?? '').toString();
+      if (!UnitPriceCalculator.isPackageAttribute(name)) continue;
+      final parsed = UnitPriceCalculator.parsePackageSize(
+        attr['value_name']?.toString(),
+      );
+      if (parsed != null) return parsed;
+    }
+    final saved = double.tryParse(vc.savedNetQuantity ?? '');
+    final savedUnit = vc.savedNetQuantityUnit?.trim() ?? '';
+    if (saved != null && saved > 0 && savedUnit.isNotEmpty) {
+      return PackageSize(saved, savedUnit);
+    }
+    return null;
+  }
+
+  Widget _buildVariantPackageSummary(VariantController controller) {
+    final l10n = AppLocalizations.of(context)!;
+    final package = _packageSizeFor(controller);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: package == null
+            ? Colors.orange.withValues(alpha: 0.08)
+            : AppColors.primaryColor.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            package == null ? Icons.info_outline : Icons.inventory_2_outlined,
+            size: 18,
+            color: package == null ? Colors.orange : AppColors.primaryColor,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: package == null
+                ? Text(
+                    l10n.packageAttributeMissing,
+                    style: const TextStyle(fontSize: 12),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.packageFromAttribute,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        package.toString(),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -892,7 +1079,6 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
     TextEditingController controller,
     FocusNode focusNode,
     String unit,
-    ValueChanged<String?> onUnitChanged,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -922,32 +1108,23 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
           child: Row(
             children: [
               Expanded(
-                flex: 2,
                 child: CustomTextField(
                   controller: controller,
                   focusNode: focusNode,
-                  keyboardType: TextInputType.number,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   onChanged: (v) => _updateBloc(),
                   hint: "0",
                 ),
               ),
-
-              Expanded(
-                flex: 1,
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: unit,
-                    isExpanded: true,
-                    icon: const Icon(Icons.arrow_drop_down, color: Colors.grey),
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.tertiary,
-                      fontSize: 13,
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    items: ["kg", "g", "cm", "m"]
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                        .toList(),
-                    onChanged: onUnitChanged,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  unit,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.tertiary,
+                    fontSize: 13,
                   ),
                 ),
               ),
@@ -1182,8 +1359,7 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
                   AppLocalizations.of(context)!.weight,
                   controller.weightController,
                   controller.weightFocus,
-                  "kg",
-                  (v) {},
+                  _weightUnit,
                 ),
               ),
               const SizedBox(width: 10),
@@ -1192,8 +1368,7 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
                   AppLocalizations.of(context)!.height,
                   controller.heightController,
                   controller.heightFocus,
-                  "cm",
-                  (v) {},
+                  _dimensionUnit,
                 ),
               ),
             ],
@@ -1206,8 +1381,7 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
                   AppLocalizations.of(context)!.length,
                   controller.lengthController,
                   controller.lengthFocus,
-                  "cm",
-                  (v) {},
+                  _dimensionUnit,
                 ),
               ),
               const SizedBox(width: 10),
@@ -1216,11 +1390,17 @@ class _ProductVariationStepState extends State<ProductVariationStep> {
                   AppLocalizations.of(context)!.breadth,
                   controller.breadthController,
                   controller.breadthFocus,
-                  "cm",
-                  (v) {},
+                  _dimensionUnit,
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 15),
+          _buildVariantPackageSummary(controller),
+          const SizedBox(height: 12),
+          _buildUnitCountFields(
+            controller.unitCountController,
+            controller.unitCountTypeController,
           ),
           const SizedBox(height: 15),
           SwitchListTile(
@@ -1329,6 +1509,13 @@ class VariantController {
   final TextEditingController heightController = TextEditingController();
   final TextEditingController breadthController = TextEditingController();
   final TextEditingController lengthController = TextEditingController();
+  final TextEditingController unitCountController = TextEditingController();
+  final TextEditingController unitCountTypeController = TextEditingController();
+
+  // Package data loaded from the API, used when the attributes don't carry
+  // a parseable package size.
+  String? savedNetQuantity;
+  String? savedNetQuantityUnit;
 
   final FocusNode barcodeFocus = FocusNode();
   final FocusNode weightFocus = FocusNode();
@@ -1355,6 +1542,8 @@ class VariantController {
     heightController.dispose();
     breadthController.dispose();
     lengthController.dispose();
+    unitCountController.dispose();
+    unitCountTypeController.dispose();
 
     barcodeFocus.dispose();
     weightFocus.dispose();

@@ -47,18 +47,20 @@ class ProductFaqState extends PaginatedState<ProductFaq> {
       error: error ?? this.error,
       currentPage: currentPage ?? this.currentPage,
       total: total ?? this.total,
-      operationSuccess: clearOperation ? null : (operationSuccess ?? this.operationSuccess),
-      operationMessage: clearOperation ? null : (operationMessage ?? this.operationMessage),
-      lastOperationType: clearOperation ? null : (lastOperationType ?? this.lastOperationType),
+      operationSuccess: clearOperation
+          ? null
+          : (operationSuccess ?? this.operationSuccess),
+      operationMessage: clearOperation
+          ? null
+          : (operationMessage ?? this.operationMessage),
+      lastOperationType: clearOperation
+          ? null
+          : (lastOperationType ?? this.lastOperationType),
       productId: overrideFilters ? productId : (productId ?? this.productId),
       search: overrideFilters ? search : (search ?? this.search),
     );
   }
 
   @override
-  List<Object?> get props => [
-        ...super.props,
-        productId,
-        search,
-      ];
+  List<Object?> get props => [...super.props, productId, search];
 }

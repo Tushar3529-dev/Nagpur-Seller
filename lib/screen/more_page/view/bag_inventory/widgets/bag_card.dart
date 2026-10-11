@@ -8,6 +8,8 @@ class BagCard extends StatelessWidget {
   final Bag bag;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final bool canEdit;
+  final bool canDelete;
 
   /// Tapping the lock on an assigned bag, which can't be edited or deleted.
   final VoidCallback onLockedTap;
@@ -17,6 +19,8 @@ class BagCard extends StatelessWidget {
     required this.bag,
     required this.onEdit,
     required this.onDelete,
+    this.canEdit = true,
+    this.canDelete = true,
     required this.onLockedTap,
   });
 
@@ -70,11 +74,17 @@ class BagCard extends StatelessWidget {
                   CustomDropMenu(
                     dotsColor: muted,
                     items: [
-                      MenuItem(label: 'Edit', icon: Icons.edit, onTap: onEdit),
+                      MenuItem(
+                        label: 'Edit',
+                        icon: Icons.edit,
+                        onTap: onEdit,
+                        enabled: canEdit,
+                      ),
                       MenuItem(
                         label: 'Delete',
                         icon: Icons.delete,
                         onTap: onDelete,
+                        enabled: canDelete,
                         textColor: Colors.red,
                         iconColor: Colors.red,
                       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hyper_local_seller/config/app_permissions.dart';
 import 'package:hyper_local_seller/config/colors.dart';
 import 'package:hyper_local_seller/l10n/app_localizations.dart';
 import 'package:hyper_local_seller/screen/more_page/view/bag_inventory/bloc/bags_bloc.dart';
@@ -12,6 +13,7 @@ import 'package:hyper_local_seller/screen/products_page/products/widgets/product
 import 'package:hyper_local_seller/service/api_base_helper.dart';
 import 'package:hyper_local_seller/utils/debouncer.dart';
 import 'package:hyper_local_seller/utils/image_path.dart';
+import 'package:hyper_local_seller/utils/permission_checker.dart';
 import 'package:hyper_local_seller/utils/ui_utils.dart';
 import 'package:hyper_local_seller/widgets/custom/barcode_scan_widgets.dart';
 import 'package:hyper_local_seller/widgets/custom/card_shimmers.dart';
@@ -29,6 +31,20 @@ class BagInventoryPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Guards every way in (More page, the incoming-order popup, deep links).
+    if (!PermissionChecker.hasPermission(AppPermissions.bagView)) {
+      return CustomScaffold(
+        centerTitle: true,
+        showAppbar: true,
+        title: AppLocalizations.of(context)?.bagInventory ?? 'Bag Inventory',
+        body: const EmptyStateWidget(
+          svgPath: ImagesPath.noSearchFoundSvg,
+          svgSize: 140,
+          title: "You don't have access to bags",
+          subtitle: 'Ask the store owner to give your role access to bags.',
+        ),
+      );
+    }
     final repo = this.repo ?? BagsRepo();
     return BlocProvider(
       create: (_) => BagsBloc(repo),
@@ -53,6 +69,14 @@ class _BagInventoryViewState extends State<_BagInventoryView> {
 
   /// [Bag.available], [Bag.assigned] or null for every bag.
   String? _status;
+
+  final bool _canCreate = PermissionChecker.hasPermission(
+    AppPermissions.bagCreate,
+  );
+  final bool _canEdit = PermissionChecker.hasPermission(AppPermissions.bagEdit);
+  final bool _canDelete = PermissionChecker.hasPermission(
+    AppPermissions.bagDelete,
+  );
 
   @override
   void initState() {
@@ -176,12 +200,14 @@ class _BagInventoryViewState extends State<_BagInventoryView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    ScanPrimaryButton(
-                      label: 'Add bags',
-                      icon: Icons.qr_code_scanner,
-                      onPressed: _addBags,
-                    ),
-                    const SizedBox(height: 12),
+                    if (_canCreate) ...[
+                      ScanPrimaryButton(
+                        label: 'Add bags',
+                        icon: Icons.qr_code_scanner,
+                        onPressed: _addBags,
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                     CustomSearchField(
                       controller: _searchController,
                       hint: 'Search barcode',
@@ -289,9 +315,9 @@ class _BagInventoryViewState extends State<_BagInventoryView> {
                   : switch (_status) {
                       Bag.available => 'No available bags',
                       Bag.assigned => 'No assigned bags',
-                      _ => 'Add your first bags',
+                      _ => _canCreate ? 'Add your first bags' : 'No bags yet',
                     },
-              subtitle: searching || _status != null
+              subtitle: searching || _status != null || !_canCreate
                   ? null
                   : 'Scan bag barcodes to add them to your inventory.',
             ),
@@ -322,6 +348,8 @@ class _BagInventoryViewState extends State<_BagInventoryView> {
             bag: bag,
             onEdit: () => _edit(bag),
             onDelete: () => _delete(bag),
+            canEdit: _canEdit,
+            canDelete: _canDelete,
             onLockedTap: () => _showLocked(bag),
           );
         },

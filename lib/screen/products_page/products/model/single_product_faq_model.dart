@@ -55,11 +55,7 @@ class SingleFaqData {
 
   factory SingleFaqData.fromJson(Map<String, dynamic> json) {
     return SingleFaqData(
-      id: JsonParser.requireInt(
-        json['id'],
-        model: modelName,
-        field: 'id',
-      ),
+      id: JsonParser.requireInt(json['id'], model: modelName, field: 'id'),
       productId: JsonParser.requireInt(
         json['product_id'],
         model: modelName,
@@ -108,11 +104,7 @@ class ProductBasic {
   String title;
   String slug;
 
-  ProductBasic({
-    required this.id,
-    required this.title,
-    required this.slug,
-  });
+  ProductBasic({required this.id, required this.title, required this.slug});
 
   factory ProductBasic.fromJson(Map<String, dynamic> json) {
     return ProductBasic(

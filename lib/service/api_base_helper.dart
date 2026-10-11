@@ -212,11 +212,19 @@ class ApiBaseHelper {
 
           // If only one error, use the message field
           if (errorMessages.length == 1 && data.containsKey('message')) {
-            return ApiException(data['message']);
+            return ApiException(
+              data['message'],
+              statusCode: statusCode,
+              responseData: data,
+            );
           }
 
           // If multiple errors, show all detailed errors
-          return ApiException(errorMessages.join('\n'));
+          return ApiException(
+            errorMessages.join('\n'),
+            statusCode: statusCode,
+            responseData: data,
+          );
         }
 
         // Handle other errors with message

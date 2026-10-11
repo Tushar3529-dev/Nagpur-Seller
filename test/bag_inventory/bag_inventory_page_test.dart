@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hyper_local_seller/bloc/screen_size/screen_size_bloc.dart';
+import 'package:hyper_local_seller/config/app_permissions.dart';
+import 'package:hyper_local_seller/config/hive_storage.dart';
 import 'package:hyper_local_seller/screen/more_page/view/bag_inventory/model/bag_model.dart';
 import 'package:hyper_local_seller/screen/more_page/view/bag_inventory/repo/bags_repo.dart';
 import 'package:hyper_local_seller/screen/more_page/view/bag_inventory/view/bag_inventory_page.dart';
 import 'package:hyper_local_seller/service/api_base_helper.dart';
+
+import '../incoming_orders/helpers.dart';
 
 class _FakeRepo extends BagsRepo {
   final List<Bag> bags;
@@ -46,7 +50,18 @@ class _FakeRepo extends BagsRepo {
 void main() {
   late _FakeRepo repo;
 
-  setUp(() {
+  Future<void> grant(List<String> permissions) =>
+      HiveStorage.setUserData({'assigned_permissions': permissions});
+
+  setUpAll(() => initTestHive());
+
+  setUp(() async {
+    await grant([
+      AppPermissions.bagView,
+      AppPermissions.bagCreate,
+      AppPermissions.bagEdit,
+      AppPermissions.bagDelete,
+    ]);
     repo = _FakeRepo([
       Bag(
         id: 33,
@@ -138,5 +153,33 @@ void main() {
     await tester.tap(find.widgetWithText(ElevatedButton, 'Delete'));
     await tester.pumpAndSettle();
     expect(find.textContaining('now assigned to an order'), findsOneWidget);
+  });
+
+  testWidgets('without bag.view the page shows no bags and loads nothing', (
+    tester,
+  ) async {
+    // Hive does real file I/O, which the test clock doesn't drive.
+    await tester.runAsync(() => grant([AppPermissions.bagCreate]));
+    await open(tester);
+    expect(find.text("You don't have access to bags"), findsOneWidget);
+    expect(find.text('BAG-000033'), findsNothing);
+    expect(repo.statusCalls, isEmpty);
+  });
+
+  testWidgets('view-only role: no Add button, edit and delete disabled', (
+    tester,
+  ) async {
+    // Hive does real file I/O, which the test clock doesn't drive.
+    await tester.runAsync(() => grant([AppPermissions.bagView]));
+    await open(tester);
+    expect(find.text('BAG-000033'), findsOneWidget);
+    expect(find.text('Add bags'), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete bag?'), findsNothing);
+    expect(repo.deleteCalls, isEmpty);
   });
 }

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hyper_local_seller/config/hive_storage.dart';
 import 'package:hyper_local_seller/service/api_base_helper.dart';
+import 'package:hyper_local_seller/utils/permission_checker.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/model/pending_order_model.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/repo/pending_orders_repo.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/repo/scan_session_store.dart';
@@ -74,10 +75,16 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
         _restored = true;
         await _restore(generation);
       }
-      final refreshed = await Future.wait([
-        _fetchMode(OrderMode.regular, generation),
-        _fetchMode(OrderMode.wholesale, generation),
-      ]);
+      // Roles without `order.popup` get no incoming-order alerts and never
+      // poll: only orders they opened themselves ([openForScan]) stay.
+      final canPoll = PermissionChecker.canShowOrderPopup;
+      if (!canPoll) _latest.updateAll((_, _) => const []);
+      final refreshed = canPoll
+          ? await Future.wait([
+              _fetchMode(OrderMode.regular, generation),
+              _fetchMode(OrderMode.wholesale, generation),
+            ])
+          : const <OrderMode?>[];
       if (isClosed || !_isLoggedIn || generation != _sessionGeneration) return;
       _publish(refreshedModes: refreshed.whereType<OrderMode>().toSet());
     } finally {
@@ -212,6 +219,48 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
     }
     _resumeFetching();
     return true;
+  }
+
+  /// Puts the already accepted order [sellerOrderId] in the popup for
+  /// scanning, bag and dispatch. This is how an order accepted from the
+  /// orders list reaches the scan flow, including for roles without
+  /// `order.popup`. Returns null on success, otherwise the message to show.
+  Future<String?> openForScan(int sellerOrderId, {OrderMode? mode}) async {
+    if (!_isLoggedIn) return 'Please log in again.';
+    if (state.orders.any((o) => o.sellerOrderId == sellerOrderId)) return null;
+    final generation = _sessionGeneration;
+    PendingOrder? order;
+    try {
+      // Barcodes only come with the pending list.
+      for (final m in mode != null ? [mode] : OrderMode.values) {
+        final orders = await _repo.getPendingOrders(m, popupWindowOnly: false);
+        order = orders
+            .where((o) => o.sellerOrderId == sellerOrderId)
+            .firstOrNull;
+        if (order != null) break;
+      }
+    } catch (e) {
+      debugPrint('[IncomingOrders] open $sellerOrderId failed: $e');
+      return "Couldn't load this order for scanning. $e";
+    }
+    if (isClosed || generation != _sessionGeneration) return null;
+    if (order == null) {
+      return "Couldn't load this order's items for scanning. Try again, or "
+          'ask the store owner to check your role permissions.';
+    }
+    if (!order.isAcceptedOnServer) {
+      return 'Accept this order before scanning it.';
+    }
+    _handled.remove(sellerOrderId);
+    _held[sellerOrderId] = order;
+    emit(
+      state.copyWith(
+        acceptedOrderIds: {...state.acceptedOrderIds, sellerOrderId},
+      ),
+    );
+    _publish();
+    _save();
+    return null;
   }
 
   /// Finds the item of [order] that a scanned or typed [code] belongs to.

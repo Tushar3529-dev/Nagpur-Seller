@@ -16,16 +16,18 @@ class ProductFaqBloc extends Bloc<ProductFaqEvent, ProductFaqState> {
   ProductFaqBloc(this._repo) : super(const ProductFaqState()) {
     _paginationController = PaginationController<ProductFaq>(
       fetcher: _fetchFaqs,
-      emit: (paginatedState) => emit(state.copyWith(
-        items: paginatedState.items,
-        isInitialLoading: paginatedState.isInitialLoading,
-        isRefreshing: paginatedState.isRefreshing,
-        isPaginating: paginatedState.isPaginating,
-        hasMore: paginatedState.hasMore,
-        error: paginatedState.error,
-        currentPage: paginatedState.currentPage,
-        total: paginatedState.total,
-      )),
+      emit: (paginatedState) => emit(
+        state.copyWith(
+          items: paginatedState.items,
+          isInitialLoading: paginatedState.isInitialLoading,
+          isRefreshing: paginatedState.isRefreshing,
+          isPaginating: paginatedState.isPaginating,
+          hasMore: paginatedState.hasMore,
+          error: paginatedState.error,
+          currentPage: paginatedState.currentPage,
+          total: paginatedState.total,
+        ),
+      ),
       perPage: GlobalKeys.perPage,
     );
 
@@ -35,11 +37,16 @@ class ProductFaqBloc extends Bloc<ProductFaqEvent, ProductFaqState> {
     on<SearchFaqs>(_onSearchFaqs);
     on<SaveProductFaq>(_onSaveProductFaq);
     on<DeleteProductFaq>(_onDeleteProductFaq);
-    on<ClearProductFaqOperation>((event, emit) => emit(state.copyWith(clearOperation: true)));
+    on<ClearProductFaqOperation>(
+      (event, emit) => emit(state.copyWith(clearOperation: true)),
+    );
     on<ProductFaqReset>(_onReset);
   }
 
-  Future<PaginationResponse<ProductFaq>> _fetchFaqs(int page, int perPage) async {
+  Future<PaginationResponse<ProductFaq>> _fetchFaqs(
+    int page,
+    int perPage,
+  ) async {
     final response = await _repo.getProductFaqs(
       page: page,
       perPage: perPage,
@@ -58,11 +65,13 @@ class ProductFaqBloc extends Bloc<ProductFaqEvent, ProductFaqState> {
     LoadFaqsInitial event,
     Emitter<ProductFaqState> emit,
   ) async {
-    emit(state.copyWith(
-      productId: event.productId,
-      search: event.search,
-      overrideFilters: true,
-    ));
+    emit(
+      state.copyWith(
+        productId: event.productId,
+        search: event.search,
+        overrideFilters: true,
+      ),
+    );
     await _paginationController.loadInitial(currentState: state);
   }
 
@@ -84,11 +93,13 @@ class ProductFaqBloc extends Bloc<ProductFaqEvent, ProductFaqState> {
     SearchFaqs event,
     Emitter<ProductFaqState> emit,
   ) async {
-    emit(state.copyWith(
-      search: event.query,
-      productId: state.productId,
-      overrideFilters: true,
-    ));
+    emit(
+      state.copyWith(
+        search: event.query,
+        productId: state.productId,
+        overrideFilters: true,
+      ),
+    );
     await _paginationController.loadInitial(currentState: state);
   }
 
@@ -96,8 +107,8 @@ class ProductFaqBloc extends Bloc<ProductFaqEvent, ProductFaqState> {
     SaveProductFaq event,
     Emitter<ProductFaqState> emit,
   ) async {
-    // Note: We don't change state to "OperationLoading" via a new class anymore, 
-    // instead we can add fields to the main state if needed, but for now 
+    // Note: We don't change state to "OperationLoading" via a new class anymore,
+    // instead we can add fields to the main state if needed, but for now
     // let's keep it simple and just do the operation and refresh.
     try {
       final response = await _repo.saveProductFaq(
@@ -109,16 +120,20 @@ class ProductFaqBloc extends Bloc<ProductFaqEvent, ProductFaqState> {
       );
 
       if (response['success'] == true) {
-        emit(state.copyWith(
-          operationSuccess: true, 
-          operationMessage: response['message'] ?? 'FAQ saved successfully'
-        ));
+        emit(
+          state.copyWith(
+            operationSuccess: true,
+            operationMessage: response['message'] ?? 'FAQ saved successfully',
+          ),
+        );
         add(RefreshFaqs());
       } else {
-        emit(state.copyWith(
-          operationSuccess: false, 
-          error: response['message'] ?? 'Failed to save FAQ'
-        ));
+        emit(
+          state.copyWith(
+            operationSuccess: false,
+            error: response['message'] ?? 'Failed to save FAQ',
+          ),
+        );
       }
     } catch (e) {
       emit(state.copyWith(operationSuccess: false, error: e.toString()));
@@ -133,16 +148,20 @@ class ProductFaqBloc extends Bloc<ProductFaqEvent, ProductFaqState> {
       final response = await _repo.deleteProductFaq(event.id);
 
       if (response['success'] == true) {
-        emit(state.copyWith(
-          operationSuccess: true, 
-          operationMessage: response['message'] ?? 'FAQ deleted successfully'
-        ));
+        emit(
+          state.copyWith(
+            operationSuccess: true,
+            operationMessage: response['message'] ?? 'FAQ deleted successfully',
+          ),
+        );
         add(RefreshFaqs());
       } else {
-        emit(state.copyWith(
-          operationSuccess: false, 
-          error: response['message'] ?? 'Failed to delete FAQ'
-        ));
+        emit(
+          state.copyWith(
+            operationSuccess: false,
+            error: response['message'] ?? 'Failed to delete FAQ',
+          ),
+        );
       }
     } catch (e) {
       emit(state.copyWith(operationSuccess: false, error: e.toString()));
@@ -150,9 +169,9 @@ class ProductFaqBloc extends Bloc<ProductFaqEvent, ProductFaqState> {
   }
 
   Future<void> _onReset(
-      ProductFaqReset event,
-      Emitter<ProductFaqState> emit,
-      ) async {
+    ProductFaqReset event,
+    Emitter<ProductFaqState> emit,
+  ) async {
     emit(const ProductFaqState());
     _paginationController.reset();
   }

@@ -54,7 +54,7 @@ class ProductFaqPageData {
 
       faqs: JsonParser.list<ProductFaq>(
         json['data'],
-            (v) => ProductFaq.fromJson(v as Map<String, dynamic>),
+        (v) => ProductFaq.fromJson(v as Map<String, dynamic>),
       ),
     );
   }
@@ -97,11 +97,7 @@ class ProductFaq {
 
   factory ProductFaq.fromJson(Map<String, dynamic> json) {
     return ProductFaq(
-      id: JsonParser.requireInt(
-        json['id'],
-        model: modelName,
-        field: 'id',
-      ),
+      id: JsonParser.requireInt(json['id'], model: modelName, field: 'id'),
       productId: JsonParser.requireInt(
         json['product_id'],
         model: modelName,
@@ -150,11 +146,7 @@ class ProductBasic {
   String title;
   String slug;
 
-  ProductBasic({
-    required this.id,
-    required this.title,
-    required this.slug,
-  });
+  ProductBasic({required this.id, required this.title, required this.slug});
 
   factory ProductBasic.fromJson(Map<String, dynamic> json) {
     return ProductBasic(

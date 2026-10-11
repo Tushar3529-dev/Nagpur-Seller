@@ -7,7 +7,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hyper_local_seller/screen/products_page/add_products/repo/add_product_repo.dart';
 import 'package:hyper_local_seller/screen/products_page/products/model/product_model.dart';
 import 'package:hyper_local_seller/screen/products_page/products/repo/products_repo.dart';
+import 'package:hyper_local_seller/service/api_base_helper.dart';
 import 'package:hyper_local_seller/utils/image_picker_utils.dart';
+import 'package:hyper_local_seller/utils/unit_price_calculator.dart';
 import 'package:hyper_local_seller/screen/more_page/view/categories/repo/categories_repo.dart';
 
 part 'add_product_event.dart';
@@ -18,7 +20,8 @@ class AddProductBloc extends Bloc<AddProductEvent, AddProductState> {
   final ProductsRepo _productsRepo;
   final CategoriesRepo _categoriesRepo;
 
-  AddProductBloc(this._repo, this._productsRepo, this._categoriesRepo) : super(AddProductInitial()) {
+  AddProductBloc(this._repo, this._productsRepo, this._categoriesRepo)
+    : super(AddProductInitial()) {
     on<UpdateProductData>(_onUpdateProductData);
     on<SubmitProduct>(_onSubmitProduct);
     on<AddProductReset>(_onReset);
@@ -26,12 +29,17 @@ class AddProductBloc extends Bloc<AddProductEvent, AddProductState> {
     on<SetProductForEdit>(_onSetProductForEdit);
   }
 
-  Future<void> _onLoadProductForEdit(LoadProductForEdit event, Emitter<AddProductState> emit) async {
+  Future<void> _onLoadProductForEdit(
+    LoadProductForEdit event,
+    Emitter<AddProductState> emit,
+  ) async {
     emit(AddProductLoadingEdit());
     try {
       final response = await _productsRepo.getProductById(event.productId);
       if (response != null && response['data'] != null) {
-        final product = Product.fromJson(response['data'] as Map<String, dynamic>);
+        final product = Product.fromJson(
+          response['data'] as Map<String, dynamic>,
+        );
         add(SetProductForEdit(product));
       } else {
         emit(AddProductFailure(ProductData(), 'Failed to load product data'));
@@ -41,10 +49,13 @@ class AddProductBloc extends Bloc<AddProductEvent, AddProductState> {
     }
   }
 
-  Future<void> _onSetProductForEdit(SetProductForEdit event, Emitter<AddProductState> emit) async {
+  Future<void> _onSetProductForEdit(
+    SetProductForEdit event,
+    Emitter<AddProductState> emit,
+  ) async {
     final p = event.product;
     final data = ProductData();
-    
+
     data.id = p.id;
     data.categoryId = p.categoryId;
     data.brandId = p.brandId;
@@ -59,7 +70,19 @@ class AddProductBloc extends Bloc<AddProductEvent, AddProductState> {
     data.isCancelable = p.isCancelable ?? false;
     data.cancelableTill = p.cancelableTill;
     data.type = p.type ?? 'simple';
-    data.barcode = p.variants?.isNotEmpty == true ? p.variants!.first.barcode : null;
+    data.barcode = p.variants?.isNotEmpty == true
+        ? p.variants!.first.barcode
+        : null;
+    data.isInclusiveTax = p.isInclusiveTax ?? false;
+    // Simple products write package fields at the top level, but the read
+    // response returns them on the single default variant.
+    if (data.type == 'simple' && p.variants?.isNotEmpty == true) {
+      final first = p.variants!.first;
+      data.netQuantity = _formatOptional(first.netQuantity);
+      data.netQuantityUnit = first.netQuantityUnit;
+      data.unitCount = first.unitCount?.toString();
+      data.unitCountType = first.unitCountType;
+    }
     data.taxGroupIds = List<int>.from(p.taxGroups);
     data.imageFit = p.imageFit ?? "cover";
     data.videoType = p.videoType;
@@ -132,10 +155,7 @@ class AddProductBloc extends Bloc<AddProductEvent, AddProductState> {
         final variantTitle = v.title ?? p.title;
 
         if (!uniqueVariants.containsKey(variantTitle)) {
-          final vd = VariantData(
-            title: variantTitle,
-            attributeValueIds: [],
-          );
+          final vd = VariantData(title: variantTitle, attributeValueIds: []);
           vd.id = v.id?.toString();
           vd.barcode = v.barcode;
           vd.weight = v.weight?.toString();
@@ -145,6 +165,10 @@ class AddProductBloc extends Bloc<AddProductEvent, AddProductState> {
           vd.isAvailable = v.availability ?? true;
           vd.isDefault = v.isDefault ?? false;
           vd.image = (v.image?.isNotEmpty == true) ? v.image : null;
+          vd.netQuantity = _formatOptional(v.netQuantity);
+          vd.netQuantityUnit = v.netQuantityUnit;
+          vd.unitCount = v.unitCount?.toString();
+          vd.unitCountType = v.unitCountType;
 
           if (v.attributesMap != null) {
             vd.attributes = v.attributesMap!.entries.map((e) {
@@ -199,11 +223,21 @@ class AddProductBloc extends Bloc<AddProductEvent, AddProductState> {
                   storeId: s.storeId!,
                   storeName: s.storeName ?? "Store",
                   price: p.type == 'simple' ? s.price?.toString() : null,
-                  specialPrice:
-                      p.type == 'simple' ? s.specialPrice?.toString() : null,
+                  specialPrice: p.type == 'simple'
+                      ? s.specialPrice?.toString()
+                      : null,
                   cost: p.type == 'simple' ? s.cost?.toString() : null,
                   stock: p.type == 'simple' ? s.stock?.toString() : null,
                   sku: p.type == 'simple' ? s.sku : null,
+                  wholesalePrice: p.type == 'simple'
+                      ? _formatOptional(s.wholesalePrice)
+                      : null,
+                  unitPriceBasisQuantity: p.type == 'simple'
+                      ? _formatOptional(s.unitPriceBasisQuantity)
+                      : null,
+                  unitPriceBasisUnit: p.type == 'simple'
+                      ? s.unitPriceBasisUnit
+                      : null,
                 ),
               );
             } else if (p.type == 'simple') {
@@ -216,6 +250,11 @@ class AddProductBloc extends Bloc<AddProductEvent, AddProductState> {
                   specialPrice: s.specialPrice?.toString(),
                   stock: s.stock?.toString(),
                   sku: s.sku,
+                  wholesalePrice: _formatOptional(s.wholesalePrice),
+                  unitPriceBasisQuantity: _formatOptional(
+                    s.unitPriceBasisQuantity,
+                  ),
+                  unitPriceBasisUnit: s.unitPriceBasisUnit,
                 );
               }
             }
@@ -231,6 +270,11 @@ class AddProductBloc extends Bloc<AddProductEvent, AddProductState> {
                   cost: s.cost?.toString(),
                   stock: s.stock?.toString(),
                   sku: s.sku,
+                  wholesalePrice: _formatOptional(s.wholesalePrice),
+                  unitPriceBasisQuantity: _formatOptional(
+                    s.unitPriceBasisQuantity,
+                  ),
+                  unitPriceBasisUnit: s.unitPriceBasisUnit,
                 ),
               );
             }
@@ -296,12 +340,16 @@ class AddProductBloc extends Bloc<AddProductEvent, AddProductState> {
     }
 
     if (data.variants.isNotEmpty) {
-      final currentVariants = List<VariantData>.from(state.productData.variants);
+      final currentVariants = List<VariantData>.from(
+        state.productData.variants,
+      );
       bool anyVariantImageCached = false;
 
       for (int i = 0; i < currentVariants.length; i++) {
         final vd = currentVariants[i];
-        if (vd.image != null && vd.image!.isNotEmpty && vd.image!.startsWith('http')) {
+        if (vd.image != null &&
+            vd.image!.isNotEmpty &&
+            vd.image!.startsWith('http')) {
           final local = await ImagePickerUtils.downloadImageToFile(vd.image!);
           if (local != null) {
             currentVariants[i] = vd.copyWith(image: local);
@@ -319,8 +367,9 @@ class AddProductBloc extends Bloc<AddProductEvent, AddProductState> {
     }
 
     if (p.customProductSections != null) {
-      final currentSections =
-          List<CustomProductSection>.from(state.productData.customProductSections);
+      final currentSections = List<CustomProductSection>.from(
+        state.productData.customProductSections,
+      );
       bool anyCustomImageCached = false;
 
       for (int i = 0; i < currentSections.length; i++) {
@@ -333,8 +382,9 @@ class AddProductBloc extends Bloc<AddProductEvent, AddProductState> {
           if (field.image != null &&
               field.image!.isNotEmpty &&
               field.image!.startsWith('http')) {
-            final local =
-                await ImagePickerUtils.downloadImageToFile(field.image!);
+            final local = await ImagePickerUtils.downloadImageToFile(
+              field.image!,
+            );
             if (local != null) {
               newFields[j] = field.copyWith(image: local);
               sectionModified = true;
@@ -350,8 +400,11 @@ class AddProductBloc extends Bloc<AddProductEvent, AddProductState> {
 
       if (anyCustomImageCached) {
         final currentData = state.productData;
-        emit(AddProductUpdating(
-            currentData.copyWith(customProductSections: currentSections)));
+        emit(
+          AddProductUpdating(
+            currentData.copyWith(customProductSections: currentSections),
+          ),
+        );
       }
     }
   }
@@ -360,17 +413,48 @@ class AddProductBloc extends Bloc<AddProductEvent, AddProductState> {
     emit(AddProductInitial());
   }
 
-  void _onUpdateProductData(UpdateProductData event, Emitter<AddProductState> emit) {
+  void _onUpdateProductData(
+    UpdateProductData event,
+    Emitter<AddProductState> emit,
+  ) {
     emit(AddProductUpdating(event.productData));
   }
 
-  Future<void> _onSubmitProduct(SubmitProduct event, Emitter<AddProductState> emit) async {
+  Future<void> _onSubmitProduct(
+    SubmitProduct event,
+    Emitter<AddProductState> emit,
+  ) async {
     emit(AddProductSubmitting(state.productData));
     try {
       await _repo.addProduct(productData: state.productData);
       emit(AddProductSuccess(state.productData));
+    } on ApiException catch (e) {
+      emit(
+        AddProductFailure(
+          state.productData,
+          e.toString(),
+          fieldErrors: _validationErrors(e.responseData),
+        ),
+      );
     } catch (e) {
       emit(AddProductFailure(state.productData, e.toString()));
     }
+  }
+
+  static String? _formatOptional(double? value) =>
+      value == null ? null : UnitPriceCalculator.formatNumber(value);
+
+  /// Laravel 422 `errors` as `{field: firstMessage}`.
+  static Map<String, String> _validationErrors(Map<String, dynamic>? body) {
+    final errors = body?['errors'];
+    if (errors is! Map) return const {};
+    final result = <String, String>{};
+    errors.forEach((key, value) {
+      final message = value is List
+          ? (value.isEmpty ? null : value.first)
+          : value;
+      if (message != null) result[key.toString()] = message.toString();
+    });
+    return result;
   }
 }

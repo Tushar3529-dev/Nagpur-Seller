@@ -17,6 +17,7 @@ import 'package:hyper_local_seller/screen/products_page/add_products/widgets/ste
 import 'package:hyper_local_seller/screen/products_page/add_products/widgets/steps/pricing_taxes_step.dart';
 import 'package:hyper_local_seller/service/demo_guard.dart';
 import 'package:hyper_local_seller/utils/ui_utils.dart';
+import 'package:hyper_local_seller/utils/unit_price_calculator.dart';
 import 'package:hyper_local_seller/widgets/custom/custom_scaffold.dart';
 import 'package:hyper_local_seller/widgets/custom/custom_snackbar.dart';
 
@@ -228,6 +229,13 @@ class _AddProductPageState extends State<AddProductPage> {
             // an empty variants list here is an edge case that should be handled.
             return (false, AppLocalizations.of(context)!.dimensionsRequired);
           }
+          final packageError = _packageError(
+            netQuantity: data.netQuantity,
+            netQuantityUnit: data.netQuantityUnit,
+            unitCount: data.unitCount,
+            unitCountType: data.unitCountType,
+          );
+          if (packageError != null) return (false, packageError);
         } else {
           if (data.variants.isEmpty) {
             return (false, AppLocalizations.of(context)!.addAtLeastOneVariant);
@@ -270,6 +278,15 @@ class _AddProductPageState extends State<AddProductPage> {
                 false,
                 AppLocalizations.of(context)!.lengthRequiredForAllVariants,
               );
+            }
+            // Variant net quantity comes from attributes, so only the
+            // seller-entered inner unit pair needs checking here.
+            final packageError = _packageError(
+              unitCount: v.unitCount,
+              unitCountType: v.unitCountType,
+            );
+            if (packageError != null) {
+              return (false, '${v.name ?? v.title}: $packageError');
             }
           }
           if (!hasDefault) {
@@ -327,7 +344,9 @@ class _AddProductPageState extends State<AddProductPage> {
                 sp.specialPrice != null && sp.specialPrice!.isNotEmpty
                 ? double.tryParse(sp.specialPrice!)
                 : null;
-            if (price != null && specialPrice != null && specialPrice > price) {
+            if (price != null &&
+                specialPrice != null &&
+                specialPrice >= price) {
               return (
                 false,
                 AppLocalizations.of(
@@ -361,6 +380,17 @@ class _AddProductPageState extends State<AddProductPage> {
               return (
                 false,
                 AppLocalizations.of(context)!.skuRequiredForStore(sp.storeName),
+              );
+            }
+            if (!_isValidBasis(
+              sp.unitPriceBasisQuantity,
+              sp.unitPriceBasisUnit,
+            )) {
+              return (
+                false,
+                AppLocalizations.of(
+                  context,
+                )!.unitPriceBasisInvalid(sp.storeName),
               );
             }
           } else {
@@ -435,12 +465,23 @@ class _AddProductPageState extends State<AddProductPage> {
                   : null;
               if (price != null &&
                   specialPrice != null &&
-                  specialPrice > price) {
+                  specialPrice >= price) {
                 return (
                   false,
                   AppLocalizations.of(
                     context,
                   )!.specialPriceGreaterErrorVariant(sp.storeName, variantName),
+                );
+              }
+              if (!_isValidBasis(
+                vp.unitPriceBasisQuantity,
+                vp.unitPriceBasisUnit,
+              )) {
+                return (
+                  false,
+                  AppLocalizations.of(
+                    context,
+                  )!.unitPriceBasisInvalid('${sp.storeName} ($variantName)'),
                 );
               }
             }
@@ -451,6 +492,125 @@ class _AddProductPageState extends State<AddProductPage> {
       default:
         return (true, null);
     }
+  }
+
+  /// Mirrors the API rules for package fields; each pair must be complete.
+  String? _packageError({
+    String? netQuantity,
+    String? netQuantityUnit,
+    String? unitCount,
+    String? unitCountType,
+  }) {
+    final l10n = AppLocalizations.of(context)!;
+    final qtyText = netQuantity?.trim() ?? '';
+    final unit = netQuantityUnit?.trim() ?? '';
+    if (qtyText.isNotEmpty) {
+      final qty = double.tryParse(qtyText);
+      if (qty == null || qty < 0.001) return l10n.netQuantityInvalid;
+      if (unit.isEmpty) return l10n.netQuantityUnitRequired;
+    } else if (unit.isNotEmpty) {
+      return l10n.netQuantityInvalid;
+    }
+
+    final countText = unitCount?.trim() ?? '';
+    final countType = unitCountType?.trim() ?? '';
+    if (countText.isEmpty != countType.isEmpty) {
+      return l10n.unitCountPairRequired;
+    }
+    if (countText.isNotEmpty) {
+      final count = int.tryParse(countText);
+      if (count == null || count <= 0) return l10n.unitCountInvalid;
+    }
+
+    if (unit.length > UnitPriceCalculator.maxUnitLength ||
+        countType.length > UnitPriceCalculator.maxUnitLength) {
+      return l10n.unitTooLong;
+    }
+    return null;
+  }
+
+  /// The basis is optional, but when present needs an amount > 0 and a unit.
+  bool _isValidBasis(String? quantity, String? unit) {
+    final q = quantity?.trim() ?? '';
+    final u = unit?.trim() ?? '';
+    if (q.isEmpty && u.isEmpty) return true;
+    final parsed = double.tryParse(q);
+    return parsed != null &&
+        parsed > 0 &&
+        u.isNotEmpty &&
+        u.length <= UnitPriceCalculator.maxUnitLength;
+  }
+
+  /// Wizard step that owns a server validation field, so a 422 can take the
+  /// seller back to the input that needs fixing.
+  static int? _stepForField(String field) {
+    final key = field.split(RegExp(r'[.\[]')).first;
+    const steps = <String, int>{
+      'category_id': 1,
+      'title': 2,
+      'brand_id': 2,
+      'base_prep_time': 2,
+      'hsn_code': 2,
+      'made_in': 2,
+      'indicator': 2,
+      'custom_fields': 2,
+      'minimum_order_quantity': 3,
+      'quantity_step_size': 3,
+      'total_allowed_quantity': 3,
+      'is_returnable': 3,
+      'returnable_days': 3,
+      'is_cancelable': 3,
+      'cancelable_till': 3,
+      'is_attachment_required': 3,
+      'featured': 3,
+      'requires_otp': 3,
+      'warranty_period': 3,
+      'guarantee_period': 3,
+      'type': 4,
+      'barcode': 4,
+      'weight': 4,
+      'height': 4,
+      'length': 4,
+      'breadth': 4,
+      'net_quantity': 4,
+      'net_quantity_unit': 4,
+      'unit_count': 4,
+      'unit_count_type': 4,
+      'variants_json': 4,
+      'main_image': 5,
+      'additional_images': 5,
+      'image_fit': 5,
+      'product_video': 5,
+      'video_type': 5,
+      'video_link': 5,
+      'custom_sections': 5,
+      'short_description': 6,
+      'description': 6,
+      'tags': 6,
+      'pricing': 7,
+      'tax_groups': 7,
+      'is_inclusive_tax': 7,
+    };
+    if (key.startsWith('variant_image')) return 4;
+    return steps[key];
+  }
+
+  void _showFailure(AddProductFailure state) {
+    final errors = state.fieldErrors;
+    if (errors.isNotEmpty) {
+      final steps = errors.keys.map(_stepForField).whereType<int>().toList()
+        ..sort();
+      if (steps.isNotEmpty && steps.first != _currentStep) {
+        // Data is kept in the bloc, so going back loses nothing.
+        FocusScope.of(context).unfocus();
+        setState(() => _currentStep = steps.first);
+      }
+    }
+    showCustomSnackbar(
+      context: context,
+      message: errors.isEmpty ? state.error : errors.values.join('\n'),
+      isError: true,
+    );
   }
 
   bool _isHtmlEmpty(String html) {
@@ -521,12 +681,8 @@ class _AddProductPageState extends State<AddProductPage> {
             _isLoadingShowing = false;
           }
           if (state is AddProductFailure) {
-            log('AddProductFailure: ${state.error}');
-            showCustomSnackbar(
-              context: context,
-              message: state.error,
-              isError: true,
-            );
+            log('AddProductFailure: ${state.error} ${state.fieldErrors}');
+            _showFailure(state);
           }
         }
       },

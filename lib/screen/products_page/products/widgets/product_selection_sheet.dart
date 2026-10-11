@@ -16,7 +16,10 @@ class ProductSelectionSheet extends StatefulWidget {
     required this.onSelected,
   });
 
-  static void show(BuildContext context, {required Function(Product) onSelected}) {
+  static void show(
+    BuildContext context, {
+    required Function(Product) onSelected,
+  }) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -36,7 +39,7 @@ class _ProductSelectionSheetState extends State<ProductSelectionSheet> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ProductsRepo _repo = ProductsRepo();
-  
+
   final List<Product> _products = [];
   bool _isLoading = false;
   int _page = 1;
@@ -58,7 +61,8 @@ class _ProductSelectionSheetState extends State<ProductSelectionSheet> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
       if (!_isLoading && _hasMore) {
         _fetchProducts();
       }
@@ -67,7 +71,7 @@ class _ProductSelectionSheetState extends State<ProductSelectionSheet> {
 
   Future<void> _fetchProducts({bool isRefresh = false}) async {
     if (_isLoading) return;
-    
+
     setState(() {
       _isLoading = true;
       if (isRefresh) {
@@ -81,13 +85,15 @@ class _ProductSelectionSheetState extends State<ProductSelectionSheet> {
         page: _page,
         search: _searchController.text,
       );
-      
+
       final productsResponse = ProductsResponse.fromJson(response);
       if (productsResponse.success == true && productsResponse.data != null) {
         final newProducts = productsResponse.data!.products ?? [];
         setState(() {
           _products.addAll(newProducts);
-          _hasMore = productsResponse.data!.currentPage! < productsResponse.data!.lastPage!;
+          _hasMore =
+              productsResponse.data!.currentPage! <
+              productsResponse.data!.lastPage!;
           if (_hasMore) _page++;
         });
       }
@@ -103,7 +109,7 @@ class _ProductSelectionSheetState extends State<ProductSelectionSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Container(
       height: MediaQuery.of(context).size.height * 0.75,
       decoration: BoxDecoration(
@@ -157,9 +163,12 @@ class _ProductSelectionSheetState extends State<ProductSelectionSheet> {
                   )
                 : ListView.separated(
                     controller: _scrollController,
-                    padding: EdgeInsets.symmetric(horizontal: UIUtils.gapMD(widget.screenType)),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: UIUtils.gapMD(widget.screenType),
+                    ),
                     itemCount: _products.length + (_isLoading ? 1 : 0),
-                    separatorBuilder: (context, index) => const Divider(height: 1),
+                    separatorBuilder: (context, index) =>
+                        const Divider(height: 1),
                     itemBuilder: (context, index) {
                       if (index >= _products.length) {
                         return const Padding(
@@ -167,7 +176,7 @@ class _ProductSelectionSheetState extends State<ProductSelectionSheet> {
                           child: Center(child: CustomLoadingIndicator()),
                         );
                       }
-                      
+
                       final product = _products[index];
                       return ListTile(
                         onTap: () {
@@ -181,7 +190,8 @@ class _ProductSelectionSheetState extends State<ProductSelectionSheet> {
                             width: 40,
                             height: 40,
                             fit: BoxFit.cover,
-                            errorWidget: (context, url, error) => const Icon(Icons.broken_image),
+                            errorWidget: (context, url, error) =>
+                                const Icon(Icons.broken_image),
                           ),
                         ),
                         title: Text(

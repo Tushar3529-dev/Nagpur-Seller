@@ -2840,4 +2840,130 @@ class AppLocalizationsHi extends AppLocalizations {
   @override
   String get noWithdrawHistoryMessage =>
       'आपने अभी तक कोई निकासी अनुरोध नहीं किया है।';
+
+  @override
+  String get packageContents => 'पैकेज सामग्री';
+
+  @override
+  String get packageContentsHint =>
+      'खरीदार को क्या मिलता है, जैसे 500 g, 1 L, 5 pcs. शिपिंग वज़न अलग से दर्ज किया जाता है।';
+
+  @override
+  String get netQuantity => 'शुद्ध मात्रा';
+
+  @override
+  String get packageUnit => 'इकाई';
+
+  @override
+  String get packageUnitHint => 'g, kg, ml, L, pcs…';
+
+  @override
+  String get innerUnitCount => 'अंदर की इकाइयाँ';
+
+  @override
+  String get innerUnitCountHint => 'जैसे 2';
+
+  @override
+  String get innerUnitType => 'अंदर की इकाई का प्रकार';
+
+  @override
+  String get innerUnitTypeHint => 'packet, bottle, sachet';
+
+  @override
+  String get innerUnitsHelp =>
+      'केवल मल्टीपैक के लिए। तब शुद्ध मात्रा एक अंदर की इकाई की सामग्री होती है।';
+
+  @override
+  String get packageFromAttribute => 'पैकेज आकार (एट्रिब्यूट से)';
+
+  @override
+  String get packageAttributeMissing =>
+      'कोई पैकेज आकार नहीं मिला। यूनिट मूल्य के लिए \"500 g\" जैसे मान वाला Size, Weight, Volume, Quantity या Pack एट्रिब्यूट उपयोग करें।';
+
+  @override
+  String get unitPrice => 'यूनिट मूल्य';
+
+  @override
+  String get unitPricePer => 'प्रति';
+
+  @override
+  String get unitPriceNeedsPackage =>
+      'यूनिट मूल्य देखने के लिए प्रोडक्ट वेरिएशन चरण में पैकेज सामग्री जोड़ें।';
+
+  @override
+  String unitPriceNotComparable(String packageUnit, String basisUnit) {
+    return '$packageUnit की तुलना $basisUnit से नहीं की जा सकती।';
+  }
+
+  @override
+  String useDefaultBasis(String basis) {
+    return '$basis उपयोग करें';
+  }
+
+  @override
+  String get unitPriceEditsSpecial =>
+      'यूनिट मूल्य बदलने से विशेष मूल्य अपडेट होता है।';
+
+  @override
+  String get unitPriceEditsRegular =>
+      'यूनिट मूल्य बदलने से मूल्य अपडेट होता है।';
+
+  @override
+  String get wholesalePrice => 'थोक मूल्य';
+
+  @override
+  String get taxInclusivePrices => 'मूल्य में टैक्स शामिल है';
+
+  @override
+  String get netQuantityUnitRequired => 'शुद्ध मात्रा के लिए इकाई दर्ज करें';
+
+  @override
+  String get netQuantityInvalid => 'शुद्ध मात्रा कम से कम 0.001 होनी चाहिए';
+
+  @override
+  String get unitCountPairRequired =>
+      'अंदर की इकाइयाँ और उनका प्रकार दोनों दर्ज करें';
+
+  @override
+  String get unitCountInvalid =>
+      'अंदर की इकाइयाँ 0 से बड़ी पूर्ण संख्या होनी चाहिए';
+
+  @override
+  String get unitTooLong => 'इकाई अधिकतम 30 अक्षरों की हो सकती है';
+
+  @override
+  String unitPriceBasisInvalid(String store) {
+    return '$store के लिए यूनिट मूल्य आधार में 0 से अधिक मात्रा और इकाई चाहिए';
+  }
+
+  @override
+  String get specialPriceMustBeLower => 'विशेष मूल्य, मूल्य से कम होना चाहिए';
+
+  @override
+  String get productCategoryAll => 'सभी';
+
+  @override
+  String get productCategoryOther => 'अन्य';
+
+  @override
+  String productSubcategoryCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count उपश्रेणियाँ',
+      one: '1 उपश्रेणी',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String productCategoryProductCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count उत्पाद',
+      one: '1 उत्पाद',
+    );
+    return '$_temp0';
+  }
 }
