@@ -34,6 +34,7 @@ import 'package:hyper_local_seller/screen/more_page/view/stores/add_store/view/a
 import 'package:hyper_local_seller/screen/more_page/view/stores/add_store/view/map_screen.dart';
 import 'package:hyper_local_seller/screen/more_page/view/subscription_plans/view/subscription_plans_page.dart';
 import 'package:hyper_local_seller/screen/more_page/view/system_users/view/system_users_page.dart';
+import 'package:hyper_local_seller/screen/more_page/view/system_users/login_approvals/login_approvals_page.dart';
 import 'package:hyper_local_seller/screen/more_page/view/wallet/view/transaction_history_page.dart';
 import 'package:hyper_local_seller/screen/more_page/view/wallet/view/wallet_page.dart';
 import 'package:hyper_local_seller/screen/more_page/view/wallet/view/withdraw_history_page.dart';
@@ -100,6 +101,7 @@ class AppRoutes {
   static const String permissions = '/permissions';
   static const String deliveryZones = '/delivery-zones';
   static const String systemUsers = '/system-users';
+  static const String loginApprovals = '/login-approvals';
   static const String notifications = '/notifications';
   static const String subscriptionPlans = '/subscription-plans';
   static const String subscriptionPlanDetails = '/subscription-plan-details';
@@ -369,6 +371,12 @@ class MyAppRoutes {
         path: AppRoutes.systemUsers,
         name: '/system-users',
         pageBuilder: (context, state) => platformPage(SystemUsersPage()),
+      ),
+      GoRoute(
+        path: AppRoutes.loginApprovals,
+        name: '/login-approvals',
+        pageBuilder: (context, state) =>
+            platformPage(const LoginApprovalsPage()),
       ),
       GoRoute(
         path: AppRoutes.notifications,

@@ -26,6 +26,7 @@ import 'package:hyper_local_seller/screen/more_page/view/subscription_plans/bloc
 import 'package:hyper_local_seller/screen/more_page/view/subscription_plans/repo/subscription_plans_repo.dart';
 import 'package:hyper_local_seller/screen/more_page/view/subscription_plans/widgets/subscription_reminder_wrapper.dart';
 import 'package:hyper_local_seller/screen/more_page/view/system_users/bloc/system_user_bloc.dart';
+import 'package:hyper_local_seller/screen/more_page/view/system_users/login_approvals/login_approvals_cubit.dart';
 import 'package:hyper_local_seller/screen/more_page/view/system_users/repo/system_users_repo.dart';
 import 'package:hyper_local_seller/service/phone_auth.dart';
 import 'package:hyper_local_seller/screen/more_page/view/attributes/repo/attributes_repo.dart';
@@ -264,6 +265,9 @@ void main() async {
           ),
           BlocProvider(
             create: (context) => SystemUserBloc(repo: SystemUsersRepo()),
+          ),
+          BlocProvider(
+            create: (context) => LoginApprovalsCubit(repo: SystemUsersRepo()),
           ),
           BlocProvider(
             create: (context) =>

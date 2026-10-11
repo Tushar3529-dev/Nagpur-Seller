@@ -7,6 +7,19 @@ import 'package:hyper_local_seller/config/api_routes.dart';
 import 'package:hyper_local_seller/config/hive_storage.dart';
 import 'package:hyper_local_seller/service/api_base_helper.dart';
 
+/// Thrown by [AuthRepository.login] when a seller-created system user signs in
+/// with valid credentials but the seller has not approved the login yet.
+/// No access token is issued in this case.
+class LoginApprovalPendingException implements Exception {
+  final String message;
+  final DateTime? requestedAt;
+
+  LoginApprovalPendingException(this.message, {this.requestedAt});
+
+  @override
+  String toString() => message;
+}
+
 class AuthRepository {
   final ApiBaseHelper _helper = ApiBaseHelper();
 
@@ -28,7 +41,21 @@ class AuthRepository {
       await _extractAndSaveToken(responseData);
 
       return responseData;
-    } catch (e) {
+    } on ApiException catch (e) {
+      // HTTP 403 with `login_approval_status: pending` means the credentials
+      // are valid but the seller still has to approve this system user.
+      // Disapproved/expired and every other failure surface as plain errors.
+      final data = e.responseData?['data'];
+      if (e.statusCode == 403 &&
+          data is Map &&
+          data['login_approval_status'] == 'pending') {
+        throw LoginApprovalPendingException(
+          e.message,
+          requestedAt: DateTime.tryParse(
+            data['approval_requested_at']?.toString() ?? '',
+          )?.toLocal(),
+        );
+      }
       rethrow;
     }
   }

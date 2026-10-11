@@ -17,6 +17,7 @@ import 'package:hyper_local_seller/screen/home_page/bloc/home_page/home_page_blo
 import 'package:hyper_local_seller/screen/home_page/bloc/notification/notification_list_bloc.dart';
 import 'package:hyper_local_seller/screen/order_page/bloc/orders/orders_bloc.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/cubit/incoming_orders_cubit.dart';
+import 'package:hyper_local_seller/screen/more_page/view/system_users/login_approvals/login_approvals_cubit.dart';
 import 'package:hyper_local_seller/widgets/ui/order_notification_handler.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -118,6 +119,7 @@ class NotificationService {
         type == 'withdrawal_request' || type == 'withdrawal_process';
     final isSettlementNotification =
         type == 'settlement_process' || type == 'settlement_create';
+    final isLoginApprovalNotification = type == loginApprovalType;
 
     if (isOrderNotification) {
       if (fromForeground) {
@@ -184,6 +186,16 @@ class NotificationService {
       } else {
         navContext.push(AppRoutes.withdrawHistory);
       }
+    } else if (isLoginApprovalNotification) {
+      debugPrint("Navigating to Login Approvals page");
+      if (fromTerminated) {
+        navContext.go(AppRoutes.home);
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (navContext.mounted) navContext.push(AppRoutes.loginApprovals);
+        });
+      } else {
+        navContext.push(AppRoutes.loginApprovals);
+      }
     } else if (isSettlementNotification) {
       debugPrint("Navigating to Earnings page");
       if (fromTerminated) {
@@ -229,6 +241,10 @@ class NotificationService {
 
       // Check if this is a new order notification
       final type = payload['type']?.toString().toLowerCase();
+
+      if (type == loginApprovalType) {
+        _refreshLoginApprovalsFromContext();
+      }
       final isOrderNotification = _isOrderRelatedType(type, payload['seller_order_id']);
 
       if (isNewRegularOrderType(type, payload['seller_order_id'])) {
@@ -349,6 +365,20 @@ class NotificationService {
           debugPrint('[Terminated] Blocs refreshed after handling pending notification');
         }
       });
+    }
+  }
+
+  /// Sent to the seller when a system user asks to log in.
+  static const String loginApprovalType = 'seller_system_user_login_approval';
+
+  /// The push only prompts a refresh; the approvals API is the source of truth.
+  void _refreshLoginApprovalsFromContext() {
+    final context = GlobalKeys.navigatorKey.currentContext;
+    if (context == null || !context.mounted) return;
+    try {
+      context.read<LoginApprovalsCubit>().fetch();
+    } catch (e) {
+      debugPrint('[Notification] Error refreshing login approvals: $e');
     }
   }
 

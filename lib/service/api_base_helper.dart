@@ -47,9 +47,17 @@ class ApiBaseHelper {
           return handler.next(options);
         },
         onError: (DioException e, handler) {
-          // Expired/invalid token — log the user out globally.
-          if (e.response?.statusCode == 401) {
+          final statusCode = e.response?.statusCode;
+          if (statusCode == 401) {
+            // Expired/invalid/revoked token — log the user out globally.
             SessionManager.handleUnauthorized();
+          } else if (statusCode == 403 &&
+              SessionManager.isLoginApprovalError(e.response?.data)) {
+            // A system user's seller approval expired or was withdrawn.
+            final data = e.response?.data;
+            SessionManager.handleUnauthorized(
+              message: data is Map ? data['message']?.toString() : null,
+            );
           }
           return handler.next(e);
         },

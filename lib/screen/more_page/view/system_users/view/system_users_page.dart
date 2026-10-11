@@ -8,6 +8,7 @@ import 'package:hyper_local_seller/l10n/app_localizations.dart';
 import 'package:hyper_local_seller/router/app_routes.dart';
 import 'package:hyper_local_seller/service/demo_guard.dart';
 import 'package:hyper_local_seller/screen/more_page/view/system_users/bloc/system_user_bloc.dart';
+import 'package:hyper_local_seller/screen/more_page/view/system_users/login_approvals/login_approvals_cubit.dart';
 import 'package:hyper_local_seller/screen/more_page/view/system_users/model/system_users_model.dart';
 import 'package:hyper_local_seller/screen/more_page/view/system_users/repo/system_users_repo.dart';
 import 'package:hyper_local_seller/screen/more_page/view/system_users/widgets/system_user_card.dart';
@@ -48,6 +49,7 @@ class _SystemUsersPage extends State<SystemUsersPage> {
       context.read<SystemUserBloc>().add(
         FetchSystemUsersEvent(isRefresh: true),
       );
+      context.read<LoginApprovalsCubit>().fetch();
     });
   }
 
@@ -88,7 +90,12 @@ class _SystemUsersPage extends State<SystemUsersPage> {
               );
             });
           },
-          body: _buildBody(context, l10n),
+          body: Column(
+            children: [
+              const _PendingLoginApprovalsBanner(),
+              Expanded(child: _buildBody(context, l10n)),
+            ],
+          ),
         );
       },
     );
@@ -293,6 +300,7 @@ class _SystemUsersPage extends State<SystemUsersPage> {
               child: RefreshIndicator(
                 color: AppColors.primaryColor,
                 onRefresh: () async {
+                  context.read<LoginApprovalsCubit>().fetch();
                   context.read<SystemUserBloc>().add(
                     FetchSystemUsersEvent(
                       isRefresh: true,
@@ -390,6 +398,71 @@ class _SystemUsersPage extends State<SystemUsersPage> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => ManageSystemUserBottomSheet(user: user, bloc: bloc, ),
+    );
+  }
+}
+
+/// Shows how many system users are waiting for login approval and opens the
+/// approvals list. Hidden when nothing is pending.
+class _PendingLoginApprovalsBanner extends StatelessWidget {
+  const _PendingLoginApprovalsBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final screenType = context.screenType;
+    return BlocBuilder<LoginApprovalsCubit, LoginApprovalsState>(
+      buildWhen: (previous, current) => previous.total != current.total,
+      builder: (context, state) {
+        if (state.total <= 0) return const SizedBox.shrink();
+        return Padding(
+          padding: UIUtils.pagePadding(
+            screenType,
+          ).copyWith(bottom: UIUtils.gapSM(screenType)),
+          child: Material(
+            color: Colors.orange.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(UIUtils.radiusMD(screenType)),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(UIUtils.radiusMD(screenType)),
+              onTap: () => context.push(AppRoutes.loginApprovals),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.lock_clock_outlined, color: Colors.orange),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        state.total == 1
+                            ? '1 login request awaiting your approval'
+                            : '${state.total} login requests awaiting your approval',
+                        style: TextStyle(
+                          fontSize: UIUtils.body(screenType),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      'Review',
+                      style: TextStyle(
+                        fontSize: UIUtils.body(screenType),
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primaryColor,
+                      ),
+                    ),
+                    const Icon(
+                      Icons.chevron_right,
+                      color: AppColors.primaryColor,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

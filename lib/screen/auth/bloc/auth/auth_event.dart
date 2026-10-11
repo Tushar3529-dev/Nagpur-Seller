@@ -77,6 +77,9 @@ class AuthSignUpRequested extends AuthEvent {
 
 class AuthLogoutRequested extends AuthEvent {}
 
+/// Leaves the pending-approval screen and returns to the login form.
+class AuthApprovalCancelled extends AuthEvent {}
+
 class AuthPhoneSendOTPRequested extends AuthEvent {
   final String phoneNumber;
 

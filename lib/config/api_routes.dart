@@ -35,6 +35,11 @@ class ApiRoutes {
   static String rolesListApi = '$rolesApi/list';
   static String permissionsApi = '$baseUrl/permissions';
   static String systemUsersApi = '$baseUrl/system-users';
+  static String loginApprovalsApi = '$systemUsersApi/login-approvals';
+  static String approveLoginApi(int userId) =>
+      '$systemUsersApi/$userId/approve-login';
+  static String rejectLoginApi(int userId) =>
+      '$systemUsersApi/$userId/reject-login';
   static String notificationsApi = '$baseUrl/notifications';
   static String bagsApi = '$baseUrl/bags';
 

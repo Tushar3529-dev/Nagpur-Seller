@@ -14,6 +14,7 @@ import 'package:hyper_local_seller/screen/auth/bloc/auth/auth_bloc.dart';
 import 'package:hyper_local_seller/screen/auth/bloc/auth/auth_event.dart';
 import 'package:hyper_local_seller/screen/auth/bloc/auth/auth_state.dart';
 import 'package:hyper_local_seller/screen/auth/widgets/auth_header.dart';
+import 'package:hyper_local_seller/screen/auth/widgets/login_approval_pending_view.dart';
 import 'package:hyper_local_seller/utils/validator_utils.dart';
 import 'package:hyper_local_seller/widgets/custom/custom_buttons.dart';
 import 'package:hyper_local_seller/widgets/custom/custom_loading_indicator.dart';
@@ -47,6 +48,10 @@ class _LoginPageState extends State<LoginPage>
   bool _isPhoneLoginEnabled = false;
   String _completePhoneNumber = '';
   late TabController _tabController;
+
+  /// Set while a system user's login waits for seller approval. The password
+  /// stays only in [_passwordController] so "Check approval" can retry it.
+  AuthApprovalPending? _pendingApproval;
 
   @override
   void initState() {
@@ -125,11 +130,24 @@ class _LoginPageState extends State<LoginPage>
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) async {
           if (state is AuthFailure) {
+            setState(() => _pendingApproval = null);
             showCustomSnackbar(
               context: context,
               message: state.error,
               isError: true,
             );
+          } else if (state is AuthApprovalPending) {
+            if (_pendingApproval != null) {
+              // Retried and still pending.
+              showCustomSnackbar(
+                context: context,
+                message: state.message,
+                isWarning: true,
+              );
+            }
+            setState(() => _pendingApproval = state);
+          } else if (state is AuthInitial) {
+            setState(() => _pendingApproval = null);
           } else if (state is AuthSuccess) {
             // IMPORTANT: Refresh all data BEFORE navigating.
             // This ensures BLoCs fetch fresh data with the new token
@@ -172,7 +190,9 @@ class _LoginPageState extends State<LoginPage>
                   ),
                   Padding(
                     padding: UIUtils.pagePadding(screenType),
-                    child: Column(
+                    child: _pendingApproval != null
+                        ? _buildPendingApproval(context, _pendingApproval!)
+                        : Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         SizedBox(height: UIUtils.gapLG(screenType)),
@@ -319,6 +339,29 @@ class _LoginPageState extends State<LoginPage>
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildPendingApproval(
+    BuildContext context,
+    AuthApprovalPending pending,
+  ) {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        return LoginApprovalPendingView(
+          state: pending,
+          isChecking: state is AuthLoading,
+          // Retry the same login; the server answers 200 once approved.
+          onCheckApproval: () => context.read<AuthBloc>().add(
+            AuthLoginRequested(
+              _emailController.text.trim(),
+              _passwordController.text.trim(),
+            ),
+          ),
+          onBackToLogin: () =>
+              context.read<AuthBloc>().add(AuthApprovalCancelled()),
+        );
+      },
     );
   }
 

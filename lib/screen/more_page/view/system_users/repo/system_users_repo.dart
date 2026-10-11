@@ -1,4 +1,5 @@
 import 'package:hyper_local_seller/config/api_routes.dart';
+import 'package:hyper_local_seller/screen/more_page/view/system_users/model/login_approval_model.dart';
 import 'package:hyper_local_seller/service/api_base_helper.dart';
 
 class SystemUsersRepo {
@@ -64,4 +65,27 @@ class SystemUsersRepo {
       throw Exception(e.toString());
     }
   }
+
+  /// Pending login requests from this seller's system users.
+  Future<LoginApprovalsPage> getPendingLoginApprovals({
+    int page = 1,
+    int perPage = 15,
+  }) async {
+    final response = await _helper.get(
+      ApiRoutes.loginApprovalsApi,
+      queryParameters: {
+        'page': page.toString(),
+        'per_page': perPage.toString(),
+      },
+    );
+    return LoginApprovalsPage.fromJson(Map<String, dynamic>.from(response));
+  }
+
+  /// Grants the system user access for 24 hours.
+  Future<dynamic> approveLogin(int userId) =>
+      _helper.post(ApiRoutes.approveLoginApi(userId), {});
+
+  /// Sets the status to `disapproved` and revokes the user's tokens.
+  Future<dynamic> disapproveLogin(int userId) =>
+      _helper.post(ApiRoutes.rejectLoginApi(userId), {});
 }
