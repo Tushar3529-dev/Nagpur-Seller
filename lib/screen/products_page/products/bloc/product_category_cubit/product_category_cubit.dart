@@ -21,12 +21,6 @@ class ProductCategoryState {
 class ProductCategoryCubit extends Cubit<ProductCategoryState> {
   final CategoriesRepo _repo;
 
-  static const int _perPage = 100;
-
-  /// Levels below the top level to load; the tabs only use the first one,
-  /// deeper levels let products in sub-subcategories roll up correctly.
-  static const int _maxDepth = 3;
-
   ProductCategoryCubit(this._repo) : super(const ProductCategoryState());
 
   Future<void> load() async {
@@ -42,22 +36,12 @@ class ProductCategoryCubit extends Cubit<ProductCategoryState> {
     );
 
     try {
-      final all = <Category>[];
-      var level = await _fetchAll(null);
-      for (var depth = 0; level.isNotEmpty; depth++) {
-        all.addAll(level);
-        if (depth == _maxDepth) break;
-        final parents = level.where((c) => c.subcategoryCount > 0);
-        final children = await Future.wait(
-          parents.map((c) => _fetchAll(c.slug)),
-        );
-        level = children.expand((c) => c).toList();
-      }
+      final catalog = await fetchCategoryCatalog(_repo);
       if (isClosed) return;
       emit(
         ProductCategoryState(
           status: ProductCategoryStatus.loaded,
-          catalog: CategoryCatalog(all),
+          catalog: catalog,
         ),
       );
     } catch (e) {
@@ -71,22 +55,47 @@ class ProductCategoryCubit extends Cubit<ProductCategoryState> {
       );
     }
   }
+}
 
-  /// Every page of the children of [parentSlug], or the top level when null.
-  Future<List<Category>> _fetchAll(String? parentSlug) async {
-    final result = <Category>[];
-    var page = 1;
-    while (true) {
-      final response = await _repo.getCategories(
-        page: page,
-        perPage: _perPage,
-        slug: parentSlug,
-      );
-      final data = CategoryResponse.fromJson(response).data;
-      final items = data?.category ?? [];
-      result.addAll(items);
-      if (items.isEmpty || page >= (data?.lastPage ?? page)) return result;
-      page++;
-    }
+const int _categoryPageSize = 100;
+
+/// Levels below the top level to load; the tabs only use the first one,
+/// deeper levels let products in sub-subcategories roll up correctly.
+const int _maxCategoryDepth = 3;
+
+/// Loads every category, level by level, into one catalog.
+Future<CategoryCatalog> fetchCategoryCatalog(CategoriesRepo repo) async {
+  final all = <Category>[];
+  var level = await _fetchAllCategories(repo, null);
+  for (var depth = 0; level.isNotEmpty; depth++) {
+    all.addAll(level);
+    if (depth == _maxCategoryDepth) break;
+    final parents = level.where((c) => c.subcategoryCount > 0);
+    final children = await Future.wait(
+      parents.map((c) => _fetchAllCategories(repo, c.slug)),
+    );
+    level = children.expand((c) => c).toList();
+  }
+  return CategoryCatalog(all);
+}
+
+/// Every page of the children of [parentSlug], or the top level when null.
+Future<List<Category>> _fetchAllCategories(
+  CategoriesRepo repo,
+  String? parentSlug,
+) async {
+  final result = <Category>[];
+  var page = 1;
+  while (true) {
+    final response = await repo.getCategories(
+      page: page,
+      perPage: _categoryPageSize,
+      slug: parentSlug,
+    );
+    final data = CategoryResponse.fromJson(response).data;
+    final items = data?.category ?? [];
+    result.addAll(items);
+    if (items.isEmpty || page >= (data?.lastPage ?? page)) return result;
+    page++;
   }
 }

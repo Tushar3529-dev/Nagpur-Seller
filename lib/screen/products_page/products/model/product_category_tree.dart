@@ -107,6 +107,21 @@ class ProductCategoryTree {
     ];
   }
 
+  /// Number of [products] in each category, counting a product in its own
+  /// category and in every category above it.
+  static Map<int, int> productCountByCategory(
+    List<Product> products,
+    CategoryCatalog catalog,
+  ) {
+    final counts = <int, int>{};
+    for (final product in products) {
+      for (final id in _lineage(product, catalog)) {
+        counts[id] = (counts[id] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }
+
   /// Category ids from the top level down to the product's own category.
   static List<int> _lineage(Product product, CategoryCatalog catalog) {
     final categoryId = product.categoryId;

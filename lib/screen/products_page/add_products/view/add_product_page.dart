@@ -6,6 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hyper_local_seller/config/colors.dart';
 import 'package:hyper_local_seller/screen/products_page/add_products/bloc/add_product_bloc/add_product_bloc.dart';
+import 'package:hyper_local_seller/screen/products_page/add_products/bloc/category_product_counts/category_product_counts_cubit.dart';
+import 'package:hyper_local_seller/screen/more_page/view/categories/repo/categories_repo.dart';
+import 'package:hyper_local_seller/screen/products_page/products/repo/products_repo.dart';
 import 'package:hyper_local_seller/screen/products_page/add_products/widgets/add_product_header.dart';
 import 'package:hyper_local_seller/screen/products_page/add_products/widgets/add_product_process_bottom_sheet.dart';
 import 'package:hyper_local_seller/screen/products_page/add_products/widgets/steps/category_selection_step.dart';
@@ -34,13 +37,21 @@ class _AddProductPageState extends State<AddProductPage> {
   final int _totalSteps = 7;
   bool _isLoadingShowing = false;
 
+  /// Kept on the page so the counts survive moving between steps.
+  late final CategoryProductCountsCubit _categoryCountsCubit;
+
   @override
   void initState() {
     super.initState();
+    _categoryCountsCubit = CategoryProductCountsCubit(
+      context.read<CategoriesRepo>(),
+      context.read<ProductsRepo>(),
+    )..load();
   }
 
   @override
   void dispose() {
+    _categoryCountsCubit.close();
     super.dispose();
   }
 
@@ -770,7 +781,10 @@ class _AddProductPageState extends State<AddProductPage> {
   Widget _buildStepContent(int step, ScreenType screenType) {
     switch (step) {
       case 1:
-        return const CategorySelectionStep();
+        return BlocProvider.value(
+          value: _categoryCountsCubit,
+          child: const CategorySelectionStep(),
+        );
       case 2:
         return const ProductInfoStep();
       case 3:
