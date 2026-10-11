@@ -18,6 +18,7 @@ import '../bloc/settled_earnings_bloc.dart';
 import '../bloc/unsettled_earnings_bloc.dart';
 import '../model/earnings_model.dart';
 import '../widgets/earning_card.dart';
+import 'package:hyper_local_seller/utils/permission_checker.dart';
 
 class EarningPage extends StatefulWidget {
   const EarningPage({super.key});
@@ -341,7 +342,7 @@ class _EarningPageState extends State<EarningPage>
             onTap: () {
               final orderId = earning.sellerOrderId;
 
-              if (orderId > 0) {
+              if (orderId > 0 && PermissionChecker.canViewOrders) {
                 context.push('${AppRoutes.orderDetails}/$orderId');
               }
               debugPrint('Redirecting to order details');

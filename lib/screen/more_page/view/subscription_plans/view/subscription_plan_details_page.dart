@@ -485,6 +485,16 @@ class _SubscriptionPlanDetailsPageState
                         context.watch<BuySubscriptionBloc>().state
                             is BuySubscriptionLoading;
 
+                    // Purchase actions are hidden without buy permission.
+                    final offersPurchase =
+                        isPending || (!isActive && !hasActiveSubscription);
+                    if (offersPurchase &&
+                        !PermissionChecker.hasPermission(
+                          AppPermissions.subscriptionBuy,
+                        )) {
+                      return const SizedBox.shrink();
+                    }
+
                     if (isActive || isPending) {
                       return SizedBox(
                         width: double.infinity,

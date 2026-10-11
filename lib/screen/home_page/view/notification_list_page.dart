@@ -75,20 +75,26 @@ class _NotificationListPageState extends State<NotificationListPage> {
       case 'new_order':
         // case 'return_order':
         // case 'return_order_update':
-        if (orderId != null && orderId > 0) {
+        if (orderId != null && orderId > 0 && PermissionChecker.canViewOrders) {
           context.push('${AppRoutes.orderDetails}/$orderId');
         }
         break;
       case 'wallet_transaction':
-        context.push(AppRoutes.wallet);
+        if (PermissionChecker.hasPermission(AppPermissions.walletView)) {
+          context.push(AppRoutes.wallet);
+        }
         break;
       case 'withdrawal_request':
       case 'withdrawal_process':
-        context.push(AppRoutes.withdrawHistory);
+        if (PermissionChecker.hasPermission(AppPermissions.withdrawalView)) {
+          context.push(AppRoutes.withdrawHistory);
+        }
         break;
       case 'settlement_process':
       case 'settlement_create':
-        context.push(AppRoutes.earnings);
+        if (PermissionChecker.hasPermission(AppPermissions.earningView)) {
+          context.push(AppRoutes.earnings);
+        }
         break;
       default:
         break;
@@ -103,33 +109,22 @@ class _NotificationListPageState extends State<NotificationListPage> {
       title: l10n?.notifications ?? "Notifications",
       showAppbar: true,
       appBarActions: [
-        TextButton(
-          onPressed: () {
-            if (!PermissionChecker.hasPermission(
-              AppPermissions.notificationEdit,
-            )) {
-              showCustomSnackbar(
-                context: context,
-                message:
-                    l10n?.noPermissionMarkAllRead ??
-                    "You don't have permission to mark all as read",
-                isWarning: true,
+        if (PermissionChecker.hasPermission(AppPermissions.notificationEdit))
+          TextButton(
+            onPressed: () {
+              context.read<NotificationListBloc>().add(
+                MarkAllNotificationsRead(),
               );
-              return;
-            }
-            context.read<NotificationListBloc>().add(
-              MarkAllNotificationsRead(),
-            );
-          },
-          child: Text(
-            l10n?.markAllRead ?? "Mark All Read",
-            style: TextStyle(
-              color: AppColors.primaryColor,
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
+            },
+            child: Text(
+              l10n?.markAllRead ?? "Mark All Read",
+              style: TextStyle(
+                color: AppColors.primaryColor,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
             ),
           ),
-        ),
       ],
       body: BlocBuilder<ScreenSizeBloc, ScreenSizeState>(
         builder: (context, screenTypeState) {
@@ -213,6 +208,13 @@ class _NotificationListPageState extends State<NotificationListPage> {
                     final notification = state.items[index];
                     return Dismissible(
                       key: ValueKey(notification.id),
+                      // Swiping only marks read/unread, which needs edit.
+                      direction:
+                          PermissionChecker.hasPermission(
+                            AppPermissions.notificationEdit,
+                          )
+                          ? DismissDirection.horizontal
+                          : DismissDirection.none,
                       confirmDismiss: (direction) async {
                         if (direction == DismissDirection.startToEnd) {
                           // Swipe right → mark as read

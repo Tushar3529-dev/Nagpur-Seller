@@ -14,6 +14,7 @@ import 'package:hyper_local_seller/widgets/custom/custom_loading_indicator.dart'
 import 'package:hyper_local_seller/widgets/custom/custom_snackbar.dart';
 import 'package:hyper_local_seller/screen/order_page/widgets/order_acceptance_bottom_sheet.dart';
 import 'package:hyper_local_seller/screen/order_page/bloc/orders/orders_bloc.dart';
+import 'package:hyper_local_seller/utils/permission_checker.dart';
 
 class OrderNotificationHandler {
   static final AudioPlayer _audioPlayer = AudioPlayer();
@@ -159,7 +160,7 @@ class _OrderAcceptanceWrapperState extends State<_OrderAcceptanceWrapper> {
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
         Navigator.of(context).pop();
-        context.go(AppRoutes.orders);
+        if (PermissionChecker.canViewOrders) context.go(AppRoutes.orders);
         // Refresh will be handled by the .then block of showModalBottomSheet
       }
     });
@@ -240,7 +241,7 @@ class _OrderAcceptanceWrapperState extends State<_OrderAcceptanceWrapper> {
               child: SecondaryButton(
                 onPressed: () {
                   Navigator.of(context).pop();
-                  if (mounted) {
+                  if (mounted && PermissionChecker.canViewOrders) {
                     context.go(AppRoutes.orders);
                     // Refresh will be handled by the .then block of showModalBottomSheet
                   }

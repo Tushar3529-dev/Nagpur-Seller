@@ -10,6 +10,21 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hyper_local_seller/bloc/store_switcher/store_switcher_cubit.dart';
 import 'package:hyper_local_seller/screen/order_page/bloc/orders/orders_bloc.dart';
 import 'package:hyper_local_seller/screen/products_page/products/widgets/product_scan_dialog.dart';
+import 'package:hyper_local_seller/config/hive_storage.dart';
+import 'package:hyper_local_seller/utils/permission_checker.dart';
+
+/// Bottom bar entries. [branch] is the shell branch the entry opens; Scan
+/// opens the product scanner instead of a tab.
+enum _NavItem {
+  home(0),
+  orders(1),
+  scan(null),
+  products(2),
+  more(3);
+
+  const _NavItem(this.branch);
+  final int? branch;
+}
 
 class Dashboard extends StatefulWidget {
   final int index;
@@ -54,23 +69,28 @@ class _DashboardState extends State<Dashboard> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  /// Bar position of the Scan item. It opens the product scanner instead of
-  /// a tab, so bar positions after it are one more than their branch index.
-  static const int _scanItemIndex = 2;
+  /// Entries the current user may see. Modules without view permission are
+  /// left out of the bar entirely.
+  List<_NavItem> get _visibleItems => [
+    _NavItem.home,
+    if (PermissionChecker.canViewOrders) _NavItem.orders,
+    if (PermissionChecker.canViewProducts) ...[
+      _NavItem.scan,
+      _NavItem.products,
+    ],
+    _NavItem.more,
+  ];
 
-  int get _barIndex => widget.index >= _scanItemIndex
-      ? widget.index + 1
-      : widget.index;
-
-  void _onTap(int barIndex) {
-    if (barIndex == _scanItemIndex) {
+  void _onTap(List<_NavItem> items, int barIndex) {
+    final item = items[barIndex];
+    if (item == _NavItem.scan) {
       openProductScanner(context);
       return;
     }
 
     _scaleController.forward().then((_) => _scaleController.reverse());
 
-    final index = barIndex > _scanItemIndex ? barIndex - 1 : barIndex;
+    final index = item.branch!;
     widget.navigationShell.goBranch(
       index,
       initialLocation: index == widget.navigationShell.currentIndex,
@@ -136,8 +156,85 @@ class _DashboardState extends State<Dashboard> with TickerProviderStateMixin {
     );
   }
 
+  BottomNavigationBarItem _buildNavItem(
+    _NavItem item,
+    ScreenType screenType,
+    Color activeColor,
+    AppLocalizations? l10n,
+  ) {
+    if (item == _NavItem.scan) {
+      return BottomNavigationBarItem(
+        icon: Padding(
+          padding: UIUtils.bottomNavPadding(screenType),
+          child: Icon(
+            Icons.qr_code_scanner,
+            size: UIUtils.bottomNavIconInactive(screenType),
+            color: Colors.grey,
+          ),
+        ),
+        label: l10n?.scan ?? "Scan",
+      );
+    }
+
+    final (activeSvg, inactiveSvg, label) = switch (item) {
+      _NavItem.home => (
+        ImagesPath.homeActive,
+        ImagesPath.homeInactive,
+        l10n?.home ?? "Home",
+      ),
+      _NavItem.orders => (
+        ImagesPath.orderActive,
+        ImagesPath.orderInactive,
+        l10n?.orders ?? "Orders",
+      ),
+      _NavItem.products => (
+        ImagesPath.productsActive,
+        ImagesPath.productsInactive,
+        l10n?.products ?? "Products",
+      ),
+      _NavItem.more || _NavItem.scan => (
+        ImagesPath.moreActive,
+        ImagesPath.moreInactive,
+        l10n?.more ?? "More",
+      ),
+    };
+
+    return BottomNavigationBarItem(
+      icon: Padding(
+        padding: UIUtils.bottomNavPadding(screenType),
+        child: _buildAnimatedIcon(
+          activeSvg: activeSvg,
+          inactiveSvg: inactiveSvg,
+          isActive: widget.index == item.branch,
+          screenType: screenType,
+          activeColor: activeColor,
+        ),
+      ),
+      label: label,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    return ValueListenableBuilder<int>(
+      valueListenable: HiveStorage.userDataRevision,
+      builder: (context, _, _) => _buildDashboard(context),
+    );
+  }
+
+  Widget _buildDashboard(BuildContext context) {
+    final items = _visibleItems;
+    var barIndex = items.indexWhere((item) => item.branch == widget.index);
+    if (barIndex == -1) {
+      // The open tab's module is no longer permitted (e.g. a deep link or a
+      // permission change): fall back to Home.
+      barIndex = 0;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && widget.navigationShell.currentIndex == widget.index) {
+          widget.navigationShell.goBranch(0);
+        }
+      });
+    }
     final screenType = context.screenType;
     final theme = Theme.of(context);
     final activeColor = theme.colorScheme.tertiary;
@@ -159,7 +256,7 @@ class _DashboardState extends State<Dashboard> with TickerProviderStateMixin {
         listenWhen: (previous, current) =>
             previous.selectedStore?.id != current.selectedStore?.id,
         listener: (context, state) {
-          if (state.selectedStore != null) {
+          if (state.selectedStore != null && PermissionChecker.canViewOrders) {
             context.read<OrdersBloc>().add(
                   RefreshOrders(storeId: state.selectedStore?.id),
                 );
@@ -168,8 +265,8 @@ class _DashboardState extends State<Dashboard> with TickerProviderStateMixin {
         child: Scaffold(
           body: widget.navigationShell,
         bottomNavigationBar: BottomNavigationBar(
-          currentIndex: _barIndex,
-          onTap: _onTap,
+          currentIndex: barIndex,
+          onTap: (index) => _onTap(items, index),
           selectedItemColor: activeColor,
           unselectedItemColor: Colors.grey,
           showUnselectedLabels: true,
@@ -182,69 +279,8 @@ class _DashboardState extends State<Dashboard> with TickerProviderStateMixin {
           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
           iconSize: UIUtils.bottomNavIconInactive(screenType),
           items: [
-            BottomNavigationBarItem(
-              icon: Padding(
-                padding: UIUtils.bottomNavPadding(screenType),
-                child: _buildAnimatedIcon(
-                  activeSvg: ImagesPath.homeActive,
-                  inactiveSvg: ImagesPath.homeInactive,
-                  isActive: widget.index == 0,
-                  screenType: screenType,
-                  activeColor: activeColor,
-                ),
-              ),
-              label: l10n?.home ?? "Home",
-            ),
-            BottomNavigationBarItem(
-              icon: Padding(
-                padding: UIUtils.bottomNavPadding(screenType),
-                child: _buildAnimatedIcon(
-                  activeSvg: ImagesPath.orderActive,
-                  inactiveSvg: ImagesPath.orderInactive,
-                  isActive: widget.index == 1,
-                  screenType: screenType,
-                  activeColor: activeColor,
-                ),
-              ),
-              label: l10n?.orders ?? "Orders",
-            ),
-            BottomNavigationBarItem(
-              icon: Padding(
-                padding: UIUtils.bottomNavPadding(screenType),
-                child: Icon(
-                  Icons.qr_code_scanner,
-                  size: UIUtils.bottomNavIconInactive(screenType),
-                  color: Colors.grey,
-                ),
-              ),
-              label: l10n?.scan ?? "Scan",
-            ),
-            BottomNavigationBarItem(
-              icon: Padding(
-                padding: UIUtils.bottomNavPadding(screenType),
-                child: _buildAnimatedIcon(
-                  activeSvg: ImagesPath.productsActive,
-                  inactiveSvg: ImagesPath.productsInactive,
-                  isActive: widget.index == 2,
-                  screenType: screenType,
-                  activeColor: activeColor,
-                ),
-              ),
-              label: l10n?.products ?? "Products",
-            ),
-            BottomNavigationBarItem(
-              icon: Padding(
-                padding: UIUtils.bottomNavPadding(screenType),
-                child: _buildAnimatedIcon(
-                  activeSvg: ImagesPath.moreActive,
-                  inactiveSvg: ImagesPath.moreInactive,
-                  isActive: widget.index == 3,
-                  screenType: screenType,
-                  activeColor: activeColor,
-                ),
-              ),
-              label: l10n?.more ?? "More",
-            ),
+            for (final item in items)
+              _buildNavItem(item, screenType, activeColor, l10n),
           ],
         ),
       ),

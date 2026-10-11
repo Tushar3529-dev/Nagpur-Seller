@@ -134,8 +134,7 @@ class _SystemUsersPage extends State<SystemUsersPage> {
         if (isFailure && users.isEmpty) {
           return EmptyStateWidget(
             svgPath: ImagesPath.noOrderFoundSvg,
-            title:
-                l10n?.somethingWentWrong ?? 'Seems like there is some issue',
+            title: l10n?.somethingWentWrong ?? 'Seems like there is some issue',
             subtitle: l10n?.tryAgainLater ?? 'Please try again later',
             actionText: l10n?.tryAgain ?? 'Try Again',
             onAction: () {
@@ -154,48 +153,42 @@ class _SystemUsersPage extends State<SystemUsersPage> {
                 l10n?.noSystemUsersMessage ??
                 'You have not have any system users yet.',
             actionText: l10n?.addNewUser ?? 'Add New User',
-            onAction: () {
-              if (!PermissionChecker.hasPermission(
-                AppPermissions.systemUserCreate,
-              )) {
-                showCustomSnackbar(
-                  context: context,
-                  message:
-                      l10n?.noPermissionCreateSystemUser ??
-                      "You don't have permission to add system users",
-                  isWarning: true,
-                );
-                return;
-              }
-              if (!DemoGuard.shouldProceed(context)) return;
+            onAction:
+                !PermissionChecker.hasPermission(
+                  AppPermissions.systemUserCreate,
+                )
+                ? null
+                : () {
+                    if (!DemoGuard.shouldProceed(context)) return;
 
-              _limitService.canCreateSystemUser().then((canCreate) {
-                if (!context.mounted) return;
-                if (!canCreate) {
-                  if (HiveStorage.activePlanId == null) {
-                    showCustomSnackbar(
-                      context: context,
-                      message: "you don't have any active plan please buy one",
-                      isError: true,
-                      actionLabel: 'view',
-                      onAction: () {
-                        context.pushNamed(AppRoutes.subscriptionPlans);
-                      },
-                    );
-                  } else {
-                    showCustomSnackbar(
-                      context: context,
-                      message:
-                          l10n?.limitReached ??
-                          "You have reached your plan limit",
-                      isWarning: true,
-                    );
-                  }
-                  return;
-                }
-                _showManageUserBottomSheet(context);
-              });
-            },
+                    _limitService.canCreateSystemUser().then((canCreate) {
+                      if (!context.mounted) return;
+                      if (!canCreate) {
+                        if (HiveStorage.activePlanId == null) {
+                          showCustomSnackbar(
+                            context: context,
+                            message:
+                                "you don't have any active plan please buy one",
+                            isError: true,
+                            actionLabel: 'view',
+                            onAction: () {
+                              context.pushNamed(AppRoutes.subscriptionPlans);
+                            },
+                          );
+                        } else {
+                          showCustomSnackbar(
+                            context: context,
+                            message:
+                                l10n?.limitReached ??
+                                "You have reached your plan limit",
+                            isWarning: true,
+                          );
+                        }
+                        return;
+                      }
+                      _showManageUserBottomSheet(context);
+                    });
+                  },
           );
         }
 
@@ -206,7 +199,7 @@ class _SystemUsersPage extends State<SystemUsersPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                   isLoading && users.isEmpty
+                  isLoading && users.isEmpty
                       ? CustomShimmer(
                           width: 150,
                           height: UIUtils.body(screenType),
@@ -230,67 +223,58 @@ class _SystemUsersPage extends State<SystemUsersPage> {
                           ),
                         ),
 
-                      isLoading && users.isEmpty
-                          ? CustomShimmer(
-                              width: 60,
-                              height: 35,
-                              borderRadius: BorderRadius.circular(
-                                UIUtils.radiusMD(screenType),
-                              ),
-                            )
-                          : SecondaryButton(
-                              text: l10n?.addNewUser ?? "Add New User",
-                              icon: Icons.add,
-                              onPressed: () async {
-                                if (!PermissionChecker.hasPermission(
-                                  AppPermissions.systemUserCreate,
-                                )) {
-                                  showCustomSnackbar(
-                                    context: context,
-                                    message:
-                                        l10n?.noPermissionCreateSystemUser ??
-                                        "You don't have permission to add system users",
-                                    isWarning: true,
-                                  );
-                                  return;
-                                }
-                                if (!DemoGuard.shouldProceed(context)) return;
+                      if (PermissionChecker.hasPermission(
+                        AppPermissions.systemUserCreate,
+                      ))
+                        isLoading && users.isEmpty
+                            ? CustomShimmer(
+                                width: 60,
+                                height: 35,
+                                borderRadius: BorderRadius.circular(
+                                  UIUtils.radiusMD(screenType),
+                                ),
+                              )
+                            : SecondaryButton(
+                                text: l10n?.addNewUser ?? "Add New User",
+                                icon: Icons.add,
+                                onPressed: () async {
+                                  if (!DemoGuard.shouldProceed(context)) return;
 
-                                _limitService.fetchUsageCounts();
-                                final canCreate = await _limitService
-                                    .canCreateSystemUser();
-                                if (!context.mounted) return;
+                                  _limitService.fetchUsageCounts();
+                                  final canCreate = await _limitService
+                                      .canCreateSystemUser();
+                                  if (!context.mounted) return;
 
-                                if (!canCreate) {
-                                  if (HiveStorage.activePlanId == null) {
-                                    showCustomSnackbar(
-                                      context: context,
-                                      message:
-                                          "you don't have any active plan please buy one",
-                                      isError: true,
-                                      actionLabel: 'view',
-                                      onAction: () {
-                                        context.push(
-                                          AppRoutes.subscriptionPlans,
-                                        );
-                                      },
-                                    );
-                                  } else {
-                                    showCustomSnackbar(
-                                      context: context,
-                                      message:
-                                          l10n?.limitReached ??
-                                          "You have reached your plan limit",
-                                      isWarning: true,
-                                    );
+                                  if (!canCreate) {
+                                    if (HiveStorage.activePlanId == null) {
+                                      showCustomSnackbar(
+                                        context: context,
+                                        message:
+                                            "you don't have any active plan please buy one",
+                                        isError: true,
+                                        actionLabel: 'view',
+                                        onAction: () {
+                                          context.push(
+                                            AppRoutes.subscriptionPlans,
+                                          );
+                                        },
+                                      );
+                                    } else {
+                                      showCustomSnackbar(
+                                        context: context,
+                                        message:
+                                            l10n?.limitReached ??
+                                            "You have reached your plan limit",
+                                        isWarning: true,
+                                      );
+                                    }
+                                    return;
                                   }
-                                  return;
-                                }
 
-                                _showManageUserBottomSheet(context);
-                              },
-                              height: 35,
-                            ),
+                                  _showManageUserBottomSheet(context);
+                                },
+                                height: 35,
+                              ),
                     ],
                   ),
                 ],
@@ -334,42 +318,28 @@ class _SystemUsersPage extends State<SystemUsersPage> {
                         'mobile': user.mobile,
                         'date': user.createdAt,
                       },
-                      onEdit: () {
-                        if (!PermissionChecker.hasPermission(
-                          AppPermissions.systemUserEdit,
-                        )) {
-                          showCustomSnackbar(
-                            context: context,
-                            message:
-                                l10n?.noPermissionEditSystemUser ??
-                                "You don't have permission to edit system users",
-                            isWarning: true,
-                          );
-                          return;
-                        }
-                        if (!DemoGuard.shouldProceed(context)) return;
+                      onEdit:
+                          !PermissionChecker.hasPermission(
+                            AppPermissions.systemUserEdit,
+                          )
+                          ? null
+                          : () {
+                              if (!DemoGuard.shouldProceed(context)) return;
 
-                        _showManageUserBottomSheet(context, user: user);
-                      },
-                      onDelete: () {
-                        if (!PermissionChecker.hasPermission(
-                          AppPermissions.systemUserDelete,
-                        )) {
-                          showCustomSnackbar(
-                            context: context,
-                            message:
-                                l10n?.noPermissionDeleteSystemUser ??
-                                "You don't have permission to delete this user",
-                            isWarning: true,
-                          );
-                          return;
-                        }
-                        if (!DemoGuard.shouldProceed(context)) return;
+                              _showManageUserBottomSheet(context, user: user);
+                            },
+                      onDelete:
+                          !PermissionChecker.hasPermission(
+                            AppPermissions.systemUserDelete,
+                          )
+                          ? null
+                          : () {
+                              if (!DemoGuard.shouldProceed(context)) return;
 
-                        context.read<SystemUserBloc>().add(
-                          DeleteSystemUserEvent(id: user.id),
-                        );
-                      },
+                              context.read<SystemUserBloc>().add(
+                                DeleteSystemUserEvent(id: user.id),
+                              );
+                            },
                     );
                   },
                 ),
@@ -397,7 +367,7 @@ class _SystemUsersPage extends State<SystemUsersPage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => ManageSystemUserBottomSheet(user: user, bloc: bloc, ),
+      builder: (context) => ManageSystemUserBottomSheet(user: user, bloc: bloc),
     );
   }
 }

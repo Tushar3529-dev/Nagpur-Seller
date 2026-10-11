@@ -68,26 +68,16 @@ class PermissionPage extends StatelessWidget {
                       ),
                     ),
                     Expanded(child: _buildBody(state, screenType, l10n)),
-                    if (state is PermissionsLoaded)
+                    if (state is PermissionsLoaded &&
+                        PermissionChecker.hasPermission(
+                          AppPermissions.rolePermissionEdit,
+                        ))
                       Padding(
                         padding: UIUtils.pagePadding(screenType),
                         child: PrimaryButton(
                           text: l10n?.addPermission ?? "Add Permissions",
                           onPressed: () {
                             if (!DemoGuard.shouldProceed(context)) {
-                              return;
-                            }
-
-                            if (!PermissionChecker.hasPermission(
-                              AppPermissions.rolePermissionEdit,
-                            )) {
-                              showCustomSnackbar(
-                                context: context,
-                                message:
-                                    l10n?.noPermissionEditRolePermissions ??
-                                    "You don't have permission to modify role permissions",
-                                isWarning: true,
-                              );
                               return;
                             }
 
@@ -193,6 +183,9 @@ class _PermissionGroupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isAllSelected = group.permissions.every((p) => assigned.contains(p));
+    final canEdit = PermissionChecker.hasPermission(
+      AppPermissions.rolePermissionEdit,
+    );
 
     return Container(
       decoration: BoxDecoration(
@@ -225,34 +218,38 @@ class _PermissionGroupCard extends StatelessWidget {
                 style: TextStyle(fontSize: UIUtils.tileSubtitle(screenType)),
               ),
               value: isSelected,
-              onChanged: (val) {
-                context.read<PermissionsBloc>().add(
-                  TogglePermission(permission),
-                );
-              },
+              // Read-only without permission to edit role permissions.
+              onChanged: canEdit
+                  ? (val) {
+                      context.read<PermissionsBloc>().add(
+                        TogglePermission(permission),
+                      );
+                    }
+                  : null,
               controlAffinity: ListTileControlAffinity.leading,
               dense: true,
               activeColor: AppColors.primaryColor,
             );
           }),
-          CheckboxListTile(
-            title: Text(
-              "Select All",
-              style: TextStyle(
-                fontSize: UIUtils.tileSubtitle(screenType),
-                fontWeight: FontWeight.bold,
+          if (canEdit)
+            CheckboxListTile(
+              title: Text(
+                "Select All",
+                style: TextStyle(
+                  fontSize: UIUtils.tileSubtitle(screenType),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
+              value: isAllSelected,
+              onChanged: (val) {
+                context.read<PermissionsBloc>().add(
+                  ToggleMultiplePermissions(group.permissions, val == true),
+                );
+              },
+              controlAffinity: ListTileControlAffinity.leading,
+              dense: true,
+              activeColor: AppColors.primaryColor,
             ),
-            value: isAllSelected,
-            onChanged: (val) {
-              context.read<PermissionsBloc>().add(
-                ToggleMultiplePermissions(group.permissions, val == true),
-              );
-            },
-            controlAffinity: ListTileControlAffinity.leading,
-            dense: true,
-            activeColor: AppColors.primaryColor,
-          ),
         ],
       ),
     );

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hyper_local_seller/config/app_permissions.dart';
 import 'package:hyper_local_seller/config/colors.dart';
 import 'package:hyper_local_seller/l10n/app_localizations.dart';
+import 'package:hyper_local_seller/utils/permission_checker.dart';
 import 'package:hyper_local_seller/utils/time_utils.dart';
 import 'package:hyper_local_seller/utils/ui_utils.dart';
 
@@ -33,7 +35,7 @@ class RolesCard extends StatelessWidget {
 
         RichText(
           text: TextSpan(
-            text:  l10n?.guardName ?? 'Guard Name: ',
+            text: l10n?.guardName ?? 'Guard Name: ',
             style: TextStyle(
               fontSize: UIUtils.caption(screenType),
               fontWeight: FontWeight.bold,
@@ -56,35 +58,41 @@ class RolesCard extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: InkWell(
-                onTap: () {
-                  context.pushNamed(
-                    '/permissions',
-                    queryParameters: {
-                      'role': (data['name'] ?? '').toString(),
-                      'roleId': (data['id'] ?? '').toString(),
-                    },
-                  );
-                },
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.login_outlined,
-                      color: AppColors.primaryColor,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      l10n?.permission ?? 'Permission',
-                      style: TextStyle(
-                        fontSize: UIUtils.caption(screenType),
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primaryColor,
+              // Kept as an empty slot so the date stays right-aligned.
+              child:
+                  !PermissionChecker.hasPermission(
+                    AppPermissions.rolePermissionView,
+                  )
+                  ? const SizedBox.shrink()
+                  : InkWell(
+                      onTap: () {
+                        context.pushNamed(
+                          '/permissions',
+                          queryParameters: {
+                            'role': (data['name'] ?? '').toString(),
+                            'roleId': (data['id'] ?? '').toString(),
+                          },
+                        );
+                      },
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.login_outlined,
+                            color: AppColors.primaryColor,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            l10n?.permission ?? 'Permission',
+                            style: TextStyle(
+                              fontSize: UIUtils.caption(screenType),
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primaryColor,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-              ),
             ),
 
             Text(

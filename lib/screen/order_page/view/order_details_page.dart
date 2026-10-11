@@ -84,8 +84,12 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     return false;
   }
 
-  /// Whether item has an actionable status (should show checkbox).
+  /// Whether item has an actionable status (should show checkbox). Users
+  /// who can't update order status get no checkboxes, so no action bar.
   bool _isItemActionable(OrderItemDetail item) {
+    if (!PermissionChecker.hasPermission(AppPermissions.orderUpdateStatus)) {
+      return false;
+    }
     final status = (item.orderItem?.status ?? '').toLowerCase();
     return status == 'pending' ||
         status == 'awaiting_store_response' ||

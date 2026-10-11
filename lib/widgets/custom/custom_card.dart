@@ -117,18 +117,20 @@ class CustomCard extends StatelessWidget {
                   if (onEdit != null || onDelete != null)
                     CustomDropMenu(
                       items: [
-                        MenuItem(
-                          label: l10n?.editLbl ?? 'Edit',
-                          icon: Icons.edit,
-                          onTap: () => onEdit!(),
-                        ),
-                        MenuItem(
-                          label: l10n?.delete ?? 'Delete',
-                          icon: Icons.delete,
-                          onTap: () => onDelete!(),
-                          textColor: Colors.red,
-                          iconColor: Colors.red,
-                        ),
+                        if (onEdit != null)
+                          MenuItem(
+                            label: l10n?.editLbl ?? 'Edit',
+                            icon: Icons.edit,
+                            onTap: () => onEdit!(),
+                          ),
+                        if (onDelete != null)
+                          MenuItem(
+                            label: l10n?.delete ?? 'Delete',
+                            icon: Icons.delete,
+                            onTap: () => onDelete!(),
+                            textColor: Colors.red,
+                            iconColor: Colors.red,
+                          ),
                       ],
                       dotsColor: Colors.grey.shade600,
                     )

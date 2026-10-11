@@ -202,54 +202,48 @@ class _ProductsPageState extends State<ProductsPage> {
                 title: AppLocalizations.of(context)!.noProductsFound,
                 subtitle: AppLocalizations.of(context)!.noProductsMessage,
                 actionText: l10n?.addProduct ?? "Add Product",
-                onAction: () {
-                  if (!PermissionChecker.hasPermission(
-                    AppPermissions.productCreate,
-                  )) {
-                    showCustomSnackbar(
-                      context: context,
-                      message:
-                          l10n?.noPermissionAddProduct ??
-                          "You don't have permission to add product",
-                      isWarning: true,
-                    );
-                    return;
-                  }
-                  if (!DemoGuard.shouldProceed(context)) return;
+                // Without create permission the empty state has no action.
+                onAction:
+                    !PermissionChecker.hasPermission(
+                      AppPermissions.productCreate,
+                    )
+                    ? null
+                    : () {
+                        if (!DemoGuard.shouldProceed(context)) return;
 
-                  _limitService.canCreateProduct().then((canCreate) {
-                    if (!context.mounted) return;
-                    if (!canCreate) {
-                      if (HiveStorage.activePlanId == null) {
-                        showCustomSnackbar(
-                          context: context,
-                          message:
-                              "you don't have any active plan please buy one",
-                          isWarning: true,
-                          actionLabel: 'View',
-                          onAction: () {
-                            context.push(AppRoutes.subscriptionPlans);
-                          },
-                        );
-                      } else {
-                        showCustomSnackbar(
-                          context: context,
-                          message:
-                              l10n?.limitReached ??
-                              "You have reached your plan limit",
-                          isWarning: true,
-                        );
-                      }
-                      return;
-                    }
-                    context.read<AddProductBloc>().add(AddProductReset());
-                    context.read<SelectedCategoriesCubit>().clear();
-                    context.push(
-                      AppRoutes.addProduct,
-                      extra: {'is_edit': false},
-                    );
-                  });
-                },
+                        _limitService.canCreateProduct().then((canCreate) {
+                          if (!context.mounted) return;
+                          if (!canCreate) {
+                            if (HiveStorage.activePlanId == null) {
+                              showCustomSnackbar(
+                                context: context,
+                                message:
+                                    "you don't have any active plan please buy one",
+                                isWarning: true,
+                                actionLabel: 'View',
+                                onAction: () {
+                                  context.push(AppRoutes.subscriptionPlans);
+                                },
+                              );
+                            } else {
+                              showCustomSnackbar(
+                                context: context,
+                                message:
+                                    l10n?.limitReached ??
+                                    "You have reached your plan limit",
+                                isWarning: true,
+                              );
+                            }
+                            return;
+                          }
+                          context.read<AddProductBloc>().add(AddProductReset());
+                          context.read<SelectedCategoriesCubit>().clear();
+                          context.push(
+                            AppRoutes.addProduct,
+                            extra: {'is_edit': false},
+                          );
+                        });
+                      },
               );
             }
 
@@ -312,92 +306,85 @@ class _ProductsPageState extends State<ProductsPage> {
                               ),
                             ),
 
-                      (state.isInitialLoading || state.isRefreshing) &&
-                              state.items.isEmpty
-                          ? CustomShimmer(
-                              width: 120,
-                              height: 40,
-                              borderRadius: BorderRadius.circular(
-                                UIUtils.radiusMD(screenType),
+                      if (PermissionChecker.hasPermission(
+                        AppPermissions.productCreate,
+                      ))
+                        (state.isInitialLoading || state.isRefreshing) &&
+                                state.items.isEmpty
+                            ? CustomShimmer(
+                                width: 120,
+                                height: 40,
+                                borderRadius: BorderRadius.circular(
+                                  UIUtils.radiusMD(screenType),
+                                ),
+                              )
+                            : SecondaryButton(
+                                text: l10n?.addNewProduct ?? 'Add New Product',
+                                onPressed: () async {
+                                  if (!DemoGuard.shouldProceed(context)) return;
+                                  _limitService.fetchUsageCounts();
+                                  final canCreate = await _limitService
+                                      .canCreateProduct();
+                                  if (!context.mounted) return;
+
+                                  if (!canCreate) {
+                                    if (HiveStorage.activePlanId == null) {
+                                      showCustomSnackbar(
+                                        context: context,
+                                        message:
+                                            "you don't have any active plan please buy one",
+                                        isWarning: true,
+                                        actionLabel: 'View',
+                                        onAction: () {
+                                          context.push(
+                                            AppRoutes.subscriptionPlans,
+                                          );
+                                        },
+                                      );
+                                    } else {
+                                      showCustomSnackbar(
+                                        context: context,
+                                        message:
+                                            l10n?.limitReached ??
+                                            "You have reached your plan limit",
+                                        isWarning: true,
+                                      );
+                                    }
+                                    return;
+                                  }
+
+                                  context.read<AddProductBloc>().add(
+                                    AddProductReset(),
+                                  );
+                                  context
+                                      .read<SelectedCategoriesCubit>()
+                                      .clear();
+                                  await context.push(
+                                    AppRoutes.addProduct,
+                                    extra: {'is_edit': false},
+                                  );
+
+                                  if (context.mounted) {
+                                    _searchController.clear();
+                                    context.read<ProductsBloc>().add(
+                                      LoadProductsInitial(),
+                                    );
+
+                                    // Refresh HomePage Data
+                                    final selectedStore = context
+                                        .read<StoreSwitcherCubit>()
+                                        .state
+                                        .selectedStore;
+                                    if (selectedStore != null) {
+                                      context.read<HomePageBloc>().add(
+                                        FetchHomePageData(
+                                          storeId: selectedStore.id,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
                               ),
-                            )
-                          : SecondaryButton(
-                              text: l10n?.addNewProduct ?? 'Add New Product',
-                              onPressed: () async {
-                                if (!PermissionChecker.hasPermission(
-                                  AppPermissions.productCreate,
-                                )) {
-                                  showCustomSnackbar(
-                                    context: context,
-                                    message:
-                                        l10n?.noPermissionAddProduct ??
-                                        "You don't have permission to add product",
-                                    isWarning: true,
-                                  );
-                                  return;
-                                }
-                                if (!DemoGuard.shouldProceed(context)) return;
-                                _limitService.fetchUsageCounts();
-                                final canCreate = await _limitService
-                                    .canCreateProduct();
-                                if (!context.mounted) return;
-
-                                if (!canCreate) {
-                                  if (HiveStorage.activePlanId == null) {
-                                    showCustomSnackbar(
-                                      context: context,
-                                      message:
-                                          "you don't have any active plan please buy one",
-                                      isWarning: true,
-                                      actionLabel: 'View',
-                                      onAction: () {
-                                        context.push(
-                                          AppRoutes.subscriptionPlans,
-                                        );
-                                      },
-                                    );
-                                  } else {
-                                    showCustomSnackbar(
-                                      context: context,
-                                      message:
-                                          l10n?.limitReached ??
-                                          "You have reached your plan limit",
-                                      isWarning: true,
-                                    );
-                                  }
-                                  return;
-                                }
-
-                                context.read<AddProductBloc>().add(
-                                  AddProductReset(),
-                                );
-                                context.read<SelectedCategoriesCubit>().clear();
-                                await context.push(
-                                  AppRoutes.addProduct,
-                                  extra: {'is_edit': false},
-                                );
-
-                                if (context.mounted) {
-                                  _searchController.clear();
-                                  context.read<ProductsBloc>().add(
-                                    LoadProductsInitial(),
-                                  );
-
-                                  // Refresh HomePage Data
-                                  final selectedStore = context
-                                      .read<StoreSwitcherCubit>()
-                                      .state
-                                      .selectedStore;
-                                  if (selectedStore != null) {
-                                    context.read<HomePageBloc>().add(
-                                      FetchHomePageData(
-                                        storeId: selectedStore.id,
-                                      ),
-                                    );
-                                  }
-                                }
-                              },
-                            ),
                     ],
                   ),
                 ),
@@ -513,101 +500,93 @@ class _ProductsPageState extends State<ProductsPage> {
                                     );
                                   }
                                 : null,
-                            onEdit: () async {
-                              if (!PermissionChecker.hasPermission(
-                                AppPermissions.productEdit,
-                              )) {
-                                showCustomSnackbar(
-                                  context: context,
-                                  message:
-                                      l10n?.noPermissionEditProduct ??
-                                      "You do not have permission to edit products.",
-                                  isWarning: true,
-                                );
-                                return;
-                              }
-                              if (!DemoGuard.shouldProceed(context)) return;
+                            onEdit:
+                                !PermissionChecker.hasPermission(
+                                  AppPermissions.productEdit,
+                                )
+                                ? null
+                                : () async {
+                                    if (!DemoGuard.shouldProceed(context)) {
+                                      return;
+                                    }
 
-                              if (product.categoryId != null) {
-                                context.read<SelectedCategoriesCubit>().select(
-                                  product.categoryId!,
-                                );
-                              }
-                              context.read<AddProductBloc>().add(
-                                LoadProductForEdit(product.id),
-                              );
-                              await context.push(
-                                AppRoutes.addProduct,
-                                extra: {'is_edit': true},
-                              );
-
-                              if (context.mounted) {
-                                _searchController.clear();
-                                context.read<ProductsBloc>().add(
-                                  LoadProductsInitial(),
-                                );
-
-                                // Refresh HomePage Data
-                                final selectedStore = context
-                                    .read<StoreSwitcherCubit>()
-                                    .state
-                                    .selectedStore;
-                                if (selectedStore != null) {
-                                  context.read<HomePageBloc>().add(
-                                    FetchHomePageData(
-                                      storeId: selectedStore.id,
-                                    ),
-                                  );
-                                }
-                              }
-                            },
-                            onDelete: () {
-                              if (!PermissionChecker.hasPermission(
-                                AppPermissions.productDelete,
-                              )) {
-                                showCustomSnackbar(
-                                  context: context,
-                                  message:
-                                      l10n?.noPermissionDeleteProduct ??
-                                      "You do not have permission to delete product.",
-                                  isWarning: true,
-                                );
-                                return;
-                              }
-                              if (!DemoGuard.shouldProceed(context)) return;
-
-                              showAppAlertDialog(
-                                context: context,
-                                title: l10n?.deleteProduct ?? "Delete Product",
-                                message:
-                                    l10n?.deleteProductConfirmation ??
-                                    "Are you sure you want to delete this product?",
-                                onConfirm: () {
-                                  context.read<ProductsBloc>().add(
-                                    DeleteProduct(product.id),
-                                  );
-
-                                  if (context.mounted) {
-                                    context.read<ProductsBloc>().add(
-                                      RefreshProducts(),
+                                    if (product.categoryId != null) {
+                                      context
+                                          .read<SelectedCategoriesCubit>()
+                                          .select(product.categoryId!);
+                                    }
+                                    context.read<AddProductBloc>().add(
+                                      LoadProductForEdit(product.id),
+                                    );
+                                    await context.push(
+                                      AppRoutes.addProduct,
+                                      extra: {'is_edit': true},
                                     );
 
-                                    // Also refresh HomePage
-                                    final selectedStore = context
-                                        .read<StoreSwitcherCubit>()
-                                        .state
-                                        .selectedStore;
-                                    if (selectedStore != null) {
-                                      context.read<HomePageBloc>().add(
-                                        FetchHomePageData(
-                                          storeId: selectedStore.id,
-                                        ),
+                                    if (context.mounted) {
+                                      _searchController.clear();
+                                      context.read<ProductsBloc>().add(
+                                        LoadProductsInitial(),
                                       );
+
+                                      // Refresh HomePage Data
+                                      final selectedStore = context
+                                          .read<StoreSwitcherCubit>()
+                                          .state
+                                          .selectedStore;
+                                      if (selectedStore != null) {
+                                        context.read<HomePageBloc>().add(
+                                          FetchHomePageData(
+                                            storeId: selectedStore.id,
+                                          ),
+                                        );
+                                      }
                                     }
-                                  }
-                                },
-                              );
-                            },
+                                  },
+                            onDelete:
+                                !PermissionChecker.hasPermission(
+                                  AppPermissions.productDelete,
+                                )
+                                ? null
+                                : () {
+                                    if (!DemoGuard.shouldProceed(context)) {
+                                      return;
+                                    }
+
+                                    showAppAlertDialog(
+                                      context: context,
+                                      title:
+                                          l10n?.deleteProduct ??
+                                          "Delete Product",
+                                      message:
+                                          l10n?.deleteProductConfirmation ??
+                                          "Are you sure you want to delete this product?",
+                                      onConfirm: () {
+                                        context.read<ProductsBloc>().add(
+                                          DeleteProduct(product.id),
+                                        );
+
+                                        if (context.mounted) {
+                                          context.read<ProductsBloc>().add(
+                                            RefreshProducts(),
+                                          );
+
+                                          // Also refresh HomePage
+                                          final selectedStore = context
+                                              .read<StoreSwitcherCubit>()
+                                              .state
+                                              .selectedStore;
+                                          if (selectedStore != null) {
+                                            context.read<HomePageBloc>().add(
+                                              FetchHomePageData(
+                                                storeId: selectedStore.id,
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      },
+                                    );
+                                  },
                           ),
                         );
                       },

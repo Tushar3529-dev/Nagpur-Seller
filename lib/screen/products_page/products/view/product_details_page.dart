@@ -138,7 +138,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage>
                             _buildQuickStats(screenType, isDark, l10n),
                             _buildDivider(isDark),
                             _buildActionRow(screenType, isDark, l10n),
-                            _buildDivider(isDark),
                             if (_product.shortDescription?.isNotEmpty == true)
                               _buildDescriptionSection(
                                 screenType,
@@ -584,57 +583,65 @@ class _ProductDetailsPageState extends State<ProductDetailsPage>
     bool isDark,
     AppLocalizations? l10n,
   ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: [
-          Expanded(
-            child: _ActionButton(
-              icon: Icons.edit_outlined,
-              label: l10n?.editLbl ?? 'Edit',
-              color: AppColors.primaryColor,
-              isDark: isDark,
-              onTap: _onEdit,
-            ),
+    // Only actions the user is permitted to take are shown.
+    final canEdit = PermissionChecker.hasPermission(AppPermissions.productEdit);
+    final buttons = [
+      if (canEdit)
+        _ActionButton(
+          icon: Icons.edit_outlined,
+          label: l10n?.editLbl ?? 'Edit',
+          color: AppColors.primaryColor,
+          isDark: isDark,
+          onTap: _onEdit,
+        ),
+      if (canEdit)
+        _ActionButton(
+          icon: _product.status == 'active'
+              ? Icons.visibility_off_outlined
+              : Icons.visibility_outlined,
+          label: _product.status == 'active'
+              ? (l10n?.disableLabel ?? 'Disable')
+              : (l10n?.enableLabel ?? 'Enable'),
+          color: _product.status == 'active'
+              ? Colors.orange.shade700
+              : Colors.green.shade700,
+          isDark: isDark,
+          onTap: _onToggleStatus,
+        ),
+      if (PermissionChecker.hasPermission(AppPermissions.productFaqView))
+        _ActionButton(
+          icon: Icons.help_outline_rounded,
+          label: 'FAQs',
+          color: Colors.purple.shade600,
+          isDark: isDark,
+          onTap: _onViewFAQs,
+        ),
+      if (PermissionChecker.hasPermission(AppPermissions.productDelete))
+        _ActionButton(
+          icon: Icons.delete_outline_rounded,
+          label: l10n?.delete ?? 'Delete',
+          color: Colors.red.shade600,
+          isDark: isDark,
+          onTap: _onDelete,
+        ),
+    ];
+    if (buttons.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              for (var i = 0; i < buttons.length; i++) ...[
+                if (i > 0) const SizedBox(width: 10),
+                Expanded(child: buttons[i]),
+              ],
+            ],
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _ActionButton(
-              icon: _product.status == 'active'
-                  ? Icons.visibility_off_outlined
-                  : Icons.visibility_outlined,
-              label: _product.status == 'active'
-                  ? (l10n?.disableLabel ?? 'Disable')
-                  : (l10n?.enableLabel ?? 'Enable'),
-              color: _product.status == 'active'
-                  ? Colors.orange.shade700
-                  : Colors.green.shade700,
-              isDark: isDark,
-              onTap: _onToggleStatus,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _ActionButton(
-              icon: Icons.help_outline_rounded,
-              label: 'FAQs',
-              color: Colors.purple.shade600,
-              isDark: isDark,
-              onTap: _onViewFAQs,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _ActionButton(
-              icon: Icons.delete_outline_rounded,
-              label: l10n?.delete ?? 'Delete',
-              color: Colors.red.shade600,
-              isDark: isDark,
-              onTap: _onDelete,
-            ),
-          ),
-        ],
-      ),
+        ),
+        _buildDivider(isDark),
+      ],
     );
   }
 

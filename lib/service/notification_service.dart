@@ -20,6 +20,8 @@ import 'package:hyper_local_seller/screen/order_page/incoming_orders/cubit/incom
 import 'package:hyper_local_seller/screen/more_page/view/system_users/login_approvals/login_approvals_cubit.dart';
 import 'package:hyper_local_seller/widgets/ui/order_notification_handler.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:hyper_local_seller/config/app_permissions.dart';
+import 'package:hyper_local_seller/utils/permission_checker.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -120,6 +122,23 @@ class NotificationService {
     final isSettlementNotification =
         type == 'settlement_process' || type == 'settlement_create';
     final isLoginApprovalNotification = type == loginApprovalType;
+
+    // Don't open a module the user has no access to.
+    final requiredPermission = isOrderNotification
+        ? AppPermissions.orderView
+        : isWalletNotification
+        ? AppPermissions.walletView
+        : isWithdrawalNotification
+        ? AppPermissions.withdrawalView
+        : isSettlementNotification
+        ? AppPermissions.earningView
+        : null;
+    if (requiredPermission != null &&
+        !PermissionChecker.hasPermission(requiredPermission)) {
+      debugPrint("No permission for $type notification, staying put");
+      if (!fromForeground) navContext.go(AppRoutes.home);
+      return;
+    }
 
     if (isOrderNotification) {
       if (fromForeground) {

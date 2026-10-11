@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:hyper_local_seller/config/app_permissions.dart';
 import 'package:hyper_local_seller/config/hive_storage.dart';
 
@@ -15,7 +14,6 @@ class PermissionChecker {
 
     final assignedPermissions = _assignedPermissions;
     if (assignedPermissions == null) return false;
-    debugPrint('ASSIGNED PERMISSIONS :::: $assignedPermissions');
     return assignedPermissions.contains(permissionName);
   }
 
@@ -63,4 +61,10 @@ class PermissionChecker {
   /// endpoint polled.
   static bool get canShowOrderPopup =>
       isDefaultSeller || hasPermission(AppPermissions.orderPopup);
+
+  /// Orders tab, order lists and order details.
+  static bool get canViewOrders => hasPermission(AppPermissions.orderView);
+
+  /// Products tab, product lists, product details and the product scanner.
+  static bool get canViewProducts => hasPermission(AppPermissions.productView);
 }

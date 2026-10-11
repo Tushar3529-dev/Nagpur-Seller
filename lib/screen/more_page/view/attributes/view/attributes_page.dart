@@ -95,7 +95,10 @@ class _AttributesPageState extends State<AttributesPage> {
               } else if (state.operationSuccess == false) {
                 showCustomSnackbar(
                   context: context,
-                  message: state.error ?? state.operationMessage ?? 'Operation failed',
+                  message:
+                      state.error ??
+                      state.operationMessage ??
+                      'Operation failed',
                   isError: true,
                 );
                 context.read<AttributesBloc>().add(
@@ -136,7 +139,9 @@ class _AttributesPageState extends State<AttributesPage> {
                   );
                 }
 
-                if (!state.isInitialLoading && !state.isRefreshing && items.isEmpty) {
+                if (!state.isInitialLoading &&
+                    !state.isRefreshing &&
+                    items.isEmpty) {
                   return EmptyStateWidget(
                     svgPath: ImagesPath.noProductFoundSvg,
                     title: l10n?.noAttributesFound ?? 'No attribute found',
@@ -144,23 +149,16 @@ class _AttributesPageState extends State<AttributesPage> {
                         l10n?.noAttributesAddedYet ??
                         'You have not added any attribute yet',
                     actionText: l10n?.addAttribute ?? 'Add Attribute',
-                    onAction: () {
-                      if (!PermissionChecker.hasPermission(
-                        AppPermissions.attributeCreate,
-                      )) {
-                        showCustomSnackbar(
-                          context: context,
-                          message:
-                              l10n?.noPermissionCreateAttribute ??
-                              "You don't have permission to add attributes",
-                          isWarning: true,
-                        );
-                        return;
-                      }
-                      if (!DemoGuard.shouldProceed(context)) return;
+                    onAction:
+                        !PermissionChecker.hasPermission(
+                          AppPermissions.attributeCreate,
+                        )
+                        ? null
+                        : () {
+                            if (!DemoGuard.shouldProceed(context)) return;
 
-                      _showAddDialog(context);
-                    },
+                            _showAddDialog(context);
+                          },
                   );
                 }
 
@@ -171,7 +169,8 @@ class _AttributesPageState extends State<AttributesPage> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          (state.isInitialLoading || state.isRefreshing) && state.items.isEmpty
+                          (state.isInitialLoading || state.isRefreshing) &&
+                                  state.items.isEmpty
                               ? CustomShimmer(
                                   width: 150,
                                   height: UIUtils.body(screenType),
@@ -195,39 +194,35 @@ class _AttributesPageState extends State<AttributesPage> {
                                   ),
                                 ),
 
-                              (state.isInitialLoading || state.isRefreshing) && state.items.isEmpty
-                                  ? CustomShimmer(
-                                      width: 60,
-                                      height: 35,
-                                      borderRadius: BorderRadius.circular(
-                                        UIUtils.radiusMD(screenType),
-                                      ),
-                                    )
-                                  : SecondaryButton(
-                                      text:
-                                          l10n?.addAttribute ?? 'Add Attribute',
-                                      icon: Icons.add,
-                                      onPressed: () {
-                                        if (!PermissionChecker.hasPermission(
-                                          AppPermissions.attributeCreate,
-                                        )) {
-                                          showCustomSnackbar(
-                                            context: context,
-                                            message:
-                                                l10n?.noPermissionCreateAttribute ??
-                                                "You don't have permission to add attributes",
-                                            isWarning: true,
-                                          );
-                                          return;
-                                        }
-                                        if (!DemoGuard.shouldProceed(context)) {
-                                          return;
-                                        }
+                              if (PermissionChecker.hasPermission(
+                                AppPermissions.attributeCreate,
+                              ))
+                                (state.isInitialLoading ||
+                                            state.isRefreshing) &&
+                                        state.items.isEmpty
+                                    ? CustomShimmer(
+                                        width: 60,
+                                        height: 35,
+                                        borderRadius: BorderRadius.circular(
+                                          UIUtils.radiusMD(screenType),
+                                        ),
+                                      )
+                                    : SecondaryButton(
+                                        text:
+                                            l10n?.addAttribute ??
+                                            'Add Attribute',
+                                        icon: Icons.add,
+                                        onPressed: () {
+                                          if (!DemoGuard.shouldProceed(
+                                            context,
+                                          )) {
+                                            return;
+                                          }
 
-                                        _showAddDialog(context);
-                                      },
-                                      height: 35,
-                                    ),
+                                          _showAddDialog(context);
+                                        },
+                                        height: 35,
+                                      ),
                             ],
                           ),
                         ],
@@ -247,12 +242,15 @@ class _AttributesPageState extends State<AttributesPage> {
                           separatorBuilder: (context, index) =>
                               SizedBox(height: UIUtils.gapMD(screenType)),
                           itemCount:
-                              (state.isInitialLoading || state.isRefreshing) && state.items.isEmpty
+                              (state.isInitialLoading || state.isRefreshing) &&
+                                  state.items.isEmpty
                               ? 10
                               : items.length +
                                     (hasMore ? (isPaginating ? 10 : 1) : 0),
                           itemBuilder: (context, index) {
-                            if ((state.isInitialLoading || state.isRefreshing) && state.items.isEmpty) {
+                            if ((state.isInitialLoading ||
+                                    state.isRefreshing) &&
+                                state.items.isEmpty) {
                               return CardShimmer(
                                 type: 'attribute',
                                 screenType: screenType,
@@ -282,41 +280,34 @@ class _AttributesPageState extends State<AttributesPage> {
                                   extra: attribute,
                                 );
                               },
-                              onEdit: () {
-                                if (!PermissionChecker.hasPermission(
-                                  AppPermissions.attributeEdit,
-                                )) {
-                                  showCustomSnackbar(
-                                    context: context,
-                                    message:
-                                        l10n?.noPermissionEditAttribute ??
-                                        "You don't have permission to edit attributes",
-                                    isWarning: true,
-                                  );
-                                  return;
-                                }
-                                if (!DemoGuard.shouldProceed(context)) return;
+                              onEdit:
+                                  !PermissionChecker.hasPermission(
+                                    AppPermissions.attributeEdit,
+                                  )
+                                  ? null
+                                  : () {
+                                      if (!DemoGuard.shouldProceed(context)) {
+                                        return;
+                                      }
 
-                                _showAddDialog(context, attribute: attribute);
-                              },
-                              onDelete: () {
-                                if (!PermissionChecker.hasPermission(
-                                  AppPermissions.attributeDelete,
-                                )) {
-                                  showCustomSnackbar(
-                                    context: context,
-                                    message:
-                                        l10n?.noPermissionDeleteAttribute ??
-                                        "You don't have permission to delete attributes",
-                                    isWarning: true,
-                                  );
-                                  return;
-                                }
-                                if (!DemoGuard.shouldProceed(context)) return;
-                                context.read<AttributesBloc>().add(
-                                  DeleteAttribute(attribute.id),
-                                );
-                              },
+                                      _showAddDialog(
+                                        context,
+                                        attribute: attribute,
+                                      );
+                                    },
+                              onDelete:
+                                  !PermissionChecker.hasPermission(
+                                    AppPermissions.attributeDelete,
+                                  )
+                                  ? null
+                                  : () {
+                                      if (!DemoGuard.shouldProceed(context)) {
+                                        return;
+                                      }
+                                      context.read<AttributesBloc>().add(
+                                        DeleteAttribute(attribute.id),
+                                      );
+                                    },
                             );
                           },
                         ),

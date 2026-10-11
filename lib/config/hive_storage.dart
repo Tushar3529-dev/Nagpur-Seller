@@ -296,6 +296,10 @@ class HiveStorage {
 
   static Map<dynamic, dynamic>? get userData => _userData;
 
+  /// Bumped whenever the stored user (and so its assigned permissions)
+  /// changes, so permission-gated UI can rebuild.
+  static final ValueNotifier<int> userDataRevision = ValueNotifier(0);
+
   static Future<void> setUserData(Map<dynamic, dynamic>? value) async {
     final Box prefBox = await Hive.openBox(_prefBoxName);
     if (value == null) {
@@ -304,6 +308,7 @@ class HiveStorage {
       await prefBox.put(_userDataKey, value);
     }
     _userData = value;
+    userDataRevision.value++;
     debugPrint('Set UserData :: $_userData');
   }
 
@@ -337,6 +342,7 @@ class HiveStorage {
 
     _accessToken = null;
     _userData = null;
+    userDataRevision.value++;
     _selectedStoreId = null;
 
     // Clear Subscription data using sub-methods

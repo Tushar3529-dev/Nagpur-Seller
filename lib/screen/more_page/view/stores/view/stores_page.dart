@@ -100,19 +100,9 @@ class _StoresPageState extends State<StoresPage> {
                     l10n?.noStoresAddedYet ??
                         'You have not added any store yet.',
                     actionText: l10n?.addStore ?? 'Add Store',
-                    onAction: () {
-                      if (!PermissionChecker.hasPermission(
-                        AppPermissions.storeCreate,
-                      )) {
-                        showCustomSnackbar(
-                          context: context,
-                          message:
-                          l10n?.noPermissionCreateStore ??
-                              "You don't have permission to create stores",
-                          isWarning: true,
-                        );
-                        return;
-                      }
+                    onAction: !PermissionChecker.hasPermission(AppPermissions.storeCreate)
+                        ? null
+                        : () {
                       if (!DemoGuard.shouldProceed(context)) return;
 
                       _limitService.canCreateStore().then((canCreate) {
@@ -164,6 +154,9 @@ class _StoresPageState extends State<StoresPage> {
                               fontSize: UIUtils.body(screenType),
                             ),
                           ),
+                          if (PermissionChecker.hasPermission(
+                            AppPermissions.storeCreate,
+                          ))
                           state.isInitialLoading && state.items.isEmpty
                               ? CustomShimmer(
                             width: 120,
@@ -176,18 +169,6 @@ class _StoresPageState extends State<StoresPage> {
                             text: l10n?.addStore ?? "Add Store",
                             icon: Icons.add,
                             onPressed: () async {
-                              if (!PermissionChecker.hasPermission(
-                                AppPermissions.storeCreate,
-                              )) {
-                                showCustomSnackbar(
-                                  context: context,
-                                  message:
-                                  l10n?.noPermissionCreateStore ??
-                                      "You don't have permission to create stores",
-                                  isWarning: true,
-                                );
-                                return;
-                              }
                               if (!DemoGuard.shouldProceed(context)) {
                                 return;
                               }
@@ -306,19 +287,9 @@ class _StoresPageState extends State<StoresPage> {
                                 type: CardType.store,
                                 data: store.toJson(),
                                 screenType: screenType,
-                                onEdit: () async {
-                                  if (!PermissionChecker.hasPermission(
-                                    AppPermissions.storeEdit,
-                                  )) {
-                                    showCustomSnackbar(
-                                      context: context,
-                                      message:
-                                      l10n?.noPermissionEditStore ??
-                                          "You don't have permission to edit stores",
-                                      isWarning: true,
-                                    );
-                                    return;
-                                  }
+                                onEdit: !PermissionChecker.hasPermission(AppPermissions.storeEdit)
+                                    ? null
+                                    : () async {
                                   if (!DemoGuard.shouldProceed(context)) {
                                     return;
                                   }
@@ -355,19 +326,9 @@ class _StoresPageState extends State<StoresPage> {
                                     }
                                   }
                                 },
-                                onDelete: () {
-                                  if (!PermissionChecker.hasPermission(
-                                    AppPermissions.storeDelete,
-                                  )) {
-                                    showCustomSnackbar(
-                                      context: context,
-                                      message:
-                                      l10n?.noPermissionDeleteStore ??
-                                          "You don't have permission to delete stores",
-                                      isWarning: true,
-                                    );
-                                    return;
-                                  }
+                                onDelete: !PermissionChecker.hasPermission(AppPermissions.storeDelete)
+                                    ? null
+                                    : () {
                                   if (!DemoGuard.shouldProceed(context)) {
                                     return;
                                   }
@@ -376,19 +337,9 @@ class _StoresPageState extends State<StoresPage> {
                                     DeleteStore(store.id),
                                   );
                                 },
-                                onToggleStatus: (status) {
-                                  if (!PermissionChecker.hasPermission(
-                                    AppPermissions.storeEdit,
-                                  )) {
-                                    showCustomSnackbar(
-                                      context: context,
-                                      message:
-                                      l10n?.noPermissionEditStore ??
-                                          "You don't have permission to update store status",
-                                      isWarning: true,
-                                    );
-                                    return;
-                                  }
+                                onToggleStatus: !PermissionChecker.hasPermission(AppPermissions.storeEdit)
+                                    ? null
+                                    : (status) {
                                   if (!DemoGuard.shouldProceed(context)) {
                                     return;
                                   }
@@ -397,7 +348,12 @@ class _StoresPageState extends State<StoresPage> {
                                     ToggleStoreStatus(store.id, status),
                                   );
                                 },
-                                extraWidgets: Padding(
+                                // Online toggle and store config both edit the store.
+                                extraWidgets: !PermissionChecker.hasPermission(
+                                  AppPermissions.storeEdit,
+                                )
+                                    ? null
+                                    : Padding(
                                   padding: UIUtils.cardPadding(
                                     screenType,
                                   ),

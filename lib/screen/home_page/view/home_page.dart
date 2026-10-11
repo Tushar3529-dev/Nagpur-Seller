@@ -71,9 +71,11 @@ class _HomePageState extends State<HomePage> {
                     context.read<HomePageBloc>().add(
                       FetchHomePageData(storeId: state.selectedStore!.id),
                     );
-                    context.read<OrdersBloc>().add(
-                      LoadOrdersInitial(storeId: state.selectedStore!.id),
-                    );
+                    if (PermissionChecker.canViewOrders) {
+                      context.read<OrdersBloc>().add(
+                        LoadOrdersInitial(storeId: state.selectedStore!.id),
+                      );
+                    }
                     if (HiveStorage.isSubscriptionAvailable) {
                       context.read<CurrentSubscriptionBloc>().add(
                         FetchCurrentSubscription(),
@@ -86,7 +88,10 @@ class _HomePageState extends State<HomePage> {
             child: SafeArea(
               top: true,
               bottom: false,
-              child: SingleChildScrollView(
+              // Rebuilds when a profile refresh changes the assigned permissions.
+              child: ValueListenableBuilder<int>(
+                valueListenable: HiveStorage.userDataRevision,
+                builder: (context, _, _) => SingleChildScrollView(
                 // padding: EdgeInsets.only(bottom: UIUtils.gapLG(screenType)),
                 child: BlocBuilder<StoreSwitcherCubit, StoreSwitcherState>(
                   builder: (context, switcherState) {
@@ -122,6 +127,7 @@ class _HomePageState extends State<HomePage> {
                     );
                   },
                 ),
+              ),
               ),
             ),
           ),
@@ -189,22 +195,16 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ],
                   )
+                      : state.stores.isEmpty &&
+                      !PermissionChecker.hasPermission(
+                        AppPermissions.storeCreate,
+                      )
+                  // No stores and no permission to add one
+                      ? const SizedBox.shrink()
                       : state.stores.isEmpty
                   // No stores: show 'Add Store' call-to-action
                       ? GestureDetector(
                     onTap: () async {
-                      if (!PermissionChecker.hasPermission(
-                        AppPermissions.storeCreate,
-                      )) {
-                        showCustomSnackbar(
-                          context: context,
-                          message:
-                          l10n?.noPermissionCreateStore ??
-                              "You don't have permission to create stores",
-                          isWarning: true,
-                        );
-                        return;
-                      }
                       if (!DemoGuard.shouldProceed(context)) return;
                       final limitService = SubscriptionLimitService();
                       final canCreate = await limitService
@@ -212,27 +212,19 @@ class _HomePageState extends State<HomePage> {
                       if (!context.mounted) return;
                       if (!canCreate) {
                         if (HiveStorage.activePlanId == null) {
+                          final canViewPlans = PermissionChecker.hasPermission(
+                            AppPermissions.subscriptionView,
+                          );
                           showCustomSnackbar(
                             context: context,
                             message:
                             "You don't have any active plan. Please buy one.",
                             isError: true,
-                            actionLabel: 'View Plans',
-                            onAction: () {
-                              if (!PermissionChecker.hasPermission(
-                                AppPermissions.subscriptionView,
-                              )) {
-                                showCustomSnackbar(
-                                  context: context,
-                                  message:
-                                  // l10n?.noPermissionViewSubscriptionPlans ??
-                                  'You do not have permission to view subscription plans.',
-                                  isWarning: true,
-                                );
-                                return;
-                              }
-                              context.push(AppRoutes.subscriptionPlans);
-                            },
+                            // Only offer the plans when the user may open them.
+                            actionLabel: canViewPlans ? 'View Plans' : null,
+                            onAction: canViewPlans
+                                ? () => context.push(AppRoutes.subscriptionPlans)
+                                : null,
                           );
                         } else {
                           showCustomSnackbar(
@@ -422,22 +414,13 @@ class _HomePageState extends State<HomePage> {
                       AppPermissions.subscriptionView,
                     ))
                   MembershipTooltipIcon(screenType: screenType),
+                if (PermissionChecker.hasPermission(
+                  AppPermissions.notificationView,
+                ))
                 BlocBuilder<NotificationListBloc, NotificationListState>(
                   builder: (context, notifState) {
                     return GestureDetector(
                       onTap: () {
-                        if (!PermissionChecker.hasPermission(
-                          AppPermissions.notificationView,
-                        )) {
-                          showCustomSnackbar(
-                            context: context,
-                            message:
-                            l10n?.noPermissionViewNotification ??
-                                'You do not have permission to view notifications.',
-                            isWarning: true,
-                          );
-                          return;
-                        }
                         context.push(AppRoutes.notifications);
                       },
                       child: Container(
@@ -549,7 +532,9 @@ class _HomePageState extends State<HomePage> {
                   svgPath: ImagesPath.pendingOrdersSvg,
                   iconBgColor: Colors.orange,
                   screenType: screenType,
-                  onTap: () => context.go(AppRoutes.orders),
+                  onTap: PermissionChecker.canViewOrders
+                      ? () => context.go(AppRoutes.orders)
+                      : null,
                 ),
               ),
               SizedBox(
@@ -565,7 +550,9 @@ class _HomePageState extends State<HomePage> {
                   svgPath: ImagesPath.productsActive,
                   iconBgColor: Colors.amber,
                   screenType: screenType,
-                  onTap: () => context.go(AppRoutes.products),
+                  onTap: PermissionChecker.canViewProducts
+                      ? () => context.go(AppRoutes.products)
+                      : null,
                 ),
               ),
               SizedBox(
@@ -578,7 +565,12 @@ class _HomePageState extends State<HomePage> {
                   svgPath: ImagesPath.thisMonthSvg,
                   iconBgColor: Colors.blue,
                   screenType: screenType,
-                  onTap: () => context.push(AppRoutes.earnings),
+                  onTap:
+                      PermissionChecker.hasPermission(
+                        AppPermissions.earningView,
+                      )
+                      ? () => context.push(AppRoutes.earnings)
+                      : null,
                 ),
               ),
             ],
@@ -593,6 +585,12 @@ class _HomePageState extends State<HomePage> {
       ScreenType screenType,
       AppLocalizations? l10n,
       ) {
+    final canAddProduct = PermissionChecker.hasPermission(
+      AppPermissions.productCreate,
+    );
+    final canViewOrders = PermissionChecker.canViewOrders;
+    if (!canAddProduct && !canViewOrders) return const SizedBox.shrink();
+
     return Padding(
       padding: UIUtils.pagePadding(screenType),
       child: Column(
@@ -608,6 +606,7 @@ class _HomePageState extends State<HomePage> {
           SizedBox(height: UIUtils.gapMD(screenType)),
           Row(
             children: [
+              if (canAddProduct)
               Expanded(
                 child: _buildActionButton(
                   context,
@@ -616,45 +615,25 @@ class _HomePageState extends State<HomePage> {
                   icon: Icons.add,
                   color: AppColors.primaryColor,
                   onTap: () {
-                    if (!PermissionChecker.hasPermission(
-                      AppPermissions.productCreate,
-                    )) {
-                      showCustomSnackbar(
-                        context: context,
-                        message:
-                        l10n?.noPermissionAddProduct ??
-                            "You don't have permission to add product",
-                        isWarning: true,
-                      );
-                      return;
-                    }
                     if (!DemoGuard.shouldProceed(context)) return;
 
                     _limitService.canCreateProduct().then((canCreate) {
                       if (!context.mounted) return;
                       if (!canCreate) {
                         if (HiveStorage.activePlanId == null) {
+                          final canViewPlans = PermissionChecker.hasPermission(
+                            AppPermissions.subscriptionView,
+                          );
                           showCustomSnackbar(
                             context: context,
                             message:
                             "You don't have any active plan please buy one",
                             isWarning: true,
-                            actionLabel: 'View',
-                            onAction: () {
-                              if (!PermissionChecker.hasPermission(
-                                AppPermissions.subscriptionView,
-                              )) {
-                                showCustomSnackbar(
-                                  context: context,
-                                  message:
-                                  // l10n?.noPermissionViewSubscriptionPlans ??
-                                  'You do not have permission to view subscription plans.',
-                                  isWarning: true,
-                                );
-                                return;
-                              }
-                              context.push(AppRoutes.subscriptionPlans);
-                            },
+                            // Only offer the plans when the user may open them.
+                            actionLabel: canViewPlans ? 'View' : null,
+                            onAction: canViewPlans
+                                ? () => context.push(AppRoutes.subscriptionPlans)
+                                : null,
                           );
                         } else {
                           showCustomSnackbar(
@@ -686,7 +665,9 @@ class _HomePageState extends State<HomePage> {
                   },
                 ),
               ),
-              SizedBox(width: UIUtils.gapMD(screenType)),
+              if (canAddProduct && canViewOrders)
+                SizedBox(width: UIUtils.gapMD(screenType)),
+              if (canViewOrders)
               Expanded(
                 child: _buildActionButton(
                   context,
@@ -694,21 +675,7 @@ class _HomePageState extends State<HomePage> {
                   label: l10n?.viewOrders ?? "View Orders",
                   icon: Icons.list_alt_outlined,
                   color: const Color.fromARGB(255, 255, 115, 0),
-                  onTap: () {
-                    if (!PermissionChecker.hasPermission(
-                      AppPermissions.orderView,
-                    )) {
-                      showCustomSnackbar(
-                        context: context,
-                        message:
-                        l10n?.noPermissionViewOrders ??
-                            'You do not have permission to view orders.',
-                        isWarning: true,
-                      );
-                      return;
-                    }
-                    context.go(AppRoutes.orders);
-                  },
+                  onTap: () => context.go(AppRoutes.orders),
                 ),
               ),
             ],

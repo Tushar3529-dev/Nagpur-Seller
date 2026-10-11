@@ -147,84 +147,78 @@ class PlanCard extends StatelessWidget {
                       st: st,
                     ),
                   ],
-                  const SizedBox(height: 32),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (isActive) {
-                          context.push(
-                            AppRoutes.subscriptionPlanDetails,
-                            extra: plan,
-                          );
-                        } else if (isPending || !hasActiveSubscription) {
-                          // Check for BUY permission
-                          if (!PermissionChecker.hasPermission(
-                            AppPermissions.subscriptionBuy,
-                          )) {
-                            showCustomSnackbar(
-                              context: context,
-                              message:
-                                  // l10n?.noPermissionBuySubscription ??
-                                  'You do not have permission to buy subscription.',
-                              isWarning: true,
+                  // Buying needs its own permission; viewing never does.
+                  if (isActive ||
+                      !(isPending || !hasActiveSubscription) ||
+                      PermissionChecker.hasPermission(
+                        AppPermissions.subscriptionBuy,
+                      )) ...[
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          if (isActive) {
+                            context.push(
+                              AppRoutes.subscriptionPlanDetails,
+                              extra: plan,
                             );
-                            return;
+                          } else if (isPending || !hasActiveSubscription) {
+                            context.push(
+                              AppRoutes.subscriptionPlanDetails,
+                              extra: plan,
+                            );
+                          } else {
+                            // View Details case (has active sub but looking at another)
+                            context.push(
+                              AppRoutes.subscriptionPlanDetails,
+                              extra: plan,
+                            );
                           }
-                          context.push(
-                            AppRoutes.subscriptionPlanDetails,
-                            extra: plan,
-                          );
-                        } else {
-                          // View Details case (has active sub but looking at another)
-                          context.push(
-                            AppRoutes.subscriptionPlanDetails,
-                            extra: plan,
-                          );
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isActive
-                            ? Colors.transparent
-                            : (isRecommended || isPending)
-                            ? AppColors.primaryColor
-                            : (isDark
-                                  ? const Color(0xFF1E2430)
-                                  : Colors.grey.shade200),
-                        foregroundColor: isActive
-                            ? AppColors.successColor
-                            : (isRecommended || isPending)
-                            ? Colors.white
-                            : theme.colorScheme.onSurface.withValues(
-                                alpha: 0.6,
-                              ),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          side: BorderSide(
-                            color: isActive
-                                ? AppColors.successColor
-                                : Colors.transparent,
-                            width: isActive ? 1.2 : 0.0,
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isActive
+                              ? Colors.transparent
+                              : (isRecommended || isPending)
+                              ? AppColors.primaryColor
+                              : (isDark
+                                    ? const Color(0xFF1E2430)
+                                    : Colors.grey.shade200),
+                          foregroundColor: isActive
+                              ? AppColors.successColor
+                              : (isRecommended || isPending)
+                              ? Colors.white
+                              : theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.6,
+                                ),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            side: BorderSide(
+                              color: isActive
+                                  ? AppColors.successColor
+                                  : Colors.transparent,
+                              width: isActive ? 1.2 : 0.0,
+                            ),
+                            borderRadius: BorderRadius.circular(30),
                           ),
-                          borderRadius: BorderRadius.circular(30),
                         ),
-                      ),
-                      child: Text(
-                        isActive
-                            ? l10n?.viewPlan ?? 'View Plan'
-                            : isPending
-                            ? l10n?.resumePayment ?? 'Resume Payment'
-                            : hasActiveSubscription
-                            ? l10n?.viewDetails ?? 'View Details'
-                            : (l10n?.buttonChoosePlan ?? 'Choose Plan'),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 18,
+                        child: Text(
+                          isActive
+                              ? l10n?.viewPlan ?? 'View Plan'
+                              : isPending
+                              ? l10n?.resumePayment ?? 'Resume Payment'
+                              : hasActiveSubscription
+                              ? l10n?.viewDetails ?? 'View Details'
+                              : (l10n?.buttonChoosePlan ?? 'Choose Plan'),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 18,
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),

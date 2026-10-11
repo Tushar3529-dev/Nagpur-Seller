@@ -67,55 +67,48 @@ class _WalletPageState extends State<WalletPage> {
                   // Status Chips Row
                   _buildStatusChips(context, l10n, screenType, state),
 
-                  SizedBox(height: UIUtils.gapXL(screenType)),
+                  // Withdrawal history is only shown with its permission.
+                  if (PermissionChecker.hasPermission(
+                    AppPermissions.withdrawalView,
+                  )) ...[
+                    SizedBox(height: UIUtils.gapXL(screenType)),
 
-                  // Withdrawal History Header with "View All"
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        l10n?.withdrawalHistory ?? 'Withdrawal History',
-                        style: TextStyle(
-                          fontSize: UIUtils.sectionTitle(screenType),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          if (!PermissionChecker.hasPermission(
-                            AppPermissions.withdrawalView,
-                          )) {
-                            showCustomSnackbar(
-                              context: context,
-                              message:
-                                  l10n?.noPermissionViewWithdrawals ??
-                                  'You do not have permission to view withdrawal history.',
-                              isWarning: true,
-                            );
-                            return;
-                          }
-                          context.pushNamed('/withdraw-history');
-                        },
-                        child: Text(
-                          l10n?.viewAll ?? 'View All',
+                    // Withdrawal History Header with "View All"
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          l10n?.withdrawalHistory ?? 'Withdrawal History',
                           style: TextStyle(
-                            fontSize: UIUtils.caption(screenType),
-                            fontWeight: FontWeight.w600,
+                            fontSize: UIUtils.sectionTitle(screenType),
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: UIUtils.gapMD(screenType)),
+                        TextButton(
+                          onPressed: () {
+                            context.pushNamed('/withdraw-history');
+                          },
+                          child: Text(
+                            l10n?.viewAll ?? 'View All',
+                            style: TextStyle(
+                              fontSize: UIUtils.caption(screenType),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: UIUtils.gapMD(screenType)),
 
-                  // Withdrawal History List (Preview)
-                  _buildWithdrawalHistoryList(
-                    context,
-                    l10n,
-                    screenType,
-                    theme,
-                    state,
-                  ),
+                    // Withdrawal History List (Preview)
+                    _buildWithdrawalHistoryList(
+                      context,
+                      l10n,
+                      screenType,
+                      theme,
+                      state,
+                    ),
+                  ],
                 ],
               );
             },
@@ -176,46 +169,38 @@ class _WalletPageState extends State<WalletPage> {
               fontSize: UIUtils.caption(screenType),
             ),
           ),
-          SizedBox(height: UIUtils.gapLG(screenType)),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {
-                if (!PermissionChecker.hasPermission(
-                  AppPermissions.withdrawalRequest,
-                )) {
-                  showCustomSnackbar(
-                    context: context,
-                    message:
-                        l10n?.noPermissionRequestWithdrawal ??
-                        'You do not have permission to request withdrawal.',
-                    isWarning: true,
-                  );
-                  return;
-                }
-                context.pushNamed('/withdraw-request');
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(
-                  vertical: UIUtils.gapMD(screenType),
+          if (PermissionChecker.hasPermission(
+            AppPermissions.withdrawalRequest,
+          )) ...[
+            SizedBox(height: UIUtils.gapLG(screenType)),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  context.pushNamed('/withdraw-request');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(
+                    vertical: UIUtils.gapMD(screenType),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(
+                      UIUtils.radiusMD(screenType),
+                    ),
+                  ),
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(
-                    UIUtils.radiusMD(screenType),
+                child: Text(
+                  l10n?.requestWithdraw ?? 'Request Withdraw',
+                  style: TextStyle(
+                    fontSize: UIUtils.tileTitle(screenType),
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-              child: Text(
-                l10n?.requestWithdraw ?? 'Request Withdraw',
-                style: TextStyle(
-                  fontSize: UIUtils.tileTitle(screenType),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
             ),
-          ),
+          ],
         ],
       ),
     );

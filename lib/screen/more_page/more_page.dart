@@ -29,7 +29,6 @@ import 'package:hyper_local_seller/utils/permission_checker.dart';
 import 'package:hyper_local_seller/config/app_permissions.dart';
 import 'package:hyper_local_seller/service/master_api_service.dart';
 
-
 class MorePage extends StatefulWidget {
   const MorePage({super.key});
 
@@ -128,283 +127,157 @@ class _MorePageState extends State<MorePage> {
       SettingsSectionData(
         title: l10n?.storeManagement ?? "Store Management",
         tiles: [
-          SettingsTileData(
-            img: ImagesPath.productSvg,
-            title: l10n?.manageProduct ?? "Manage Product",
-            subtitle:
-                l10n?.manageProductSubtitle ??
-                "Add, edit, and organize products",
-            onTap: () {
-              if (!PermissionChecker.hasPermission(
-                AppPermissions.productView,
-              )) {
-                showCustomSnackbar(
-                  context: context,
-                  message:
-                      l10n?.noPermissionViewProducts ??
-                      'You do not have permission to view products.',
-                  isWarning: true,
-                );
-                return;
-              }
-              debugPrint('Manage Product button pressed');
-              context.pushNamed(AppRoutes.productsFull);
-            },
-          ),
-          SettingsTileData(
-            img: ImagesPath.bagInventorySvg,
-            title: l10n?.bagInventory ?? "Bag Inventory",
-            subtitle:
-                l10n?.bagInventorySubtitle ?? "Track and manage bag stock",
-            onTap: () {
-              if (!PermissionChecker.hasPermission(AppPermissions.bagView)) {
-                showCustomSnackbar(
-                  context: context,
-                  message: 'You do not have permission to view bags.',
-                  isWarning: true,
-                );
-                return;
-              }
-              debugPrint('Bag Inventory button pressed');
-              context.pushNamed(AppRoutes.bagInventory);
-            },
-          ),
-          SettingsTileData(
-            img: ImagesPath.ordersSvg,
-            title: l10n?.orders ?? "Orders",
-            subtitle:
-                l10n?.ordersSubtitle ?? "Manage and track customer orders",
-            onTap: () {
-              if (!PermissionChecker.hasPermission(AppPermissions.orderView)) {
-                showCustomSnackbar(
-                  context: context,
-                  message:
-                      l10n?.noPermissionViewOrders ??
-                      'You do not have permission to view orders.',
-                  isWarning: true,
-                );
-                return;
-              }
-              debugPrint('Manage Product button pressed');
-              context.pushNamed(AppRoutes.ordersFull);
-            },
-          ),
-          SettingsTileData(
-            img: ImagesPath.storeSvg,
-            title: l10n?.stores ?? "Stores",
-            subtitle: l10n?.storesSubtitle ?? "Manage multiple stores",
-            onTap: () {
-              if (!PermissionChecker.hasPermission(AppPermissions.storeView)) {
-                showCustomSnackbar(
-                  context: context,
-                  message:
-                      l10n?.noPermissionViewStores ??
-                      'You do not have permission to view stores.',
-                  isWarning: true,
-                );
-                return;
-              }
-              debugPrint('stores button pressed');
-              context.pushNamed(AppRoutes.stores);
-            },
-          ),
-          SettingsTileData(
-            img: ImagesPath.categoriesSvg,
-            title: l10n?.categories ?? "Categories",
-            subtitle: l10n?.categoriesSubtitle ?? "Manage product categories",
-            onTap: () {
-              if (!PermissionChecker.hasPermission(
-                AppPermissions.categoryView,
-              )) {
-                showCustomSnackbar(
-                  context: context,
-                  message:
-                      l10n?.noPermissionViewCategories ??
-                      'You do not have permission to view categories.',
-                  isWarning: true,
-                );
-                return;
-              }
-              debugPrint('categories button pressed');
-              context.pushNamed(AppRoutes.categories);
-            },
-          ),
-          SettingsTileData(
-            img: ImagesPath.brandSvg,
-            title: l10n?.brands ?? "Brands",
-            subtitle: l10n?.brandsSubtitle ?? "Add and manage brands",
-            onTap: () {
-              if (!PermissionChecker.hasPermission(AppPermissions.brandView)) {
-                showCustomSnackbar(
-                  context: context,
-                  message:
-                      l10n?.noPermissionViewBrands ??
-                      'You do not have permission to view brands.',
-                  isWarning: true,
-                );
-                return;
-              }
-              debugPrint('brands button pressed');
-              context.pushNamed(AppRoutes.brands);
-            },
-          ),
+          if (PermissionChecker.hasPermission(AppPermissions.productView))
+            SettingsTileData(
+              img: ImagesPath.productSvg,
+              title: l10n?.manageProduct ?? "Manage Product",
+              subtitle:
+                  l10n?.manageProductSubtitle ??
+                  "Add, edit, and organize products",
+              onTap: () {
+                debugPrint('Manage Product button pressed');
+                context.pushNamed(AppRoutes.productsFull);
+              },
+            ),
+          if (PermissionChecker.hasPermission(AppPermissions.bagView))
+            SettingsTileData(
+              img: ImagesPath.bagInventorySvg,
+              title: l10n?.bagInventory ?? "Bag Inventory",
+              subtitle:
+                  l10n?.bagInventorySubtitle ?? "Track and manage bag stock",
+              onTap: () {
+                debugPrint('Bag Inventory button pressed');
+                context.pushNamed(AppRoutes.bagInventory);
+              },
+            ),
+          if (PermissionChecker.hasPermission(AppPermissions.orderView))
+            SettingsTileData(
+              img: ImagesPath.ordersSvg,
+              title: l10n?.orders ?? "Orders",
+              subtitle:
+                  l10n?.ordersSubtitle ?? "Manage and track customer orders",
+              onTap: () {
+                debugPrint('Manage Product button pressed');
+                context.pushNamed(AppRoutes.ordersFull);
+              },
+            ),
+          if (PermissionChecker.hasPermission(AppPermissions.storeView))
+            SettingsTileData(
+              img: ImagesPath.storeSvg,
+              title: l10n?.stores ?? "Stores",
+              subtitle: l10n?.storesSubtitle ?? "Manage multiple stores",
+              onTap: () {
+                debugPrint('stores button pressed');
+                context.pushNamed(AppRoutes.stores);
+              },
+            ),
+          if (PermissionChecker.hasPermission(AppPermissions.categoryView))
+            SettingsTileData(
+              img: ImagesPath.categoriesSvg,
+              title: l10n?.categories ?? "Categories",
+              subtitle: l10n?.categoriesSubtitle ?? "Manage product categories",
+              onTap: () {
+                debugPrint('categories button pressed');
+                context.pushNamed(AppRoutes.categories);
+              },
+            ),
+          if (PermissionChecker.hasPermission(AppPermissions.brandView))
+            SettingsTileData(
+              img: ImagesPath.brandSvg,
+              title: l10n?.brands ?? "Brands",
+              subtitle: l10n?.brandsSubtitle ?? "Add and manage brands",
+              onTap: () {
+                debugPrint('brands button pressed');
+                context.pushNamed(AppRoutes.brands);
+              },
+            ),
 
-          SettingsTileData(
-            img: ImagesPath.attributesSvg,
-            title: l10n?.attributes ?? "Attributes",
-            subtitle: l10n?.attributesSubtitle ?? "Product attributes",
-            onTap: () {
-              if (!PermissionChecker.hasPermission(
-                AppPermissions.attributeView,
-              )) {
-                showCustomSnackbar(
-                  context: context,
-                  message:
-                      l10n?.noPermissionViewAttributes ??
-                      'You do not have permission to view attributes.',
-                  isWarning: true,
-                );
-                return;
-              }
-              debugPrint('attributes button pressed');
-              context.pushNamed(AppRoutes.attributes);
-            },
-          ),
-          SettingsTileData(
-            img: ImagesPath.faqSvg,
-            title: l10n?.productFaqs ?? "Product FAQs",
-            subtitle:
-                l10n?.productFaqSubtitle ??
-                'Manage your product questions & answers',
-            onTap: () {
-              if (!PermissionChecker.hasPermission(
-                AppPermissions.productFaqView,
-              )) {
-                showCustomSnackbar(
-                  context: context,
-                  message:
-                      l10n?.noPermissionViewProductFAQs ??
-                      'You do not have permission to view product FAQs.',
-                  isWarning: true,
-                );
-                return;
-              }
-              debugPrint('Product FAQs button pressed');
-              context.pushNamed(AppRoutes.productFaqs);
-            },
-          ),
+          if (PermissionChecker.hasPermission(AppPermissions.attributeView))
+            SettingsTileData(
+              img: ImagesPath.attributesSvg,
+              title: l10n?.attributes ?? "Attributes",
+              subtitle: l10n?.attributesSubtitle ?? "Product attributes",
+              onTap: () {
+                debugPrint('attributes button pressed');
+                context.pushNamed(AppRoutes.attributes);
+              },
+            ),
+          if (PermissionChecker.hasPermission(AppPermissions.productFaqView))
+            SettingsTileData(
+              img: ImagesPath.faqSvg,
+              title: l10n?.productFaqs ?? "Product FAQs",
+              subtitle:
+                  l10n?.productFaqSubtitle ??
+                  'Manage your product questions & answers',
+              onTap: () {
+                debugPrint('Product FAQs button pressed');
+                context.pushNamed(AppRoutes.productFaqs);
+              },
+            ),
         ],
       ),
       SettingsSectionData(
         title: l10n?.finance ?? "Finance",
         tiles: [
-          SettingsTileData(
-            img: ImagesPath.walletSvg,
-            title: l10n?.wallet ?? "Wallet",
-            subtitle:
-                l10n?.walletSubtitle ??
-                "Seller's wallet balance & transactions",
-            onTap: () {
-              if (!PermissionChecker.hasPermission(AppPermissions.walletView)) {
-                showCustomSnackbar(
-                  context: context,
-                  message:
-                      l10n?.noPermissionViewWallet ??
-                      'You do not have permission to view your wallet.',
-                  isWarning: true,
-                );
-                return;
-              }
-              debugPrint('wallet button pressed');
-              context.pushNamed(AppRoutes.wallet);
-            },
-          ),
-          SettingsTileData(
-            img: ImagesPath.earningsSvg,
-            title: l10n?.earnings ?? 'Earnings',
-            subtitle:
-                l10n?.earningsSubtitle ?? "View commissions & settlements",
-            onTap: () {
-              if (!PermissionChecker.hasPermission(
-                AppPermissions.earningView,
-              )) {
-                showCustomSnackbar(
-                  context: context,
-                  message:
-                      l10n?.noPermissionViewEarnings ??
-                      'You do not have permission to view earnings.',
-                  isWarning: true,
-                );
-                return;
-              }
-              debugPrint('earnings button pressed');
-              context.pushNamed(AppRoutes.earnings);
-            },
-          ),
-          SettingsTileData(
-            img: ImagesPath.taxGroupSvg,
-            title: l10n?.taxGroup ?? "Tax Group",
-            subtitle: l10n?.taxGroupSubtitle ?? "View tax groups",
-            onTap: () {
-              if (!PermissionChecker.hasPermission(
-                AppPermissions.taxRateView,
-              )) {
-                showCustomSnackbar(
-                  context: context,
-                  message:
-                      l10n?.noPermissionViewTaxRates ??
-                      'You do not have permission to view tax rates.',
-                  isWarning: true,
-                );
-                return;
-              }
-              debugPrint('tax_group button pressed');
-              context.pushNamed(AppRoutes.taxGroup);
-            },
-          ),
+          if (PermissionChecker.hasPermission(AppPermissions.walletView))
+            SettingsTileData(
+              img: ImagesPath.walletSvg,
+              title: l10n?.wallet ?? "Wallet",
+              subtitle:
+                  l10n?.walletSubtitle ??
+                  "Seller's wallet balance & transactions",
+              onTap: () {
+                debugPrint('wallet button pressed');
+                context.pushNamed(AppRoutes.wallet);
+              },
+            ),
+          if (PermissionChecker.hasPermission(AppPermissions.earningView))
+            SettingsTileData(
+              img: ImagesPath.earningsSvg,
+              title: l10n?.earnings ?? 'Earnings',
+              subtitle:
+                  l10n?.earningsSubtitle ?? "View commissions & settlements",
+              onTap: () {
+                debugPrint('earnings button pressed');
+                context.pushNamed(AppRoutes.earnings);
+              },
+            ),
+          if (PermissionChecker.hasPermission(AppPermissions.taxRateView))
+            SettingsTileData(
+              img: ImagesPath.taxGroupSvg,
+              title: l10n?.taxGroup ?? "Tax Group",
+              subtitle: l10n?.taxGroupSubtitle ?? "View tax groups",
+              onTap: () {
+                debugPrint('tax_group button pressed');
+                context.pushNamed(AppRoutes.taxGroup);
+              },
+            ),
           if (HiveStorage.isSubscriptionAvailable) ...[
-            SettingsTileData(
-              img: ImagesPath.subscriptionSvg,
-              title: l10n?.subscriptionPlansTitle ?? "Subscription Plans",
-              subtitle: l10n?.subscriptionSubtitle ?? "View subscription plans",
-              onTap: () {
-                if (!PermissionChecker.hasPermission(
-                  AppPermissions.subscriptionView,
-                )) {
-                  showCustomSnackbar(
-                    context: context,
-                    message:
-                        // l10n?.noPermissionViewSubscriptionPlans ??
-                        'You do not have permission to view subscription plans.',
-                    isWarning: true,
-                  );
-                  return;
-                }
-                debugPrint('subscription_plans button pressed');
-                context.pushNamed(AppRoutes.subscriptionPlans);
-              },
-            ),
-            SettingsTileData(
-              img: ImagesPath.mySubscriptionSvg,
-              title: "My Subscription",
-              subtitle: "View your purchased subscription plans",
-              onTap: () {
-                if (!PermissionChecker.hasPermission(
-                  AppPermissions.subscriptionView,
-                )) {
-                  showCustomSnackbar(
-                    context: context,
-                    message:
-                        // l10n?.noPermissionViewSubscriptionPlans ??
-                        'You do not have permission to view subscription plans.',
-                    isWarning: true,
-                  );
-                  return;
-                }
-                debugPrint('my_subscription_plans button pressed');
-                context.pushNamed(AppRoutes.subscriptionPlanHistory);
-              },
-            ),
+            if (PermissionChecker.hasPermission(
+              AppPermissions.subscriptionView,
+            ))
+              SettingsTileData(
+                img: ImagesPath.subscriptionSvg,
+                title: l10n?.subscriptionPlansTitle ?? "Subscription Plans",
+                subtitle:
+                    l10n?.subscriptionSubtitle ?? "View subscription plans",
+                onTap: () {
+                  debugPrint('subscription_plans button pressed');
+                  context.pushNamed(AppRoutes.subscriptionPlans);
+                },
+              ),
+            if (PermissionChecker.hasPermission(
+              AppPermissions.subscriptionView,
+            ))
+              SettingsTileData(
+                img: ImagesPath.mySubscriptionSvg,
+                title: "My Subscription",
+                subtitle: "View your purchased subscription plans",
+                onTap: () {
+                  debugPrint('my_subscription_plans button pressed');
+                  context.pushNamed(AppRoutes.subscriptionPlanHistory);
+                },
+              ),
           ],
         ],
       ),
@@ -435,45 +308,27 @@ class _MorePageState extends State<MorePage> {
       SettingsSectionData(
         title: l10n?.accountAndUsers ?? 'Account & Users',
         tiles: [
-          SettingsTileData(
-            img: ImagesPath.rolesAndPermissionSvg,
-            title: l10n?.rolesAndPermissions ?? 'Roles & Permissions',
-            subtitle:
-                l10n?.rolesAndPermissionsSubtitle ?? "User access control",
-            onTap: () {
-              if (!PermissionChecker.hasPermission(AppPermissions.roleView)) {
-                showCustomSnackbar(
-                  context: context,
-                  message:
-                      l10n?.noPermissionViewRolesAndPermissions ??
-                      'You do not have permission to view roles and permissions.',
-                  isWarning: true,
-                );
-                return;
-              }
-              debugPrint('roles_permission button pressed');
-              context.pushNamed(AppRoutes.rolesAndPermission);
-            },
-          ),
-          SettingsTileData(
-            img: ImagesPath.systemUsersSvg,
-            title: l10n?.systemUsers ?? "System Users",
-            subtitle: l10n?.systemUsersSubtitle ?? "Team members",
-            onTap: () {
-              if (!PermissionChecker.hasPermission(
-                AppPermissions.systemUserView,
-              )) {
-                showCustomSnackbar(
-                  context: context,
-                  message: 'You do not have permission to view system users.',
-                  isWarning: true,
-                );
-                return;
-              }
-              debugPrint('system_users button pressed');
-              context.pushNamed(AppRoutes.systemUsers);
-            },
-          ),
+          if (PermissionChecker.hasPermission(AppPermissions.roleView))
+            SettingsTileData(
+              img: ImagesPath.rolesAndPermissionSvg,
+              title: l10n?.rolesAndPermissions ?? 'Roles & Permissions',
+              subtitle:
+                  l10n?.rolesAndPermissionsSubtitle ?? "User access control",
+              onTap: () {
+                debugPrint('roles_permission button pressed');
+                context.pushNamed(AppRoutes.rolesAndPermission);
+              },
+            ),
+          if (PermissionChecker.hasPermission(AppPermissions.systemUserView))
+            SettingsTileData(
+              img: ImagesPath.systemUsersSvg,
+              title: l10n?.systemUsers ?? "System Users",
+              subtitle: l10n?.systemUsersSubtitle ?? "Team members",
+              onTap: () {
+                debugPrint('system_users button pressed');
+                context.pushNamed(AppRoutes.systemUsers);
+              },
+            ),
           SettingsTileData(
             img: ImagesPath.logoutSvg,
             title: l10n?.logout ?? "Logout",
@@ -537,22 +392,26 @@ class _MorePageState extends State<MorePage> {
             );
           }
         },
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ..._getSections(context).map((section) {
-                if (section.tiles.isEmpty) {
-                  return const SizedBox.shrink();
-                }
+        // Rebuilds when a profile refresh changes the assigned permissions.
+        child: ValueListenableBuilder<int>(
+          valueListenable: HiveStorage.userDataRevision,
+          builder: (context, _, _) => SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ..._getSections(context).map((section) {
+                  if (section.tiles.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
 
-                return SettingsSection(
-                  sectionTitle: section.title,
-                  tiles: section.tiles,
-                );
-              }),
-              const SizedBox(height: 32),
-            ],
+                  return SettingsSection(
+                    sectionTitle: section.title,
+                    tiles: section.tiles,
+                  );
+                }),
+                const SizedBox(height: 32),
+              ],
+            ),
           ),
         ),
       ),

@@ -93,38 +93,29 @@ class _ProductFaqsPageState extends State<ProductFaqsPage> {
       title: l10n?.productFaqs ?? 'Product FAQs',
       showAppbar: true,
       centerTitle: true,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          if (!PermissionChecker.hasPermission(
-            AppPermissions.productFaqCreate,
-          )) {
-            showCustomSnackbar(
-              context: context,
-              message:
-                  l10n?.noPermissionAddFaq ??
-                  'You don\'t have permission to add FAQs',
-              isWarning: true,
-            );
-            return;
-          }
-          if (!DemoGuard.shouldProceed(context)) return;
+      floatingActionButton:
+          !PermissionChecker.hasPermission(AppPermissions.productFaqCreate)
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () {
+                if (!DemoGuard.shouldProceed(context)) return;
 
-          AddFaqBottomSheet.show(
-            context,
-            productId: widget.productId,
-            onSave: _handleSave,
-          );
-        },
-        backgroundColor: AppColors.primaryColor,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: Text(
-          l10n?.addFaq ?? 'Add FAQ',
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
+                AddFaqBottomSheet.show(
+                  context,
+                  productId: widget.productId,
+                  onSave: _handleSave,
+                );
+              },
+              backgroundColor: AppColors.primaryColor,
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: Text(
+                l10n?.addFaq ?? 'Add FAQ',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
       isHaveSearch: true,
       onSearchChanged: (value) {
         _searchController.text = value;
@@ -240,44 +231,30 @@ class _ProductFaqsPageState extends State<ProductFaqsPage> {
                       'status': faq.status,
                       'product_name': faq.product?.title,
                     },
-                    onEdit: () {
-                      if (!PermissionChecker.hasPermission(
-                        AppPermissions.productFaqEdit,
-                      )) {
-                        showCustomSnackbar(
-                          context: context,
-                          message:
-                              l10n?.noPermissionEditFaq ??
-                              "You don't have permission to edit product FAQs",
-                          isWarning: true,
-                        );
-                        return;
-                      }
-                      if (!DemoGuard.shouldProceed(context)) return;
+                    onEdit:
+                        !PermissionChecker.hasPermission(
+                          AppPermissions.productFaqEdit,
+                        )
+                        ? null
+                        : () {
+                            if (!DemoGuard.shouldProceed(context)) return;
 
-                      AddFaqBottomSheet.show(
-                        context,
-                        faq: faq,
-                        onSave: _handleSave,
-                      );
-                    },
-                    onDelete: () {
-                      if (!PermissionChecker.hasPermission(
-                        AppPermissions.productFaqDelete,
-                      )) {
-                        showCustomSnackbar(
-                          context: context,
-                          message:
-                              l10n?.noPermissionDeleteFaq ??
-                              "You don't have permission to delete product FAQs",
-                          isWarning: true,
-                        );
-                        return;
-                      }
-                      if (!DemoGuard.shouldProceed(context)) return;
+                            AddFaqBottomSheet.show(
+                              context,
+                              faq: faq,
+                              onSave: _handleSave,
+                            );
+                          },
+                    onDelete:
+                        !PermissionChecker.hasPermission(
+                          AppPermissions.productFaqDelete,
+                        )
+                        ? null
+                        : () {
+                            if (!DemoGuard.shouldProceed(context)) return;
 
-                      _handleDelete(faq.id);
-                    },
+                            _handleDelete(faq.id);
+                          },
                   );
                 },
               ),

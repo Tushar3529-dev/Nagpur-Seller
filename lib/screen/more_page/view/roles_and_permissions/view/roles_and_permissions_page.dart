@@ -127,44 +127,47 @@ class _RolesAndPermissionPage extends State<RolesAndPermissionPage> {
                                 fontSize: UIUtils.body(screenType),
                               ),
                             ),
-                            SecondaryButton(
-                              text: l10n?.addNewRole ?? "Add new role",
-                              icon: Icons.add,
-                              onPressed: () async {
-                                _limitService.fetchUsageCounts();
-                                final canCreate = await _limitService
-                                    .canCreateRole();
-                                if (!context.mounted) return;
+                            if (PermissionChecker.hasPermission(
+                              AppPermissions.roleCreate,
+                            ))
+                              SecondaryButton(
+                                text: l10n?.addNewRole ?? "Add new role",
+                                icon: Icons.add,
+                                onPressed: () async {
+                                  _limitService.fetchUsageCounts();
+                                  final canCreate = await _limitService
+                                      .canCreateRole();
+                                  if (!context.mounted) return;
 
-                                if (!canCreate) {
-                                  if (HiveStorage.activePlanId == null) {
-                                    showCustomSnackbar(
-                                      context: context,
-                                      message:
-                                          "you don't have any active plan please buy one",
-                                      isError: true,
-                                      actionLabel: 'view',
-                                      onAction: () {
-                                        context.push(
-                                          AppRoutes.subscriptionPlans,
-                                        );
-                                      },
-                                    );
-                                  } else {
-                                    showCustomSnackbar(
-                                      context: context,
-                                      message:
-                                          l10n?.limitReached ??
-                                          "You have reached your plan limit",
-                                      isWarning: true,
-                                    );
+                                  if (!canCreate) {
+                                    if (HiveStorage.activePlanId == null) {
+                                      showCustomSnackbar(
+                                        context: context,
+                                        message:
+                                            "you don't have any active plan please buy one",
+                                        isError: true,
+                                        actionLabel: 'view',
+                                        onAction: () {
+                                          context.push(
+                                            AppRoutes.subscriptionPlans,
+                                          );
+                                        },
+                                      );
+                                    } else {
+                                      showCustomSnackbar(
+                                        context: context,
+                                        message:
+                                            l10n?.limitReached ??
+                                            "You have reached your plan limit",
+                                        isWarning: true,
+                                      );
+                                    }
+                                    return;
                                   }
-                                  return;
-                                }
-                                _showAddRoleSheet(context, screenType, l10n);
-                              },
-                              height: 35,
-                            ),
+                                  _showAddRoleSheet(context, screenType, l10n);
+                                },
+                                height: 35,
+                              ),
                           ],
                         ),
                       ),
@@ -238,32 +241,25 @@ class _RolesAndPermissionPage extends State<RolesAndPermissionPage> {
           type: CardType.roles,
           data: data.toJson(),
           screenType: screenType,
-          onEdit: () => _showAddRoleSheet(
-            context,
-            screenType,
-            l10n,
-            roleId: data.id,
-            initialName: data.name,
-          ),
-          onDelete: () {
-            final bool demoAllowed = DemoGuard.shouldProceed(context);
-            if (!demoAllowed) {
-              return;
-            }
+          onEdit: !PermissionChecker.hasPermission(AppPermissions.roleEdit)
+              ? null
+              : () => _showAddRoleSheet(
+                  context,
+                  screenType,
+                  l10n,
+                  roleId: data.id,
+                  initialName: data.name,
+                ),
+          onDelete: !PermissionChecker.hasPermission(AppPermissions.roleDelete)
+              ? null
+              : () {
+                  final bool demoAllowed = DemoGuard.shouldProceed(context);
+                  if (!demoAllowed) {
+                    return;
+                  }
 
-            if (!PermissionChecker.hasPermission(AppPermissions.roleDelete)) {
-              showCustomSnackbar(
-                context: context,
-                message:
-                    l10n?.noPermissionDeleteRole ??
-                    "You don't have permission to delete roles",
-                isWarning: true,
-              );
-              return;
-            }
-
-            context.read<RolesBloc>().add(DeleteRole(data.id));
-          },
+                  context.read<RolesBloc>().add(DeleteRole(data.id));
+                },
         );
       },
     );
