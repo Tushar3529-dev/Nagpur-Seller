@@ -218,6 +218,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get badgeRecommended => 'موصى به';
 
   @override
+  String get bagInventory => 'مخزون الأكياس';
+
+  @override
+  String get bagInventorySubtitle => 'تتبع وإدارة مخزون الأكياس';
+
+  @override
   String get balance => 'الرصيد: ';
 
   @override
@@ -234,6 +240,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get barcode => 'الباركود';
+
+  @override
+  String get scan => 'مسح';
 
   @override
   String get barcodeRequired => 'الباركود مطلوب';
@@ -2792,4 +2801,127 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get noWithdrawHistoryMessage => 'لم تقم بتقديم أي طلبات سحب بعد.';
+
+  @override
+  String get packageContents => 'محتويات العبوة';
+
+  @override
+  String get packageContentsHint =>
+      'ما يستلمه المشتري، مثل 500 g أو 1 L أو 5 pcs. يُدخل وزن الشحن بشكل منفصل.';
+
+  @override
+  String get netQuantity => 'الكمية الصافية';
+
+  @override
+  String get packageUnit => 'الوحدة';
+
+  @override
+  String get packageUnitHint => 'g, kg, ml, L, pcs…';
+
+  @override
+  String get innerUnitCount => 'الوحدات الداخلية';
+
+  @override
+  String get innerUnitCountHint => 'مثال 2';
+
+  @override
+  String get innerUnitType => 'نوع الوحدة الداخلية';
+
+  @override
+  String get innerUnitTypeHint => 'packet, bottle, sachet';
+
+  @override
+  String get innerUnitsHelp =>
+      'للعبوات المتعددة فقط. تكون الكمية الصافية حينها محتوى وحدة داخلية واحدة.';
+
+  @override
+  String get packageFromAttribute => 'حجم العبوة (من السمات)';
+
+  @override
+  String get packageAttributeMissing =>
+      'لم يتم العثور على حجم العبوة. استخدم سمة Size أو Weight أو Volume أو Quantity أو Pack بقيمة مثل \"500 g\" لتفعيل سعر الوحدة.';
+
+  @override
+  String get unitPrice => 'سعر الوحدة';
+
+  @override
+  String get unitPricePer => 'لكل';
+
+  @override
+  String get unitPriceNeedsPackage =>
+      'أضف محتويات العبوة في خطوة تنويع المنتج لعرض سعر الوحدة.';
+
+  @override
+  String unitPriceNotComparable(String packageUnit, String basisUnit) {
+    return 'لا يمكن مقارنة $packageUnit مع $basisUnit.';
+  }
+
+  @override
+  String useDefaultBasis(String basis) {
+    return 'استخدم $basis';
+  }
+
+  @override
+  String get unitPriceEditsSpecial => 'تعديل سعر الوحدة يحدّث السعر الخاص.';
+
+  @override
+  String get unitPriceEditsRegular => 'تعديل سعر الوحدة يحدّث السعر.';
+
+  @override
+  String get wholesalePrice => 'سعر الجملة';
+
+  @override
+  String get taxInclusivePrices => 'الأسعار تشمل الضريبة';
+
+  @override
+  String get netQuantityUnitRequired => 'أدخل وحدة للكمية الصافية';
+
+  @override
+  String get netQuantityInvalid => 'يجب أن تكون الكمية الصافية 0.001 على الأقل';
+
+  @override
+  String get unitCountPairRequired => 'أدخل عدد الوحدات الداخلية ونوعها معًا';
+
+  @override
+  String get unitCountInvalid =>
+      'يجب أن يكون عدد الوحدات الداخلية عددًا صحيحًا أكبر من 0';
+
+  @override
+  String get unitTooLong => 'يمكن أن تتكون الوحدة من 30 حرفًا كحد أقصى';
+
+  @override
+  String unitPriceBasisInvalid(String store) {
+    return 'يحتاج أساس سعر الوحدة لـ $store إلى كمية أكبر من 0 ووحدة';
+  }
+
+  @override
+  String get specialPriceMustBeLower => 'يجب أن يكون السعر الخاص أقل من السعر';
+
+  @override
+  String get productCategoryAll => 'الكل';
+
+  @override
+  String get productCategoryOther => 'أخرى';
+
+  @override
+  String productSubcategoryCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count فئات فرعية',
+      one: 'فئة فرعية واحدة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String productCategoryProductCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count منتجات',
+      one: 'منتج واحد',
+    );
+    return '$_temp0';
+  }
 }

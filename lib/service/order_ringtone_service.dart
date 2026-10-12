@@ -1,20 +1,20 @@
 import 'dart:async';
 
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:hyper_local_seller/utils/image_path.dart';
+import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 
-/// Loops the order ringtone (plus vibration) while there are unaccepted
-/// orders on screen.
+/// Rings like an incoming call (the phone's ringtone, plus vibration) while
+/// there are unaccepted orders on screen.
 class OrderRingtoneService {
   static final OrderRingtoneService _instance =
       OrderRingtoneService._internal();
   factory OrderRingtoneService() => _instance;
   OrderRingtoneService._internal();
 
-  final AudioPlayer _player = AudioPlayer(playerId: 'incoming_order_ringtone');
+  final FlutterRingtonePlayer _player = FlutterRingtonePlayer();
   Timer? _vibrationTimer;
+  Timer? _iosRepeatTimer;
   bool _isRinging = false;
 
   bool get isRinging => _isRinging;
@@ -30,26 +30,24 @@ class OrderRingtoneService {
       (_) => HapticFeedback.vibrate(),
     );
 
-    try {
-      await _player.setAudioContext(
-        AudioContext(
-          // Alarm stream: still audible when the phone is on silent or
-          // vibrate (the ring stream is muted then). Found on the emulator
-          // with the ringer silenced.
-          android: const AudioContextAndroid(
-            contentType: AndroidContentType.sonification,
-            usageType: AndroidUsageType.alarm,
-            audioFocus: AndroidAudioFocus.gainTransientMayDuck,
-            stayAwake: true,
-          ),
-          // Playback category so it still rings with the iOS silent switch on.
-          iOS: AudioContextIOS(category: AVAudioSessionCategory.playback),
-        ),
+    // iOS only plays a one-shot system sound and can't loop it, so it is
+    // replayed on a timer. Android loops the real ringtone itself.
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      _iosRepeatTimer?.cancel();
+      _iosRepeatTimer = Timer.periodic(
+        const Duration(seconds: 3),
+        (_) => _ring(),
       );
-      await _player.setReleaseMode(ReleaseMode.loop);
-      // stop() may have been called while the context was being set.
-      if (!_isRinging) return;
-      await _player.play(AssetSource(AudioPath.inAppNotificationSound));
+    }
+    await _ring();
+  }
+
+  Future<void> _ring() async {
+    if (!_isRinging) return;
+    try {
+      // asAlarm: alarm stream on Android, so it still rings when the phone
+      // is on silent or vibrate (the ring stream is muted then).
+      await _player.playRingtone(looping: true, asAlarm: true);
     } catch (e) {
       debugPrint('[OrderRingtone] failed to start: $e');
     }
@@ -60,6 +58,8 @@ class OrderRingtoneService {
     _isRinging = false;
     _vibrationTimer?.cancel();
     _vibrationTimer = null;
+    _iosRepeatTimer?.cancel();
+    _iosRepeatTimer = null;
     try {
       await _player.stop();
     } catch (e) {

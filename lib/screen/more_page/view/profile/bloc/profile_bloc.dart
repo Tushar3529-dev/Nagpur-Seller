@@ -12,8 +12,8 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   UserProfile? _cachedProfile;
 
   ProfileBloc({ProfileRepo? profileRepo})
-      : _profileRepo = profileRepo ?? ProfileRepo(),
-        super(ProfileInitial()) {
+    : _profileRepo = profileRepo ?? ProfileRepo(),
+      super(ProfileInitial()) {
     on<ProfileFetchEvent>(_onFetchProfile);
     on<ProfileUpdateEvent>(_onUpdateProfile);
     on<ProfileChangePasswordEvent>(_onChangePassword);
@@ -33,9 +33,11 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         event.newPassword,
         event.confirmPassword,
       );
-      emit(ProfilePasswordUpdateSuccess(
-        response['message'] ?? 'Password updated successfully',
-      ));
+      emit(
+        ProfilePasswordUpdateSuccess(
+          response['message'] ?? 'Password updated successfully',
+        ),
+      );
     } catch (e) {
       emit(ProfileError(e.toString().replaceAll('Exception:', '').trim()));
     }
@@ -46,7 +48,9 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     Emitter<ProfileState> emit,
   ) async {
     // Skip fetch if data already exists in state (avoid redundant calls)
-    if (_cachedProfile != null && state is ProfileLoaded && !event.forceRefresh) {
+    if (_cachedProfile != null &&
+        state is ProfileLoaded &&
+        !event.forceRefresh) {
       return;
     }
 
@@ -57,13 +61,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       _cachedProfile = profile;
 
       // Store user data in HiveStorage for UserHelper access
-      if (profile.data != null) {
-        final userDataToSave = profile.data!.toJson();
-        if (profile.assignedPermissions != null) {
-          userDataToSave['assigned_permissions'] = profile.assignedPermissions;
-        }
-        await HiveStorage.setUserData(userDataToSave);
-      }
+      await _storeUserData(response, profile);
 
       emit(ProfileLoaded(profile));
     } catch (e) {
@@ -85,13 +83,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       _cachedProfile = profile;
 
       // Update stored user data
-      if (profile.data != null) {
-        final userDataToSave = profile.data!.toJson();
-        if (profile.assignedPermissions != null) {
-          userDataToSave['assigned_permissions'] = profile.assignedPermissions;
-        }
-        await HiveStorage.setUserData(userDataToSave);
-      }
+      await _storeUserData(response, profile);
 
       emit(ProfileUpdateSuccess(profile, 'Profile updated successfully'));
     } catch (e) {
@@ -106,13 +98,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       final response = await repo.getUserProfile();
       final profile = UserProfile.fromJson(response);
 
-      if (profile.data != null) {
-        final userDataToSave = profile.data!.toJson();
-        if (profile.assignedPermissions != null) {
-          userDataToSave['assigned_permissions'] = profile.assignedPermissions;
-        }
-        await HiveStorage.setUserData(userDataToSave);
-      }
+      await _storeUserData(response, profile);
     } catch (e) {
       // Silently fail - profile data will be fetched when user opens profile page
       // ignore: avoid_print
@@ -123,5 +109,26 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   void _onResetProfile(ProfileResetEvent event, Emitter<ProfileState> emit) {
     _cachedProfile = null;
     emit(ProfileInitial());
+  }
+
+  /// Saves the user for UserHelper/PermissionChecker. Merges over the stored
+  /// user and the raw `data` map rather than using [Data.toJson] alone, so
+  /// fields the model doesn't parse, such as `role`/`roles` from login, aren't
+  /// dropped on every profile refresh. Logout clears the stored user.
+  static Future<void> _storeUserData(
+    dynamic response,
+    UserProfile profile,
+  ) async {
+    if (profile.data == null) return;
+    final rawData = response is Map ? response['data'] : null;
+    final Map<dynamic, dynamic> userDataToSave = {
+      ...?HiveStorage.userData,
+      if (rawData is Map) ...rawData,
+      ...profile.data!.toJson(),
+    };
+    if (profile.assignedPermissions != null) {
+      userDataToSave['assigned_permissions'] = profile.assignedPermissions;
+    }
+    await HiveStorage.setUserData(userDataToSave);
   }
 }

@@ -41,6 +41,7 @@ class CustomCard extends StatelessWidget {
   final VoidCallback? onDelete;
   final Function(String)? onToggleStatus;
   final VoidCallback? onTap;
+  final VoidCallback? onEditQty;
   final Widget? extraWidgets;
 
   const CustomCard({
@@ -52,6 +53,7 @@ class CustomCard extends StatelessWidget {
     this.onDelete,
     this.onToggleStatus,
     this.onTap,
+    this.onEditQty,
     this.extraWidgets,
   });
 
@@ -92,9 +94,24 @@ class CustomCard extends StatelessWidget {
 
                   // Stock badge, shown for cards that carry a stock quantity.
                   if (data['stock'] != null)
-                    _buildStockBadge(
-                      context,
-                      (data['stock'] as num).toInt(),
+                    Expanded(
+                      child: Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 6,
+                        children: [
+                          _buildStockBadge(
+                            context,
+                            (data['stock'] as num).toInt(),
+                          ),
+                          if (onEditQty != null)
+                            TextButton.icon(
+                              onPressed: onEditQty,
+                              icon: const Icon(Icons.edit_outlined, size: 16),
+                              label: const Text('Edit qty'),
+                            ),
+                        ],
+                      ),
                     ),
 
                   if (onEdit != null || onDelete != null)

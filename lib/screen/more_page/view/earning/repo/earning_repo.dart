@@ -27,7 +27,7 @@ class EarningRepository {
       }
       return null;
     } catch (e) {
-      rethrow;
+      throw Exception(e.toString());
     }
   }
 
@@ -55,7 +55,7 @@ class EarningRepository {
       }
       return null;
     } catch (e) {
-      rethrow;
+      throw Exception(e.toString());
     }
   }
 
@@ -83,7 +83,7 @@ class EarningRepository {
       }
       return null;
     } catch (e) {
-      rethrow;
+      throw Exception(e.toString());
     }
   }
 }

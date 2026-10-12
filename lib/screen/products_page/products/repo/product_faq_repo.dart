@@ -52,7 +52,7 @@ class ProductFaqRepo {
         "question": question,
         "status": status,
       };
-      
+
       final formData = FormData.fromMap(fields);
       String url = ApiRoutes.productFaqsApi;
       if (id != null) {

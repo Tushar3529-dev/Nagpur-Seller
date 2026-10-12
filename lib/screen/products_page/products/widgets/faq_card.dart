@@ -9,11 +9,7 @@ class FaqCard extends StatelessWidget {
   final Map<String, dynamic> data;
   final ScreenType screenType;
 
-  const FaqCard({
-    super.key,
-    required this.data,
-    required this.screenType,
-  });
+  const FaqCard({super.key, required this.data, required this.screenType});
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +27,7 @@ class FaqCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: AppColors.primaryColor.withValues(alpha:0.1),
+              color: AppColors.primaryColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
@@ -85,7 +81,9 @@ class FaqCard extends StatelessWidget {
 
   Widget _buildStatusChip(String status) {
     final bool isActive = status.toLowerCase() == 'active';
-    final Color bgColor = isActive ? Colors.green.shade50 : Colors.orange.shade50;
+    final Color bgColor = isActive
+        ? Colors.green.shade50
+        : Colors.orange.shade50;
     final Color textColor = isActive ? Colors.green : Colors.orange;
 
     return Container(

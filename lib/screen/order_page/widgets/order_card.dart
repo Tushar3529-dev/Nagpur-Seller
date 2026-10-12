@@ -29,33 +29,33 @@ class OrderCard extends StatelessWidget {
 
     // Status colors
     Color statusColor = Colors.grey;
-    Color statusBgColor = Colors.grey.withValues(alpha:0.1);
+    Color statusBgColor = Colors.grey.withValues(alpha: 0.1);
 
     switch (status) {
       case 'pending':
       case 'awaiting_store_response':
       case 'partially_accepted':
         statusColor = Colors.orange;
-        statusBgColor = Colors.orange.withValues(alpha:0.1);
+        statusBgColor = Colors.orange.withValues(alpha: 0.1);
         break;
       case 'accepted':
         statusColor = Colors.green;
-        statusBgColor = Colors.green.withValues(alpha:0.1);
+        statusBgColor = Colors.green.withValues(alpha: 0.1);
         break;
       case 'processing':
       case 'preparing':
         statusColor = Colors.blue;
-        statusBgColor = Colors.blue.withValues(alpha:0.1);
+        statusBgColor = Colors.blue.withValues(alpha: 0.1);
         break;
       case 'rejected':
       case 'cancelled': // Corrected 'calcelled' to 'cancelled'
         statusColor = Colors.red;
-        statusBgColor = Colors.red.withValues(alpha:0.1);
+        statusBgColor = Colors.red.withValues(alpha: 0.1);
         break;
       case 'completed':
       case 'delivered':
         statusColor = Colors.green;
-        statusBgColor = Colors.green.withValues(alpha:0.1);
+        statusBgColor = Colors.green.withValues(alpha: 0.1);
         break;
     }
 
@@ -164,9 +164,10 @@ class OrderCard extends StatelessWidget {
           ],
         ),
 
-
-        // Buttons
-        if (status == 'pending' ||
+        // Buttons (none without permission to update orders)
+        if (onStatusUpdate == null)
+          const SizedBox.shrink()
+        else if (status == 'pending' ||
             status == 'awaiting_store_response' ||
             status == 'partially_accepted') ...[
           const SizedBox(height: 10),
@@ -194,9 +195,11 @@ class OrderCard extends StatelessWidget {
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
+            // Preparing only happens through the scan flow (items, bag,
+            // dispatch), never directly from the list.
             child: PrimaryButton(
-              text: l10n?.markAsPreparing ?? 'Mark as Preparing',
-              onPressed: () => onStatusUpdate?.call('preparing'),
+              text: 'Scan & Dispatch',
+              onPressed: () => onStatusUpdate?.call('scan'),
               backgroundColor: Colors.blue,
             ),
           ),

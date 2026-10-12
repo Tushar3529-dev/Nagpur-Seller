@@ -25,6 +25,7 @@ import 'package:hyper_local_seller/utils/permission_checker.dart';
 import 'package:hyper_local_seller/config/app_permissions.dart';
 import 'package:hyper_local_seller/router/app_routes.dart';
 import 'package:hyper_local_seller/screen/products_page/add_products/bloc/selected_categories/selected_categories_cubit.dart';
+import 'package:hyper_local_seller/screen/products_page/products/widgets/product_inventory_dialog.dart';
 
 class ProductDetailsPage extends StatefulWidget {
   final Product product;
@@ -696,6 +697,10 @@ class _ProductDetailsPageState extends State<ProductDetailsPage>
       child: Column(
         children: variants.map((variant) {
           return _VariantCard(
+            onEditStock:
+                PermissionChecker.hasPermission(AppPermissions.productEdit)
+                ? () => _editStock(variant)
+                : null,
             variant: variant,
             isDark: isDark,
             currencySymbol: HiveStorage.currencySymbol,
@@ -704,6 +709,23 @@ class _ProductDetailsPageState extends State<ProductDetailsPage>
         }).toList(),
       ),
     );
+  }
+
+  Future<void> _editStock(Variant variant) async {
+    if (!PermissionChecker.hasPermission(AppPermissions.productEdit) ||
+        !DemoGuard.shouldProceed(context)) {
+      return;
+    }
+    final saved = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) =>
+          ProductInventoryDialog(productId: _product.id, variant: variant),
+    );
+    if (!mounted || saved != true) return;
+    setState(() {});
+    context.read<ProductsBloc>().add(RefreshProducts());
+    showCustomSnackbar(context: context, message: 'Stock updated successfully');
   }
 
   // ─────────────────────────── PRODUCT INFO ───────────────────────────
@@ -1454,12 +1476,14 @@ class _CustomSectionFieldCard extends StatelessWidget {
 }
 
 class _VariantCard extends StatelessWidget {
+  final VoidCallback? onEditStock;
   final Variant variant;
   final bool isDark;
   final String currencySymbol;
   final AppLocalizations? l10n;
 
   const _VariantCard({
+    this.onEditStock,
     required this.variant,
     required this.isDark,
     required this.currencySymbol,
@@ -1618,6 +1642,11 @@ class _VariantCard extends StatelessWidget {
                   color: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
                 ),
               ),
+              if (onEditStock != null)
+                TextButton(
+                  onPressed: onEditStock,
+                  child: const Text('Edit stock'),
+                ),
             ],
           ),
         ],

@@ -100,6 +100,7 @@ class GroupedPermissions {
   PermissionGroup? withdrawal;
   PermissionGroup? earning;
   PermissionGroup? order;
+  PermissionGroup? bag;
   PermissionGroup? returns;
   PermissionGroup? category;
   PermissionGroup? brand;
@@ -120,6 +121,7 @@ class GroupedPermissions {
     this.withdrawal,
     this.earning,
     this.order,
+    this.bag,
     this.returns,
     this.category,
     this.brand,
@@ -142,6 +144,7 @@ class GroupedPermissions {
       withdrawal: _parseGroup(json['withdrawal']),
       earning: _parseGroup(json['earning']),
       order: _parseGroup(json['order']),
+      bag: _parseGroup(json['bag']),
       returns: _parseGroup(json['return']),
       category: _parseGroup(json['category']),
       brand: _parseGroup(json['brand']),
@@ -165,6 +168,7 @@ class GroupedPermissions {
     _addIfNotNull(data, 'withdrawal', withdrawal);
     _addIfNotNull(data, 'earning', earning);
     _addIfNotNull(data, 'order', order);
+    _addIfNotNull(data, 'bag', bag);
     _addIfNotNull(data, 'return', returns);
     _addIfNotNull(data, 'category', category);
     _addIfNotNull(data, 'brand', brand);

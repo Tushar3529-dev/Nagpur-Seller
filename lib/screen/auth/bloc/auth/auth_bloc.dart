@@ -16,6 +16,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthLoginRequested>(_onLoginRequested);
     on<AuthSignUpRequested>(_onSignUpRequested);
     on<AuthLogoutRequested>(_onLogoutRequested);
+    on<AuthApprovalCancelled>((event, emit) => emit(AuthInitial()));
     on<AuthPhoneSendOTPRequested>(_onPhoneSendOTPRequested);
     on<AuthPhoneVerifyOTPRequested>(_onPhoneVerifyOTPRequested);
   }
@@ -30,6 +31,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       // Fetch and store user profile after successful login
       await ProfileBloc.fetchAndStoreProfile();
       emit(const AuthSuccess(message: "Login Successful"));
+    } on LoginApprovalPendingException catch (e) {
+      emit(
+        AuthApprovalPending(
+          message: e.message,
+          email: event.email,
+          requestedAt: e.requestedAt,
+          checkedAt: DateTime.now(),
+        ),
+      );
     } catch (e) {
       emit(AuthFailure(e.toString().replaceAll("Exception:", "").trim()));
     }

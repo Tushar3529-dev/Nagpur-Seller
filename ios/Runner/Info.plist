@@ -97,6 +97,6 @@
     <key>NSMicrophoneUsageDescription</key>
     <string>This app needs microphone access for voice features such as calls, recordings, or customer communication.</string>
     <key>NSCameraUsageDescription</key>
-    <string>This app requires camera access so sellers can record videos and capture product images.</string>
+    <string>This app uses the camera to scan product barcodes when packing orders, and to capture product images and videos.</string>
 </dict>
 </plist>

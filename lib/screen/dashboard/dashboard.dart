@@ -9,6 +9,7 @@ import 'package:hyper_local_seller/widgets/custom/custom_snackbar.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hyper_local_seller/bloc/store_switcher/store_switcher_cubit.dart';
 import 'package:hyper_local_seller/screen/order_page/bloc/orders/orders_bloc.dart';
+import 'package:hyper_local_seller/screen/products_page/products/widgets/product_scan_dialog.dart';
 
 class Dashboard extends StatefulWidget {
   final int index;
@@ -53,9 +54,23 @@ class _DashboardState extends State<Dashboard> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  void _onTap(int index) {
+  /// Bar position of the Scan item. It opens the product scanner instead of
+  /// a tab, so bar positions after it are one more than their branch index.
+  static const int _scanItemIndex = 2;
+
+  int get _barIndex => widget.index >= _scanItemIndex
+      ? widget.index + 1
+      : widget.index;
+
+  void _onTap(int barIndex) {
+    if (barIndex == _scanItemIndex) {
+      openProductScanner(context);
+      return;
+    }
+
     _scaleController.forward().then((_) => _scaleController.reverse());
 
+    final index = barIndex > _scanItemIndex ? barIndex - 1 : barIndex;
     widget.navigationShell.goBranch(
       index,
       initialLocation: index == widget.navigationShell.currentIndex,
@@ -153,7 +168,7 @@ class _DashboardState extends State<Dashboard> with TickerProviderStateMixin {
         child: Scaffold(
           body: widget.navigationShell,
         bottomNavigationBar: BottomNavigationBar(
-          currentIndex: widget.index,
+          currentIndex: _barIndex,
           onTap: _onTap,
           selectedItemColor: activeColor,
           unselectedItemColor: Colors.grey,
@@ -192,6 +207,17 @@ class _DashboardState extends State<Dashboard> with TickerProviderStateMixin {
                 ),
               ),
               label: l10n?.orders ?? "Orders",
+            ),
+            BottomNavigationBarItem(
+              icon: Padding(
+                padding: UIUtils.bottomNavPadding(screenType),
+                child: Icon(
+                  Icons.qr_code_scanner,
+                  size: UIUtils.bottomNavIconInactive(screenType),
+                  color: Colors.grey,
+                ),
+              ),
+              label: l10n?.scan ?? "Scan",
             ),
             BottomNavigationBarItem(
               icon: Padding(

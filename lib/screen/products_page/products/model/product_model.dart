@@ -512,6 +512,13 @@ class Variant {
   double? height;
   double? breadth;
   double? length;
+  // Package contents of one inner unit (e.g. 500 + "g"); distinct from the
+  // shipping [weight].
+  double? netQuantity;
+  String? netQuantityUnit;
+  // Number of identical inner units in the sellable pack (e.g. 2 + "packet").
+  int? unitCount;
+  String? unitCountType;
   bool? availability;
   CartItem? cartItem;
   String? barcode;
@@ -536,6 +543,10 @@ class Variant {
     this.height,
     this.breadth,
     this.length,
+    this.netQuantity,
+    this.netQuantityUnit,
+    this.unitCount,
+    this.unitCountType,
     this.availability,
     this.cartItem,
     this.barcode,
@@ -562,6 +573,14 @@ class Variant {
       height: JsonParser.doubleValue(json['height']),
       breadth: JsonParser.doubleValue(json['breadth']),
       length: JsonParser.doubleValue(json['length']),
+      netQuantity: json['net_quantity'] == null
+          ? null
+          : JsonParser.doubleValue(json['net_quantity']),
+      netQuantityUnit: _nullableString(json['net_quantity_unit']),
+      unitCount: json['unit_count'] == null
+          ? null
+          : JsonParser.intValue(json['unit_count']),
+      unitCountType: _nullableString(json['unit_count_type']),
       availability: JsonParser.boolValue(json['availability'] ?? true),
       cartItem: json['cart_item'] is Map<String, dynamic>
           ? CartItem.fromJson(json['cart_item'] as Map<String, dynamic>)
@@ -602,6 +621,10 @@ class Variant {
     data['height'] = height;
     data['breadth'] = breadth;
     data['length'] = length;
+    data['net_quantity'] = netQuantity;
+    data['net_quantity_unit'] = netQuantityUnit;
+    data['unit_count'] = unitCount;
+    data['unit_count_type'] = unitCountType;
     data['availability'] = availability;
     if (cartItem != null) data['cart_item'] = cartItem!.toJson();
     data['barcode'] = barcode;
@@ -624,6 +647,7 @@ class Variant {
 }
 
 class VariantStore {
+  int? storeProductVariantId;
   int? id;
   int? storeId;
   String? storeSlug;
@@ -631,10 +655,14 @@ class VariantStore {
   String? sku;
   double? price;
   double? specialPrice;
+  double? wholesalePrice;
+  double? unitPriceBasisQuantity;
+  String? unitPriceBasisUnit;
   double? cost;
   int? stock;
 
   VariantStore({
+    this.storeProductVariantId,
     this.id,
     this.storeId,
     this.storeSlug,
@@ -642,19 +670,36 @@ class VariantStore {
     this.sku,
     this.price,
     this.specialPrice,
+    this.wholesalePrice,
+    this.unitPriceBasisQuantity,
+    this.unitPriceBasisUnit,
     this.cost,
     this.stock,
   });
 
   factory VariantStore.fromJson(Map<String, dynamic> json) {
     return VariantStore(
+      storeProductVariantId: JsonParser.intValue(
+        // Seller product details return the inventory row as stores[].id,
+        // distinct from its store_id. Prefer the explicit field when present.
+        json['store_product_variant_id'] ?? json['id'],
+      ),
       id: JsonParser.intValue(json['id']),
       storeId: JsonParser.intValue(json['store_id']),
       storeSlug: JsonParser.string(json['store_slug']),
       storeName: JsonParser.string(json['store_name']),
       sku: JsonParser.string(json['sku']),
       price: JsonParser.doubleValue(json['price']),
-      specialPrice: JsonParser.doubleValue(json['special_price']),
+      specialPrice: json['special_price'] == null
+          ? null
+          : JsonParser.doubleValue(json['special_price']),
+      wholesalePrice: json['wholesale_price'] == null
+          ? null
+          : JsonParser.doubleValue(json['wholesale_price']),
+      unitPriceBasisQuantity: json['unit_price_basis_quantity'] == null
+          ? null
+          : JsonParser.doubleValue(json['unit_price_basis_quantity']),
+      unitPriceBasisUnit: _nullableString(json['unit_price_basis_unit']),
       cost: JsonParser.doubleValue(json['cost']),
       stock: JsonParser.intValue(json['stock']),
     );
@@ -663,12 +708,16 @@ class VariantStore {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'store_product_variant_id': storeProductVariantId,
       'store_id': storeId,
       'store_slug': storeSlug,
       'store_name': storeName,
       'sku': sku,
       'price': price,
       'special_price': specialPrice,
+      'wholesale_price': wholesalePrice,
+      'unit_price_basis_quantity': unitPriceBasisQuantity,
+      'unit_price_basis_unit': unitPriceBasisUnit,
       'cost': cost,
       'stock': stock,
     };
@@ -767,4 +816,10 @@ class SwatchValue {
     data['swatch'] = swatch;
     return data;
   }
+}
+
+String? _nullableString(dynamic v) {
+  if (v == null) return null;
+  final s = v.toString().trim();
+  return s.isEmpty ? null : s;
 }

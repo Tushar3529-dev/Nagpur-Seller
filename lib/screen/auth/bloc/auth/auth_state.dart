@@ -27,6 +27,27 @@ class AuthFailure extends AuthState {
   List<Object?> get props => [error];
 }
 
+/// Credentials were valid, but the seller has not approved this system user's
+/// login yet. Retrying [AuthLoginRequested] is how approval is checked.
+class AuthApprovalPending extends AuthState {
+  final String message;
+  final String email;
+  final DateTime? requestedAt;
+
+  /// When the server last answered "pending"; makes each retry a new state.
+  final DateTime checkedAt;
+
+  const AuthApprovalPending({
+    required this.message,
+    required this.email,
+    required this.checkedAt,
+    this.requestedAt,
+  });
+
+  @override
+  List<Object?> get props => [message, email, requestedAt, checkedAt];
+}
+
 class AuthOTPSent extends AuthState {
   final String verificationId;
   final String phoneNumber;

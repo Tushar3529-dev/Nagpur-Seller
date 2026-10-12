@@ -10,7 +10,7 @@ class PermissionsRepo {
 
       return response;
     } catch (e) {
-      rethrow;
+      throw Exception(e.toString());
     }
   }
 
@@ -20,7 +20,7 @@ class PermissionsRepo {
 
       return response;
     } catch (e) {
-      rethrow;
+      throw Exception(e.toString());
     }
   }
 }

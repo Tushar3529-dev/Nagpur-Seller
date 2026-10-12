@@ -24,8 +24,10 @@ class ApiRoutes {
   static String attributesApi = '$baseUrl/attributes';
   static String attributeValueApi = '$baseUrl/attribute-values';
   static String productsApi = '$baseUrl/products';
+  static String productInventoryBaseUrl = '$baseUrl/products';
   static String productFaqsApi = '$baseUrl/product-faqs';
   static String productsEnumsApi = '$productsApi/enums';
+  static String productByBarcodeApi = '$mainUrl/products/barcode';
   static String taxGroupsApi = '$baseUrl/tax-classes';
   static String storesApi = '$baseUrl/stores';
   static String storesEnumsApi = '$storesApi/enums';
@@ -33,7 +35,13 @@ class ApiRoutes {
   static String rolesListApi = '$rolesApi/list';
   static String permissionsApi = '$baseUrl/permissions';
   static String systemUsersApi = '$baseUrl/system-users';
+  static String loginApprovalsApi = '$systemUsersApi/login-approvals';
+  static String approveLoginApi(int userId) =>
+      '$systemUsersApi/$userId/approve-login';
+  static String rejectLoginApi(int userId) =>
+      '$systemUsersApi/$userId/reject-login';
   static String notificationsApi = '$baseUrl/notifications';
+  static String bagsApi = '$baseUrl/bags';
 
   static String dashboardDataApi = '$baseUrl/dashboard';
   static String ordersApi = '$baseUrl/orders';
@@ -64,5 +72,4 @@ class ApiRoutes {
   static String buySubscriptionPlanApi = '$baseUrl/subscription/buy';
   static String currentSubscriptionPlanApi = '$baseUrl/subscription/current';
   static String subscriptionPlanHistoryApi = '$baseUrl/subscription/history';
-
 }

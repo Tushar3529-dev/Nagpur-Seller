@@ -20,6 +20,7 @@ import 'package:hyper_local_seller/screen/order_page/incoming_orders/model/pendi
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/view/incoming_order_overlay.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/view/incoming_orders_controller.dart';
 import 'package:hyper_local_seller/screen/order_page/repo/order_repo.dart';
+import 'package:hyper_local_seller/service/api_base_helper.dart';
 
 import 'package:hyper_local_seller/service/order_ringtone_service.dart';
 
@@ -40,7 +41,7 @@ Map<String, dynamic> _order(
   image: null,
 );
 
-/// Records what the app asks the audio plugin to do.
+/// Records what the app asks the audio plugins to do.
 final audioCalls = <String>[];
 
 void _mockPlatformChannels() {
@@ -64,6 +65,16 @@ void _mockPlatformChannels() {
   messenger.setMockMethodCallHandler(
     const MethodChannel('xyz.luan/audioplayers.global'),
     audio,
+  );
+  // The order alert rings the phone's ringtone through this plugin.
+  messenger.setMockMethodCallHandler(
+    const MethodChannel('flutter_ringtone_player'),
+    (call) async {
+      final args = call.arguments;
+      final looping = args is Map && args['looping'] == true;
+      audioCalls.add('ringtone:${call.method}${looping ? ':looping' : ''}');
+      return null;
+    },
   );
   for (final name in [
     'xyz.luan/audioplayers.global/events',
@@ -92,7 +103,11 @@ void _mockPlatformChannels() {
 
 final _storeSwitcher = StoreSwitcherCubit(StoresRepo());
 
-Widget _app(IncomingOrdersCubit cubit, {double textScale = 1.0}) {
+Widget _app(
+  IncomingOrdersCubit cubit, {
+  double textScale = 1.0,
+  Future<void> Function()? openBagInventory,
+}) {
   return MultiBlocProvider(
     providers: [
       BlocProvider.value(value: cubit),
@@ -109,7 +124,21 @@ Widget _app(IncomingOrdersCubit cubit, {double textScale = 1.0}) {
           data: MediaQuery.of(
             context,
           ).copyWith(textScaler: TextScaler.linear(textScale)),
-          child: IncomingOrderOverlay(child: child!),
+          child: IncomingOrderOverlay(
+            openBagInventory: openBagInventory,
+            child: child!,
+            cameraBuilder: (onCode) => Center(
+              child: Wrap(
+                children: [
+                  for (final code in ['A1', 'A2', 'ZZ9'])
+                    TextButton(
+                      onPressed: () => onCode(code, null),
+                      child: Text('Detect $code'),
+                    ),
+                ],
+              ),
+            ),
+          ),
         ),
         home: const Scaffold(body: Center(child: Text('Home screen'))),
       ),
@@ -128,24 +157,38 @@ void main() {
 
   late FakePendingOrdersRepo repo;
   late IncomingOrdersCubit cubit;
+  bool confirmScannedQuantity(PendingOrderItem item, int quantity) {
+    final order = cubit.state.orders.firstWhere(
+      (order) =>
+          order.items.any((line) => line.orderItemId == item.orderItemId),
+    );
+    final current = order.items.firstWhere(
+      (line) => line.orderItemId == item.orderItemId,
+    );
+    cubit.matchCode(order, current.barcode ?? '');
+    return cubit.confirmQuantity(item, quantity);
+  }
 
   setUp(() async {
     await HiveStorage.setAccessToken('test-token');
     audioCalls.clear();
     repo = FakePendingOrdersRepo();
-    cubit = IncomingOrdersCubit(repo);
+    cubit = IncomingOrdersCubit(repo, store: FakeScanSessionStore());
   });
 
   Future<void> pumpApp(
     WidgetTester tester, {
     Size size = const Size(412, 915),
     double textScale = 1.0,
+    Future<void> Function()? openBagInventory,
   }) async {
     tester.view.physicalSize = size * 3;
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
     await tester.runAsync(() => cubit.fetch());
-    await tester.pumpWidget(_app(cubit, textScale: textScale));
+    await tester.pumpWidget(
+      _app(cubit, textScale: textScale, openBagInventory: openBagInventory),
+    );
     await tester.pump(const Duration(milliseconds: 400));
   }
 
@@ -154,8 +197,8 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
   }
 
-  // Runs first: OrderRingtoneService is a singleton and its AudioPlayer can be
-  // left waiting on a fake-async zone from an earlier test.
+  // Runs first: OrderRingtoneService is a singleton and its timers can be
+  // left over from an earlier test.
   testWidgets('ringtone loops while pending and stops after the last accept', (
     tester,
   ) async {
@@ -165,7 +208,7 @@ void main() {
     // App starts with nothing pending, like before an order arrives.
     await pumpApp(tester);
     expect(OrderRingtoneService().isRinging, isFalse);
-    expect(audioCalls, isNot(contains('resume')));
+    expect(audioCalls, isNot(contains('ringtone:play:looping')));
 
     // A new order shows up on the next 5 s poll.
     repo.server[OrderMode.regular] = [_order(1)];
@@ -181,21 +224,23 @@ void main() {
       );
       await tester.pump();
     }
-    expect(find.text('Accept and prepare order'), findsOneWidget);
+    expect(find.text('Accept order'), findsOneWidget);
     expect(OrderRingtoneService().isRinging, isTrue);
-    expect(audioCalls, contains('setReleaseMode:loop'), reason: 'loops');
+    expect(audioCalls, contains('ringtone:play:looping'), reason: 'loops');
 
-    repo.server[OrderMode.regular] = [];
-    await tester.tap(find.text('Accept and prepare order'));
+    // Accepted orders remain in pending until preparing succeeds.
+    await tester.tap(find.text('Accept order'));
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 200)),
     );
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(find.text('Accept and prepare order'), findsNothing);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Scan items'), findsOneWidget);
+    expect(find.text('Accept order'), findsNothing);
     expect(OrderRingtoneService().isRinging, isFalse, reason: 'ring stopped');
-    expect(audioCalls, contains('stop'));
-    expect(repo.calls, ['accept 1', 'preparing 1']);
+    expect(audioCalls, contains('ringtone:stop'));
+    expect(repo.calls, ['accept 1']);
     await disposeApp(tester);
   });
 
@@ -204,8 +249,8 @@ void main() {
   ) async {
     await pumpApp(tester);
     expect(find.text('Home screen'), findsOneWidget);
-    expect(find.text('Accept and prepare order'), findsNothing);
-    expect(audioCalls, isNot(contains('resume')));
+    expect(find.text('Accept order'), findsNothing);
+    expect(audioCalls, isNot(contains('ringtone:play:looping')));
     await disposeApp(tester);
   });
 
@@ -230,7 +275,7 @@ void main() {
     expect(find.text('Product 11'), findsOneWidget);
     expect(find.text('Variant 12 · Qty 3'), findsOneWidget);
     expect(find.text('WAITING'), findsOneWidget);
-    expect(find.text('Accept and prepare order'), findsOneWidget);
+    expect(find.text('Accept order'), findsOneWidget);
     await disposeApp(tester);
   });
 
@@ -245,7 +290,9 @@ void main() {
     expect(find.text('Wholesale order due soon'), findsOneWidget);
     expect(find.text('Wholesale'), findsOneWidget);
     expect(
-      find.text('Delivery slot ends within 30 minutes. Start preparing.'),
+      find.text(
+        'Delivery slot ends within 30 minutes. Accept to start packing.',
+      ),
       findsOneWidget,
     );
     // Timer counts from when the popup appeared, not the order date days ago.
@@ -279,7 +326,7 @@ void main() {
 
     expect(find.text('3 orders waiting'), findsOneWidget);
     expect(find.text('INCOMING ORDER · 1 OF 3'), findsOneWidget);
-    expect(find.text('Accept and prepare order'), findsOneWidget);
+    expect(find.text('Accept order'), findsOneWidget);
     await disposeApp(tester);
   });
 
@@ -290,7 +337,7 @@ void main() {
     await tester.tapAt(const Offset(5, 5));
     await tester.tapAt(const Offset(400, 900));
     await tester.pump(const Duration(milliseconds: 400));
-    expect(find.text('Accept and prepare order'), findsOneWidget);
+    expect(find.text('Accept order'), findsOneWidget);
     await disposeApp(tester);
   });
 
@@ -303,7 +350,7 @@ void main() {
     final handled = await tester.binding.handlePopRoute();
     expect(handled, isTrue, reason: 'back press consumed, app not closed');
     await tester.pump();
-    expect(find.text('Accept and prepare order'), findsOneWidget);
+    expect(find.text('Accept order'), findsOneWidget);
     await disposeApp(tester);
   });
 
@@ -345,11 +392,20 @@ void main() {
     expect(reported.last, isTrue);
 
     // Accepted, queue empty: hand Back back to the system (home can't pop).
-    repo.server[OrderMode.regular] = [];
-    await tester.tap(find.text('Accept and prepare order'));
+    // Accepted orders remain in pending until preparing succeeds.
+    await tester.tap(find.text('Accept order'));
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 100)),
     );
+    await tester.pump();
+    await tester.pump();
+    expect(reported.last, isTrue);
+    final order = cubit.state.orders.first;
+    for (final item in order.items) {
+      confirmScannedQuantity(item, item.quantity);
+    }
+    await tester.runAsync(() => cubit.assignBag(order, 'BAG-1'));
+    await tester.runAsync(() => cubit.markPreparing(order));
     await tester.pump();
     await tester.pump();
     expect(reported.last, isFalse);
@@ -369,7 +425,9 @@ void main() {
     await disposeApp(tester);
   });
 
-  testWidgets('accept moves to the next order in the queue', (tester) async {
+  testWidgets('accept scans the same order; preparing moves to the next', (
+    tester,
+  ) async {
     final now = DateTime.now().toUtc();
     repo.server[OrderMode.regular] = [
       _order(
@@ -381,12 +439,28 @@ void main() {
     await pumpApp(tester);
     expect(find.text('Order #NM-20260922-1'), findsOneWidget);
 
-    await tester.tap(find.text('Accept and prepare order'));
+    await tester.tap(find.text('Accept order'));
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 100)),
     );
     await tester.pump(const Duration(milliseconds: 400));
 
+    expect(find.text('Scan items'), findsOneWidget);
+    expect(find.text('0 of 1 verified'), findsOneWidget);
+    final order = cubit.state.orders.first;
+    for (final item in order.items) {
+      confirmScannedQuantity(item, item.quantity);
+    }
+    await tester.pump();
+    expect(find.text('Assign a bag'), findsOneWidget);
+    await tester.runAsync(() => cubit.assignBag(order, 'BAG-1'));
+    await tester.pump();
+    await tester.tap(find.text('Dispatch order'));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 100)),
+    );
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('Order #NM-20260922-2'), findsOneWidget);
     expect(find.text('1 order waiting'), findsOneWidget);
     await disposeApp(tester);
@@ -397,7 +471,7 @@ void main() {
     repo.failAcceptOnce.add(1);
     await pumpApp(tester);
 
-    await tester.tap(find.text('Accept and prepare order'));
+    await tester.tap(find.text('Accept order'));
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 100)),
     );
@@ -412,8 +486,9 @@ void main() {
       () => Future<void>.delayed(const Duration(milliseconds: 100)),
     );
     await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('Retry accept'), findsNothing);
-    expect(find.text('Accept and prepare order'), findsNothing);
+    expect(find.text('Accept order'), findsNothing);
     await disposeApp(tester);
   });
 
@@ -422,10 +497,10 @@ void main() {
     await pumpApp(tester);
     repo.acceptGate = Completer();
 
-    await tester.tap(find.text('Accept and prepare order'));
+    await tester.tap(find.text('Accept order'));
     await tester.pump();
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    expect(find.text('Accept and prepare order'), findsNothing);
+    expect(find.text('Accept order'), findsNothing);
 
     repo.acceptGate!.complete();
     await tester.runAsync(
@@ -452,7 +527,7 @@ void main() {
 
   testWidgets('new order is picked up by the next poll', (tester) async {
     await pumpApp(tester);
-    expect(find.text('Accept and prepare order'), findsNothing);
+    expect(find.text('Accept order'), findsNothing);
 
     repo.server[OrderMode.wholesale] = [_order(9, mode: 'wholesale')];
     await tester.pump(const Duration(seconds: 5));
@@ -478,8 +553,434 @@ void main() {
       repo.server[OrderMode.wholesale] = [_order(2, mode: 'wholesale')];
       await pumpApp(tester, size: size, textScale: scale);
       expect(tester.takeException(), isNull);
-      expect(find.text('Accept and prepare order'), findsOneWidget);
+      expect(find.text('Accept order'), findsOneWidget);
       await disposeApp(tester);
     });
   }
+  Future<void> settleScan(WidgetTester tester) async {
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+  }
+
+  Future<void> startScan(
+    WidgetTester tester, {
+    List<int> ids = const [11, 12],
+    Size size = const Size(412, 915),
+    double scale = 1,
+  }) async {
+    repo.server[OrderMode.regular] = [_order(1, itemIds: ids)];
+    await pumpApp(tester, size: size, textScale: scale);
+    await tester.tap(find.text('Accept order'));
+    await settleScan(tester);
+    expect(find.text('Scan items'), findsOneWidget);
+    expect(find.text('1 / ${ids.length}'), findsOneWidget);
+    expect(find.text('0 of ${ids.length} verified'), findsOneWidget);
+  }
+
+  /// Switches to typing (if needed) and checks [code].
+  Future<void> manual(WidgetTester tester, String code) async {
+    final keyboard = find.byTooltip('Enter code manually');
+    if (keyboard.evaluate().isNotEmpty) {
+      await tester.tap(keyboard);
+      await tester.pump();
+    }
+    await tester.enterText(find.byType(TextField), code);
+    await tester.tap(find.text('Check code'));
+    await tester.pump();
+  }
+
+  Future<void> detect(WidgetTester tester, String code) async {
+    await tester.tap(find.text('Detect $code'));
+    await settleScan(tester);
+  }
+
+  /// Counts the rest of the scanned product with + (test orders have 3 of
+  /// each, and the scan counted one).
+  Future<void> countRest(WidgetTester tester) async {
+    for (var i = 0; i < 2; i++) {
+      await tester.ensureVisible(find.byTooltip('Increase'));
+      await tester.tap(find.byTooltip('Increase'));
+      await tester.pump();
+    }
+    await settleScan(tester);
+  }
+
+  String qty(WidgetTester tester, int itemId) =>
+      tester.widget<Text>(find.byKey(ValueKey('qty-$itemId'))).data!;
+
+  testWidgets(
+    'missing backend barcode shows an error without a dummy fallback',
+    (tester) async {
+      final json = _order(1);
+      (json['items'] as List).first
+        ..remove('barcode')
+        ..['status'] = 'accepted';
+      repo.server[OrderMode.regular] = [json];
+      await pumpApp(tester);
+      await settleScan(tester);
+      expect(
+        find.text('Barcode missing for Product 1. Contact support.'),
+        findsOneWidget,
+      );
+      expect(find.text('A1'), findsNothing);
+      expect(find.text('Assign a bag'), findsNothing);
+      expect(find.text('Dispatch order'), findsNothing);
+      await manual(tester, 'A1');
+      expect(
+        find.text(
+          "This barcode isn't in this order. Check the product and try again.",
+        ),
+        findsOneWidget,
+      );
+      expect(cubit.state.verifiedItemIds, isEmpty);
+      expect(repo.calls, isEmpty);
+      await disposeApp(tester);
+    },
+  );
+
+  testWidgets('real expected barcode is hidden but manual verification works', (
+    tester,
+  ) async {
+    final json = _order(1);
+    (json['items'] as List).first
+      ..['barcode'] = '8901234500021'
+      ..['status'] = 'accepted';
+    repo.server[OrderMode.regular] = [json];
+    await pumpApp(tester);
+    await settleScan(tester);
+    expect(find.textContaining('8901234500021'), findsNothing);
+    expect(find.text('Accept order'), findsNothing);
+    await manual(tester, '8901234500021');
+    await countRest(tester);
+    expect(find.text('Assign a bag'), findsOneWidget);
+    expect(find.text('Put all items in a bag'), findsOneWidget);
+    expect(find.text('Scan bag'), findsOneWidget);
+    expect(cubit.state.verifiedBarcodes, {1: '8901234500021'});
+    expect(find.textContaining('8901234500021'), findsNothing);
+    await disposeApp(tester);
+  });
+
+  testWidgets(
+    'quantity is asked after the scan, then the next product slides in',
+    (tester) async {
+      await startScan(tester);
+      expect(find.text('Product 11'), findsOneWidget);
+      expect(
+        find.text('Scan the barcode, then add the quantity.'),
+        findsOneWidget,
+      );
+      expect(find.text('Ordered 3'), findsOneWidget);
+      expect(find.byTooltip('Increase'), findsNothing);
+
+      // The scan counts one unit; the rest is asked for.
+      await detect(tester, 'A1');
+      expect(qty(tester, 11), '1');
+      expect(find.text('Add quantity'), findsOneWidget);
+      expect(find.text('1 of 3 counted'), findsOneWidget);
+      expect(cubit.state.verifiedItemIds, isEmpty);
+
+      // The camera still sees A1: not counted twice.
+      await detect(tester, 'A1');
+      expect(qty(tester, 11), '1');
+      expect(find.textContaining('already verified'), findsNothing);
+
+      await tester.tap(find.byTooltip('Increase'));
+      await tester.pump();
+      expect(qty(tester, 11), '2');
+      await tester.tap(find.byTooltip('Decrease'));
+      await tester.pump();
+      expect(qty(tester, 11), '1');
+      await countRest(tester);
+      expect(cubit.state.verifiedItemIds, {11});
+      expect(find.text('Product 11 verified'), findsOneWidget);
+      expect(find.text('1 of 2 verified'), findsOneWidget);
+      // Slid to the next product without any confirm tap.
+      expect(find.text('2 / 2'), findsOneWidget);
+      expect(find.text('Product 12'), findsOneWidget);
+
+      await detect(tester, 'ZZ9');
+      expect(
+        find.text(
+          "This barcode isn't in this order. Check the product and try again.",
+        ),
+        findsOneWidget,
+      );
+
+      await detect(tester, 'A2');
+      await countRest(tester);
+      expect(cubit.state.verifiedItemIds, {11, 12});
+      expect(find.text('Assign a bag'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await disposeApp(tester);
+    },
+  );
+
+  testWidgets('a product ordered once is verified by its scan alone', (
+    tester,
+  ) async {
+    repo.server[OrderMode.regular] = [
+      orderJson(1, itemIds: [11, 12], quantities: {11: 1}, image: null),
+    ];
+    await pumpApp(tester);
+    await tester.tap(find.text('Accept order'));
+    await settleScan(tester);
+    await detect(tester, 'A1');
+    expect(cubit.state.verifiedItemIds, {11});
+    expect(find.text('2 / 2'), findsOneWidget);
+    await disposeApp(tester);
+  });
+
+  testWidgets('items can be scanned in any order; swiping shows them', (
+    tester,
+  ) async {
+    await startScan(tester);
+    await detect(tester, 'A2');
+    await countRest(tester);
+    expect(cubit.state.verifiedItemIds, {12});
+    // Product 11 is the one left, and it's already on screen.
+    expect(find.text('1 / 2'), findsOneWidget);
+    expect(find.text('Product 11'), findsOneWidget);
+
+    await tester.drag(find.text('Product 11'), const Offset(-400, 0));
+    await settleScan(tester);
+    expect(find.text('2 / 2'), findsOneWidget);
+    expect(find.text('Verified'), findsOneWidget);
+    expect(find.text('3/3'), findsOneWidget);
+
+    await manual(tester, 'A2');
+    expect(
+      find.text('Product 12 is already verified. Scan the next item.'),
+      findsOneWidget,
+    );
+    await disposeApp(tester);
+  });
+
+  testWidgets('manual wrong and empty codes; editing clears errors', (
+    tester,
+  ) async {
+    await startScan(tester);
+    await manual(tester, '');
+    expect(find.text('Enter a barcode'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'ZZ9');
+    await tester.pump();
+    expect(find.text('Enter a barcode'), findsNothing);
+    await tester.tap(find.text('Check code'));
+    await tester.pump();
+    expect(
+      find.text(
+        "This barcode isn't in this order. Check the product and try again.",
+      ),
+      findsOneWidget,
+    );
+    expect(cubit.state.verifiedItemIds, isEmpty);
+    await tester.tap(find.text('Scan instead'));
+    await tester.pump();
+    expect(find.text('Detect A1'), findsOneWidget);
+    await disposeApp(tester);
+  });
+
+  testWidgets(
+    'all verified: preparing spinner, retry and next incoming order',
+    (tester) async {
+      await startScan(tester, ids: [11]);
+      repo.server[OrderMode.regular]!.add(_order(2, itemIds: [22]));
+      await cubit.fetch();
+      await manual(tester, 'A1');
+      await countRest(tester);
+      expect(find.text('Dispatch order'), findsNothing);
+      // Packing first; the bag code can then be typed too.
+      expect(find.text('Put all items in a bag'), findsOneWidget);
+      await tester.tap(find.byTooltip('Enter code manually'));
+      await tester.pump();
+      await tester.enterText(find.byType(TextField), 'BAG-1');
+      await tester.tap(find.text('Assign bag'));
+      await settleScan(tester);
+      expect(find.text('Dispatch order'), findsOneWidget);
+      expect(find.byTooltip('Enter code manually'), findsNothing);
+      repo.failPreparingOnce.add(11);
+      await tester.tap(find.text('Dispatch order'));
+      await tester.pump();
+      expect(
+        find.textContaining("Couldn't dispatch the order."),
+        findsOneWidget,
+      );
+      expect(find.text('Retry dispatch'), findsOneWidget);
+      repo.preparingGate = Completer<void>();
+      await tester.tap(find.text('Retry dispatch'));
+      await tester.pump();
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      repo.preparingGate!.complete();
+      await settleScan(tester);
+      expect(find.text('Order #NM-20260922-2'), findsOneWidget);
+      await disposeApp(tester);
+    },
+  );
+  testWidgets('back and backgrounding preserve scan progress', (tester) async {
+    await startScan(tester);
+    final item = cubit.state.orders.first.items.first;
+    confirmScannedQuantity(item, 3);
+    await tester.pump();
+    expect(await tester.binding.handlePopRoute(), isTrue);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(find.text('1 of 2 verified'), findsOneWidget);
+    await disposeApp(tester);
+  });
+  for (final size in [
+    const Size(320, 568),
+    const Size(360, 640),
+    const Size(412, 915),
+  ]) {
+    testWidgets('scan page, keyboard and quantity fit $size', (tester) async {
+      await startScan(
+        tester,
+        ids: List.generate(10, (i) => i + 1),
+        size: size,
+        scale: 1.3,
+      );
+      expect(tester.takeException(), isNull);
+      final prompt = find.text('Scan the barcode, then add the quantity.');
+      // Only the tiniest phone needs to scroll down to it.
+      if (size.height < 600) await tester.ensureVisible(prompt);
+      expect(prompt.hitTestable(), findsOneWidget);
+      await tester.tap(find.byTooltip('Enter code manually'));
+      tester.view.viewInsets = const FakeViewPadding(bottom: 600);
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      await tester.enterText(find.byType(TextField), 'A1');
+      await tester.tap(find.text('Check code'));
+      await settleScan(tester);
+      expect(tester.takeException(), isNull);
+      expect(find.text('Check code').hitTestable(), findsOneWidget);
+      // The keyboard closes so the quantity can be added.
+      expect(
+        FocusManager.instance.primaryFocus?.context?.widget,
+        isNot(isA<EditableText>()),
+      );
+      tester.view.resetViewInsets();
+      await tester.pump();
+      await countRest(tester);
+      expect(tester.takeException(), isNull);
+      expect(cubit.state.verifiedItemIds, {1});
+      await disposeApp(tester);
+    });
+  }
+
+  Future<void> verifyOnlyItem(WidgetTester tester) async {
+    await startScan(tester, ids: [11]);
+    await detect(tester, 'A1');
+    await countRest(tester);
+  }
+
+  testWidgets('a scanned bag is assigned straight away and unlocks dispatch', (
+    tester,
+  ) async {
+    await verifyOnlyItem(tester);
+    expect(find.text('Assign a bag'), findsOneWidget);
+    // A packing step comes before the bag scanner.
+    expect(find.text('Put all items in a bag'), findsOneWidget);
+    expect(find.text('Detect A2'), findsNothing);
+    expect(repo.bagCountCalls, 1);
+
+    await tester.tap(find.text('Scan bag'));
+    await tester.pump();
+    expect(
+      find.text('No bag assigned yet. Scan a bag for this order.'),
+      findsOneWidget,
+    );
+    expect(repo.bagCalls, isEmpty);
+
+    await detect(tester, 'A2');
+    expect(repo.bagCalls, ['1 A2']);
+    expect(find.text('Ready to dispatch'), findsOneWidget);
+    expect(find.text('A2'), findsOneWidget);
+    expect(find.text('Assigned'), findsOneWidget);
+    expect(find.text('Detect A2'), findsNothing);
+
+    await tester.tap(find.text('Dispatch order'));
+    await settleScan(tester);
+    expect(cubit.state.hasPending, isFalse);
+    expect(find.text('Home screen'), findsOneWidget);
+    await disposeApp(tester);
+  });
+
+  testWidgets('a rejected bag shows the server message and can be retyped', (
+    tester,
+  ) async {
+    await verifyOnlyItem(tester);
+    repo.assignBagError = ApiException(
+      'The bag is not available in your bag pool.',
+      statusCode: 422,
+    );
+    await tester.tap(find.byTooltip('Enter code manually'));
+    await tester.pump();
+    await tester.tap(find.text('Assign bag'));
+    await tester.pump();
+    expect(find.text('Enter the bag barcode'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'BAG-USED');
+    await tester.tap(find.text('Assign bag'));
+    await settleScan(tester);
+    expect(
+      find.text('The bag is not available in your bag pool.'),
+      findsOneWidget,
+    );
+    expect(find.text('Dispatch order'), findsNothing);
+
+    repo.assignBagError = null;
+    await tester.enterText(find.byType(TextField), 'BAG-OK');
+    await tester.tap(find.text('Assign bag'));
+    await settleScan(tester);
+    expect(repo.bagCalls, ['1 BAG-OK']);
+    expect(find.text('Dispatch order'), findsOneWidget);
+    await disposeApp(tester);
+  });
+
+  testWidgets('no available bags sends the seller to add bags, then resumes', (
+    tester,
+  ) async {
+    repo.availableBags = 0;
+    final inventoryClosed = Completer<void>();
+    var opened = 0;
+    repo.server[OrderMode.regular] = [
+      _order(1, itemIds: [11]),
+    ];
+    await pumpApp(
+      tester,
+      openBagInventory: () {
+        opened++;
+        return inventoryClosed.future;
+      },
+    );
+    await tester.tap(find.text('Accept order'));
+    await settleScan(tester);
+    await detect(tester, 'A1');
+    await countRest(tester);
+
+    expect(
+      find.textContaining("You don't have any available bags."),
+      findsOneWidget,
+    );
+    expect(find.byTooltip('Enter code manually'), findsNothing);
+    await tester.tap(find.text('Add bags'));
+    await settleScan(tester);
+
+    // The popup steps aside so Bag inventory can be used, Back included.
+    expect(opened, 1);
+    expect(cubit.state.isManagingBags, isTrue);
+    expect(find.text('Assign a bag'), findsNothing);
+    final controller = tester.state(find.byType(IncomingOrdersController));
+    expect(await (controller as WidgetsBindingObserver).didPopRoute(), isFalse);
+
+    repo.availableBags = 3;
+    inventoryClosed.complete();
+    await settleScan(tester);
+    await settleScan(tester);
+    expect(cubit.state.isManagingBags, isFalse);
+    expect(find.text('Assign a bag'), findsOneWidget);
+    expect(find.text('Scan bag'), findsOneWidget);
+    expect(cubit.state.verifiedItemIds, {11});
+    await disposeApp(tester);
+  });
 }

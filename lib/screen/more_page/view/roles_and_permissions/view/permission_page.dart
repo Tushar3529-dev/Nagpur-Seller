@@ -144,6 +144,7 @@ class PermissionPage extends StatelessWidget {
         grouped.withdrawal,
         grouped.earning,
         grouped.order,
+        grouped.bag,
         grouped.returns,
         grouped.category,
         grouped.brand,

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hyper_local_seller/config/api_routes.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/model/pending_order_model.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/repo/pending_orders_repo.dart';
+import 'package:hyper_local_seller/service/api_base_helper.dart';
 
 import 'helpers.dart';
 
@@ -13,6 +14,7 @@ import 'helpers.dart';
 void main() {
   late HttpServer server;
   late List<HttpRequest> requests;
+  late List<String> requestBodies;
   late Map<String, dynamic> Function(HttpRequest) respond;
   late int Function(HttpRequest) statusFor;
 
@@ -22,12 +24,13 @@ void main() {
 
   setUp(() async {
     requests = [];
+    requestBodies = [];
     statusFor = (_) => 200;
     respond = (_) => listResponse([]);
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     server.listen((request) async {
       requests.add(request);
-      await request.drain<void>();
+      requestBodies.add(await utf8.decoder.bind(request).join());
       request.response
         ..statusCode = statusFor(request)
         ..headers.contentType = ContentType.json
@@ -37,6 +40,7 @@ void main() {
     final base = 'http://${server.address.host}:${server.port}/api/seller';
     ApiRoutes.ordersApi = '$base/orders';
     ApiRoutes.pendingRegularOrdersApi = '$base/orders/pending-regular';
+    ApiRoutes.bagsApi = '$base/bags';
   });
 
   tearDown(() => server.close(force: true));
@@ -263,12 +267,159 @@ void main() {
     });
   });
 
+  test(
+    'acceptOrder posts one idempotent order request and preserves supplied codes',
+    () async {
+      respond = (_) => {'success': true};
+      final order = PendingOrder.fromJson(
+        orderJson(1, itemIds: [11, 12, 13], barcodes: {12: 'REAL'}),
+      );
+      final completed = <int>[];
+      final accepted = await PendingOrdersRepo().acceptOrder(
+        order,
+        skipItemIds: {11},
+        onItemAccepted: completed.add,
+      );
+      expect(requests.map((r) => '${r.method} ${r.uri.path}'), [
+        'POST /api/seller/orders/1/accept-items',
+      ]);
+      expect(completed, [11, 12, 13]);
+      expect(accepted.items.map((i) => i.barcode), ['A1', 'REAL', 'A3']);
+    },
+  );
+  test('markOrderPreparing sends the full verified order atomically', () async {
+    respond = (_) => {'success': true};
+    final order = PendingOrder.fromJson(orderJson(1, itemIds: [11, 12, 13]));
+    final completed = <int>[];
+    await PendingOrdersRepo().markOrderPreparing(
+      order,
+      skipItemIds: {12},
+      verifiedBarcodes: {11: 'A1', 12: 'A2', 13: 'A3'},
+      onItemDone: completed.add,
+    );
+    expect(requests.map((r) => '${r.method} ${r.uri.path}'), [
+      'POST /api/seller/orders/1/verify-and-prepare',
+    ]);
+    expect(completed, [11, 12, 13]);
+    expect(jsonDecode(requestBodies.single), {
+      'items': [
+        {'order_item_id': 11, 'barcode': 'A1', 'quantity': 3},
+        {'order_item_id': 12, 'barcode': 'A2', 'quantity': 3},
+        {'order_item_id': 13, 'barcode': 'A3', 'quantity': 3},
+      ],
+    });
+  });
+  test('itemStatuses reads nested ids and lowercases statuses', () async {
+    respond = (_) => {
+      'success': true,
+      'data': {
+        'items': [
+          {
+            'id': 91,
+            'orderItem': {'id': 11, 'status': 'ACCEPTED'},
+          },
+          {
+            'id': 12,
+            'orderItem': {'status': 'Preparing'},
+          },
+        ],
+      },
+    };
+    expect(await PendingOrdersRepo().itemStatuses(1), {
+      11: 'accepted',
+      12: 'preparing',
+    });
+    expect(requests.single.uri.path, '/api/seller/orders/1');
+  });
+
+  test('missing pending barcode is not replaced with a dummy code', () async {
+    final json = orderJson(1);
+    (json['items'] as List).first.remove('barcode');
+    respond = (_) => listResponse([json]);
+    final order = (await PendingOrdersRepo().getPendingOrders(
+      OrderMode.regular,
+    )).single;
+    expect(order.items.single.barcode, isNull);
+    final count = requests.length;
+    await expectLater(
+      PendingOrdersRepo().markOrderPreparing(
+        order,
+        verifiedBarcodes: {1: 'A1'},
+      ),
+      throwsA(
+        isA<ApiException>().having(
+          (e) => e.message,
+          'message',
+          contains('Barcode missing'),
+        ),
+      ),
+    );
+    expect(requests.length, count, reason: 'missing data must block preparing');
+  });
+
+  test(
+    'verify-and-prepare retains structured 422 errors and is atomic',
+    () async {
+      statusFor = (_) => 422;
+      final errors = [
+        {
+          'order_item_id': 11,
+          'field': 'barcode',
+          'message': 'Incorrect barcode.',
+        },
+      ];
+      respond = (_) => {
+        'success': false,
+        'message': 'Verification failed.',
+        'data': {'errors': errors},
+      };
+      final order = PendingOrder.fromJson(
+        orderJson(1, itemIds: [11], barcodes: {11: '8901234500021'}),
+      );
+      final completed = <int>[];
+      await expectLater(
+        PendingOrdersRepo().markOrderPreparing(
+          order,
+          verifiedBarcodes: {11: '8901234500021'},
+          onItemDone: completed.add,
+        ),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.statusCode, 'status', 422)
+              .having(
+                (e) => e.responseData?['data']['errors'],
+                'errors',
+                errors,
+              ),
+        ),
+      );
+      expect(completed, isEmpty);
+      expect(requests, hasLength(1));
+      expect(
+        requests.single.uri.path,
+        '/api/seller/orders/1/verify-and-prepare',
+      );
+    },
+  );
+
+  test('itemStatuses also reads direct status fields', () async {
+    respond = (_) => {
+      'success': true,
+      'data': {
+        'items': [
+          {'id': 11, 'status': 'Preparing'},
+        ],
+      },
+    };
+    expect(await PendingOrdersRepo().itemStatuses(1), {11: 'preparing'});
+  });
+
   group('accept + preparing', () {
     test('POST to the documented paths with auth', () async {
       respond = (_) => {'success': true, 'message': 'ok'};
       final repo = PendingOrdersRepo();
       await repo.acceptItem(789);
-      await repo.markItemPreparing(789);
+      await repo.markItemPreparing(789, barcode: '8901234500021', quantity: 2);
 
       expect(requests.map((r) => '${r.method} ${r.uri.path}'), [
         'POST /api/seller/orders/789/accept',
@@ -289,6 +440,111 @@ void main() {
           predicate((e) => e.toString().contains('Order already cancelled')),
         ),
       );
+    });
+  });
+
+  group('bags', () {
+    test('pending orders read an assigned bag for resuming', () async {
+      respond = (_) => listResponse([
+        {
+          ...orderJson(1),
+          'bag': {
+            'id': 33,
+            'barcode': 'BAG-000033',
+            'assigned_at': '2026-10-01T10:15:00.000000Z',
+          },
+        },
+        {...orderJson(2), 'bag': null},
+      ]);
+      final orders = await PendingOrdersRepo().getPendingOrders(
+        OrderMode.regular,
+      );
+      expect(orders.first.bag?.barcode, 'BAG-000033');
+      expect(orders.first.bag?.id, 33);
+      expect(orders.last.bag, isNull);
+      expect(PendingOrder.fromJson(orders.first.toJson()).bag?.id, 33);
+    });
+
+    test('assignBag posts the trimmed barcode to the order', () async {
+      respond = (_) => {
+        'success': true,
+        'message': 'Bag assigned to order successfully.',
+        'data': {
+          'seller_order_id': 701,
+          'bag': {
+            'id': 33,
+            'barcode': 'BAG-000033',
+            'assigned_at': '2026-10-01T10:15:00.000000Z',
+          },
+        },
+      };
+      final order = PendingOrder.fromJson(orderJson(701));
+      final bag = await PendingOrdersRepo().assignBag(order, ' BAG-000033 ');
+
+      final req = requests.single;
+      expect(req.method, 'POST');
+      expect(req.uri.path, '/api/seller/orders/701/assign-bag');
+      expect(req.headers.value('authorization'), 'Bearer seller-token-123');
+      expect(jsonDecode(requestBodies.single), {'barcode': 'BAG-000033'});
+      expect(bag.barcode, 'BAG-000033');
+    });
+
+    test('an unavailable bag surfaces the server message', () async {
+      statusFor = (_) => 422;
+      respond = (_) => {
+        'success': false,
+        'message': 'The bag is not available in your bag pool.',
+      };
+      await expectLater(
+        PendingOrdersRepo().assignBag(
+          PendingOrder.fromJson(orderJson(701)),
+          'BAG-X',
+        ),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.message,
+            'message',
+            'The bag is not available in your bag pool.',
+          ),
+        ),
+      );
+    });
+
+    test('a missing bag on dispatch keeps bag_required in the error', () async {
+      statusFor = (_) => 422;
+      respond = (_) => {
+        'success': false,
+        'message': 'Assign a bag before dispatch.',
+        'bag_required': true,
+      };
+      final order = PendingOrder.fromJson(orderJson(1));
+      await expectLater(
+        PendingOrdersRepo().markOrderPreparing(
+          order,
+          verifiedBarcodes: {1: 'A1'},
+        ),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.responseData?['bag_required'],
+            'bag_required',
+            isTrue,
+          ),
+        ),
+      );
+    });
+
+    test('availableBagCount asks for available bags only', () async {
+      respond = (_) => {
+        'success': true,
+        'message': 'Bags fetched successfully.',
+        'data': {'current_page': 1, 'last_page': 4, 'total': 4, 'items': []},
+      };
+      expect(await PendingOrdersRepo().availableBagCount(), 4);
+      expect(requests.single.uri.path, '/api/seller/bags');
+      expect(requests.single.uri.queryParameters, {
+        'status': 'available',
+        'per_page': '1',
+      });
     });
   });
 }

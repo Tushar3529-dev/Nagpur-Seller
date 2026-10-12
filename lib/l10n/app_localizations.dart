@@ -508,6 +508,18 @@ abstract class AppLocalizations {
   /// **'RECOMMENDED'**
   String get badgeRecommended;
 
+  /// No description provided for @bagInventory.
+  ///
+  /// In en, this message translates to:
+  /// **'Bag Inventory'**
+  String get bagInventory;
+
+  /// No description provided for @bagInventorySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Track and manage bag stock'**
+  String get bagInventorySubtitle;
+
   /// No description provided for @balance.
   ///
   /// In en, this message translates to:
@@ -543,6 +555,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Barcode'**
   String get barcode;
+
+  /// No description provided for @scan.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan'**
+  String get scan;
 
   /// No description provided for @barcodeRequired.
   ///
@@ -4177,13 +4195,13 @@ abstract class AppLocalizations {
   /// No description provided for @specialPriceGreaterError.
   ///
   /// In en, this message translates to:
-  /// **'Special price cannot be greater than regular price for store: {store}'**
+  /// **'Special price must be lower than regular price for store: {store}'**
   String specialPriceGreaterError(Object store);
 
   /// No description provided for @specialPriceGreaterErrorVariant.
   ///
   /// In en, this message translates to:
-  /// **'Special price cannot be greater than regular price for store {store} (Variant: {variant})'**
+  /// **'Special price must be lower than regular price for store {store} (Variant: {variant})'**
   String specialPriceGreaterErrorVariant(Object store, Object variant);
 
   /// No description provided for @specificationsLabel.
@@ -5241,6 +5259,198 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You have not made any withdrawal requests yet.'**
   String get noWithdrawHistoryMessage;
+
+  /// No description provided for @packageContents.
+  ///
+  /// In en, this message translates to:
+  /// **'Package contents'**
+  String get packageContents;
+
+  /// No description provided for @packageContentsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'What the buyer receives, e.g. 500 g, 1 L, 5 pcs. Shipping weight is entered separately.'**
+  String get packageContentsHint;
+
+  /// No description provided for @netQuantity.
+  ///
+  /// In en, this message translates to:
+  /// **'Net quantity'**
+  String get netQuantity;
+
+  /// No description provided for @packageUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'Unit'**
+  String get packageUnit;
+
+  /// No description provided for @packageUnitHint.
+  ///
+  /// In en, this message translates to:
+  /// **'g, kg, ml, L, pcs…'**
+  String get packageUnitHint;
+
+  /// No description provided for @innerUnitCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Inner units'**
+  String get innerUnitCount;
+
+  /// No description provided for @innerUnitCountHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. 2'**
+  String get innerUnitCountHint;
+
+  /// No description provided for @innerUnitType.
+  ///
+  /// In en, this message translates to:
+  /// **'Inner unit type'**
+  String get innerUnitType;
+
+  /// No description provided for @innerUnitTypeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'packet, bottle, sachet'**
+  String get innerUnitTypeHint;
+
+  /// No description provided for @innerUnitsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Only for multipacks. Net quantity is then the contents of one inner unit.'**
+  String get innerUnitsHelp;
+
+  /// No description provided for @packageFromAttribute.
+  ///
+  /// In en, this message translates to:
+  /// **'Package size (from attributes)'**
+  String get packageFromAttribute;
+
+  /// No description provided for @packageAttributeMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'No package size found. Use a Size, Weight, Volume, Quantity or Pack attribute with a value like \"500 g\" to enable unit pricing.'**
+  String get packageAttributeMissing;
+
+  /// No description provided for @unitPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Unit price'**
+  String get unitPrice;
+
+  /// No description provided for @unitPricePer.
+  ///
+  /// In en, this message translates to:
+  /// **'per'**
+  String get unitPricePer;
+
+  /// No description provided for @unitPriceNeedsPackage.
+  ///
+  /// In en, this message translates to:
+  /// **'Add package contents in the Product Variation step to see unit price.'**
+  String get unitPriceNeedsPackage;
+
+  /// No description provided for @unitPriceNotComparable.
+  ///
+  /// In en, this message translates to:
+  /// **'{packageUnit} can\'t be compared with {basisUnit}.'**
+  String unitPriceNotComparable(String packageUnit, String basisUnit);
+
+  /// No description provided for @useDefaultBasis.
+  ///
+  /// In en, this message translates to:
+  /// **'Use {basis}'**
+  String useDefaultBasis(String basis);
+
+  /// No description provided for @unitPriceEditsSpecial.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing unit price updates the special price.'**
+  String get unitPriceEditsSpecial;
+
+  /// No description provided for @unitPriceEditsRegular.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing unit price updates the price.'**
+  String get unitPriceEditsRegular;
+
+  /// No description provided for @wholesalePrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Wholesale Price'**
+  String get wholesalePrice;
+
+  /// No description provided for @taxInclusivePrices.
+  ///
+  /// In en, this message translates to:
+  /// **'Prices include tax'**
+  String get taxInclusivePrices;
+
+  /// No description provided for @netQuantityUnitRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a unit for the net quantity'**
+  String get netQuantityUnitRequired;
+
+  /// No description provided for @netQuantityInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Net quantity must be at least 0.001'**
+  String get netQuantityInvalid;
+
+  /// No description provided for @unitCountPairRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter both inner units and inner unit type'**
+  String get unitCountPairRequired;
+
+  /// No description provided for @unitCountInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Inner units must be a whole number above 0'**
+  String get unitCountInvalid;
+
+  /// No description provided for @unitTooLong.
+  ///
+  /// In en, this message translates to:
+  /// **'Units can be at most 30 characters'**
+  String get unitTooLong;
+
+  /// No description provided for @unitPriceBasisInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Unit price basis for {store} needs an amount above 0 and a unit'**
+  String unitPriceBasisInvalid(String store);
+
+  /// No description provided for @specialPriceMustBeLower.
+  ///
+  /// In en, this message translates to:
+  /// **'Special price must be lower than price'**
+  String get specialPriceMustBeLower;
+
+  /// No description provided for @productCategoryAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get productCategoryAll;
+
+  /// No description provided for @productCategoryOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get productCategoryOther;
+
+  /// No description provided for @productSubcategoryCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 subcategory} other{{count} subcategories}}'**
+  String productSubcategoryCount(int count);
+
+  /// No description provided for @productCategoryProductCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 product} other{{count} products}}'**
+  String productCategoryProductCount(int count);
 }
 
 class _AppLocalizationsDelegate

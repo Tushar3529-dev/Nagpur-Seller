@@ -34,6 +34,9 @@ class PendingOrder extends Equatable {
 
   /// Delivery date and slot as the backend formats it, e.g. "22 Sep 21:00 - 22:00".
   final String? delivery;
+
+  /// Bag assigned to this order before dispatch, or null when none yet.
+  final AssignedBag? bag;
   final List<PendingOrderItem> items;
 
   const PendingOrder({
@@ -48,6 +51,7 @@ class PendingOrder extends Equatable {
     required this.paymentMethod,
     required this.total,
     required this.delivery,
+    this.bag,
     required this.items,
   });
 
@@ -74,6 +78,9 @@ class PendingOrder extends Equatable {
       paymentMethod: json['payment_method']?.toString() ?? '',
       total: json['total']?.toString() ?? '0',
       delivery: _nonEmpty(json['delivery'] ?? json['delivery_slot']),
+      bag: json['bag'] is Map<String, dynamic>
+          ? AssignedBag.fromJson(json['bag'] as Map<String, dynamic>)
+          : null,
       items: rawItems
           .whereType<Map<String, dynamic>>()
           .map(PendingOrderItem.fromJson)
@@ -83,9 +90,40 @@ class PendingOrder extends Equatable {
 
   bool get isWholesale => mode == OrderMode.wholesale;
 
+  bool get needsAcceptance =>
+      items.any((item) => item.status == 'awaiting_store_response');
+
+  bool get isAcceptedOnServer =>
+      items.isNotEmpty &&
+      !needsAcceptance &&
+      items.any((item) => item.status == 'accepted');
+
   int get itemCount => items.fold(0, (sum, item) => sum + item.quantity);
 
-  PendingOrder copyWith({List<PendingOrderItem>? items}) {
+  Map<String, dynamic> toJson() => {
+    'seller_order_id': sellerOrderId,
+    'order_id': orderId,
+    'order_number': orderNumber,
+    'order_mode': mode.name,
+    'created_at': createdAt?.toIso8601String(),
+    'customer': {
+      'name': customerName,
+      'phone': customerPhone,
+      'address': customerAddress,
+    },
+    'payment_method': paymentMethod,
+    'total': total,
+    'delivery': delivery,
+    'bag': bag?.toJson(),
+    'items': [for (final item in items) item.toJson()],
+  };
+
+  /// [clearBag] drops the bag; otherwise a null [bag] keeps the current one.
+  PendingOrder copyWith({
+    List<PendingOrderItem>? items,
+    AssignedBag? bag,
+    bool clearBag = false,
+  }) {
     return PendingOrder(
       sellerOrderId: sellerOrderId,
       orderId: orderId,
@@ -98,6 +136,7 @@ class PendingOrder extends Equatable {
       paymentMethod: paymentMethod,
       total: total,
       delivery: delivery,
+      bag: clearBag ? null : (bag ?? this.bag),
       items: items ?? this.items,
     );
   }
@@ -110,8 +149,33 @@ class PendingOrder extends Equatable {
     createdAt,
     total,
     delivery,
+    bag,
     items,
   ];
+}
+
+/// A bag from the seller's inventory, assigned to one seller order.
+class AssignedBag extends Equatable {
+  final int id;
+  final String barcode;
+  final DateTime? assignedAt;
+
+  const AssignedBag({required this.id, required this.barcode, this.assignedAt});
+
+  factory AssignedBag.fromJson(Map<String, dynamic> json) => AssignedBag(
+    id: _toInt(json['id']),
+    barcode: json['barcode']?.toString() ?? '',
+    assignedAt: DateTime.tryParse(json['assigned_at']?.toString() ?? ''),
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'barcode': barcode,
+    'assigned_at': assignedAt?.toIso8601String(),
+  };
+
+  @override
+  List<Object?> get props => [id, barcode, assignedAt];
 }
 
 class PendingOrderItem extends Equatable {
@@ -122,6 +186,15 @@ class PendingOrderItem extends Equatable {
   final int quantity;
   final String subtotal;
 
+  /// Code the seller must scan to verify this item before preparing.
+  final String? barcode;
+  final String status;
+  final String? sku;
+  final String? variantWeight;
+  final String? variantDimensions;
+
+  bool get hasBarcode => barcode?.trim().isNotEmpty ?? false;
+
   const PendingOrderItem({
     required this.orderItemId,
     required this.product,
@@ -129,6 +202,11 @@ class PendingOrderItem extends Equatable {
     required this.image,
     required this.quantity,
     required this.subtotal,
+    this.barcode,
+    this.status = 'awaiting_store_response',
+    this.sku,
+    this.variantWeight,
+    this.variantDimensions,
   });
 
   factory PendingOrderItem.fromJson(Map<String, dynamic> json) {
@@ -139,10 +217,30 @@ class PendingOrderItem extends Equatable {
       image: _imageFrom(json),
       quantity: _toInt(json['quantity'], fallback: 1),
       subtotal: json['subtotal']?.toString() ?? '0',
+      barcode: _nonEmpty(json['barcode']),
+      status: (_nonEmpty(json['status']) ?? 'awaiting_store_response')
+          .toLowerCase(),
+      sku: _nonEmpty(json['sku']),
+      variantWeight: _nonEmpty(json['variant_weight']),
+      variantDimensions: _nonEmpty(json['variant_dimensions']),
     );
   }
 
-  PendingOrderItem copyWith({String? image}) {
+  Map<String, dynamic> toJson() => {
+    'order_item_id': orderItemId,
+    'product': product,
+    'variant': variant,
+    'image': image,
+    'quantity': quantity,
+    'subtotal': subtotal,
+    'barcode': barcode,
+    'status': status,
+    'sku': sku,
+    'variant_weight': variantWeight,
+    'variant_dimensions': variantDimensions,
+  };
+
+  PendingOrderItem copyWith({String? image, String? barcode, String? status}) {
     return PendingOrderItem(
       orderItemId: orderItemId,
       product: product,
@@ -150,7 +248,18 @@ class PendingOrderItem extends Equatable {
       image: image ?? this.image,
       quantity: quantity,
       subtotal: subtotal,
+      barcode: barcode ?? this.barcode,
+      status: status ?? this.status,
+      sku: sku,
+      variantWeight: variantWeight,
+      variantDimensions: variantDimensions,
     );
+  }
+
+  /// Exact, case-sensitive comparison, matching the backend contract.
+  bool matchesCode(String code) {
+    final expected = barcode?.trim();
+    return expected != null && expected.isNotEmpty && expected == code.trim();
   }
 
   @override
@@ -161,6 +270,11 @@ class PendingOrderItem extends Equatable {
     image,
     quantity,
     subtotal,
+    barcode,
+    status,
+    sku,
+    variantWeight,
+    variantDimensions,
   ];
 }
 

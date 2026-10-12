@@ -18,6 +18,10 @@ import 'package:hyper_local_seller/utils/image_path.dart';
 import 'package:hyper_local_seller/screen/order_page/repo/order_repo.dart';
 import 'package:hyper_local_seller/screen/order_page/model/order_model.dart';
 import 'package:hyper_local_seller/config/hive_storage.dart';
+import 'package:hyper_local_seller/config/app_permissions.dart';
+import 'package:hyper_local_seller/screen/order_page/incoming_orders/cubit/incoming_orders_cubit.dart';
+import 'package:hyper_local_seller/utils/permission_checker.dart';
+import 'package:hyper_local_seller/widgets/custom/custom_snackbar.dart';
 
 class OrderPage extends StatefulWidget {
   const OrderPage({super.key});
@@ -70,6 +74,17 @@ class _OrderPageState extends State<OrderPage>
     final ids = order.itemsFor(action).map((item) => item.id);
     await context.read<OrdersRepo>().updateOrderItemsStatus(ids, action);
     if (mounted) context.read<OrdersBloc>().add(RefreshOrders());
+  }
+
+  /// Accepted orders are scanned, bagged and dispatched in the scan popup.
+  Future<void> _openScan(SellerOrder order) async {
+    final error = await context.read<IncomingOrdersCubit>().openForScan(
+      order.sellerOrderId,
+      mode: order.orderMode,
+    );
+    if (error != null && mounted) {
+      showCustomSnackbar(context: context, message: error, isError: true);
+    }
   }
 
   Widget _buildTabBar(AppLocalizations? l10n) {
@@ -212,6 +227,10 @@ class _OrderPageState extends State<OrderPage>
                                 }
 
                                 final order = items[index];
+                                final canUpdateStatus =
+                                    PermissionChecker.hasPermission(
+                                      AppPermissions.orderUpdateStatus,
+                                    );
                                 return Padding(
                                   padding: EdgeInsets.only(
                                     bottom: UIUtils.gapMD(screenType),
@@ -241,25 +260,34 @@ class _OrderPageState extends State<OrderPage>
                                         },
                                       );
                                     },
-                                    onToggleStatus: (status) {
-                                      if (status == 'accept') {
-                                        OrderDialogs.showAcceptDialog(
-                                          context,
-                                          () => _updateOrder(order, 'accept'),
-                                        );
-                                      } else if (status == 'reject') {
-                                        OrderDialogs.showRejectDialog(
-                                          context,
-                                          () => _updateOrder(order, 'reject'),
-                                        );
-                                      } else {
-                                        OrderDialogs.showPreparedDialog(
-                                          context,
-                                          () =>
-                                              _updateOrder(order, 'preparing'),
-                                        );
-                                      }
-                                    },
+                                    onToggleStatus: !canUpdateStatus
+                                        ? null
+                                        : (status) {
+                                            if (status == 'accept') {
+                                              OrderDialogs.showAcceptDialog(
+                                                context,
+                                                () async {
+                                                  await _updateOrder(
+                                                    order,
+                                                    'accept',
+                                                  );
+                                                  if (mounted) {
+                                                    await _openScan(order);
+                                                  }
+                                                },
+                                              );
+                                            } else if (status == 'reject') {
+                                              OrderDialogs.showRejectDialog(
+                                                context,
+                                                () => _updateOrder(
+                                                  order,
+                                                  'reject',
+                                                ),
+                                              );
+                                            } else if (status == 'scan') {
+                                              _openScan(order);
+                                            }
+                                          },
                                   ),
                                 );
                               },

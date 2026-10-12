@@ -34,6 +34,7 @@ import 'package:hyper_local_seller/screen/more_page/view/stores/add_store/view/a
 import 'package:hyper_local_seller/screen/more_page/view/stores/add_store/view/map_screen.dart';
 import 'package:hyper_local_seller/screen/more_page/view/subscription_plans/view/subscription_plans_page.dart';
 import 'package:hyper_local_seller/screen/more_page/view/system_users/view/system_users_page.dart';
+import 'package:hyper_local_seller/screen/more_page/view/system_users/login_approvals/login_approvals_page.dart';
 import 'package:hyper_local_seller/screen/more_page/view/wallet/view/transaction_history_page.dart';
 import 'package:hyper_local_seller/screen/more_page/view/wallet/view/wallet_page.dart';
 import 'package:hyper_local_seller/screen/more_page/view/wallet/view/withdraw_history_page.dart';
@@ -48,6 +49,7 @@ import 'package:hyper_local_seller/screen/splash_screen/widgets/intro_slider.dar
 import 'package:hyper_local_seller/screen/more_page/view/tax_group/view/tax_groups_page.dart';
 import 'package:hyper_local_seller/screen/more_page/view/earning/view/earning_page.dart';
 import 'package:hyper_local_seller/screen/products_page/products/view/product_faqs_page.dart';
+import 'package:hyper_local_seller/screen/more_page/view/bag_inventory/view/bag_inventory_page.dart';
 import 'package:hyper_local_seller/screen/more_page/view/delivery_zone/view/delivery_zones_page.dart';
 import 'package:hyper_local_seller/screen/home_page/view/notification_list_page.dart';
 
@@ -90,6 +92,7 @@ class AppRoutes {
   static const String transactionHistory = '/transaction-history';
   static const String earnings = '/earnings';
   static const String productFaqs = '/product-faqs';
+  static const String bagInventory = '/bag-inventory';
   static const String storeConfiguration = '/store-configuration';
   static const String profilePage = '/profile';
   static const String privacyPolicy = '/privacy-policy';
@@ -98,6 +101,7 @@ class AppRoutes {
   static const String permissions = '/permissions';
   static const String deliveryZones = '/delivery-zones';
   static const String systemUsers = '/system-users';
+  static const String loginApprovals = '/login-approvals';
   static const String notifications = '/notifications';
   static const String subscriptionPlans = '/subscription-plans';
   static const String subscriptionPlanDetails = '/subscription-plan-details';
@@ -323,6 +327,11 @@ class MyAppRoutes {
         },
       ),
       GoRoute(
+        path: AppRoutes.bagInventory,
+        name: '/bag-inventory',
+        pageBuilder: (context, state) => platformPage(const BagInventoryPage()),
+      ),
+      GoRoute(
         path: AppRoutes.profilePage,
         name: '/profile',
         pageBuilder: (context, state) => platformPage(const ProfilePage()),
@@ -362,6 +371,12 @@ class MyAppRoutes {
         path: AppRoutes.systemUsers,
         name: '/system-users',
         pageBuilder: (context, state) => platformPage(SystemUsersPage()),
+      ),
+      GoRoute(
+        path: AppRoutes.loginApprovals,
+        name: '/login-approvals',
+        pageBuilder: (context, state) =>
+            platformPage(const LoginApprovalsPage()),
       ),
       GoRoute(
         path: AppRoutes.notifications,

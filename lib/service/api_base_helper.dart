@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:curl_logger_dio_interceptor/curl_logger_dio_interceptor.dart';
 import 'package:hyper_local_seller/service/security.dart';
@@ -38,12 +39,25 @@ class ApiBaseHelper {
         onRequest: (options, handler) async {
           final headers = await Security.headers;
           options.headers.addAll(headers);
+          if (kDebugMode && options.extra['debugInventory'] == true) {
+            debugPrint(
+              '[Inventory] outgoing headers | Accept: ${options.headers['Accept']} | Content-Type: ${options.contentType} | Authorization: ${headers.containsKey('Authorization') ? 'Bearer [REDACTED]' : 'MISSING'}',
+            );
+          }
           return handler.next(options);
         },
         onError: (DioException e, handler) {
-          // Expired/invalid token — log the user out globally.
-          if (e.response?.statusCode == 401) {
+          final statusCode = e.response?.statusCode;
+          if (statusCode == 401) {
+            // Expired/invalid/revoked token — log the user out globally.
             SessionManager.handleUnauthorized();
+          } else if (statusCode == 403 &&
+              SessionManager.isLoginApprovalError(e.response?.data)) {
+            // A system user's seller approval expired or was withdrawn.
+            final data = e.response?.data;
+            SessionManager.handleUnauthorized(
+              message: data is Map ? data['message']?.toString() : null,
+            );
           }
           return handler.next(e);
         },
@@ -52,11 +66,35 @@ class ApiBaseHelper {
     return dio;
   }
 
-  Future<dynamic> post(String url, Map<String, dynamic> body) async {
+  Future<dynamic> post(
+    String url,
+    Map<String, dynamic> body, {
+    bool debugInventory = false,
+  }) async {
     try {
-      final response = await _dio.post(url, data: body);
+      if (kDebugMode && debugInventory) {
+        debugPrint('[Inventory] POST $url | request: $body');
+      }
+      final response = await _dio.post(
+        url,
+        data: body,
+        options: Options(extra: {'debugInventory': debugInventory}),
+      );
+      if (kDebugMode && debugInventory) {
+        debugPrint(
+          '[Inventory] POST $url | HTTP ${response.statusCode} | response: ${response.data}',
+        );
+      }
       return _returnResponse(response);
     } on DioException catch (e) {
+      if (kDebugMode && debugInventory) {
+        debugPrint(
+          '[Inventory] redirect location: ${e.response?.headers.value('location')}',
+        );
+        debugPrint(
+          '[Inventory] POST $url | HTTP ${e.response?.statusCode} | type: ${e.type} | message: ${e.message} | response: ${e.response?.data}',
+        );
+      }
       throw _handleError(e);
     }
   }
@@ -130,7 +168,7 @@ class ApiBaseHelper {
             return responseBody;
           } else {
             // If success is false, throw the message
-            throw ApiException(message);
+            throw ApiException(message, responseData: responseBody);
           }
         }
 
@@ -156,6 +194,16 @@ class ApiBaseHelper {
       final int? statusCode = error.response?.statusCode;
 
       if (data is Map<String, dynamic>) {
+        // Preserve item/field errors from the order verification endpoint.
+        if (statusCode == 422 &&
+            data['data'] is Map &&
+            (data['data'] as Map)['errors'] is List) {
+          return ApiException(
+            data['message'],
+            statusCode: statusCode,
+            responseData: data,
+          );
+        }
         // Handle validation errors (422)
         if (statusCode == 422 && data.containsKey('errors')) {
           final errors = data['errors'] as Map<String, dynamic>;
@@ -172,19 +220,34 @@ class ApiBaseHelper {
 
           // If only one error, use the message field
           if (errorMessages.length == 1 && data.containsKey('message')) {
-            return ApiException(data['message']);
+            return ApiException(
+              data['message'],
+              statusCode: statusCode,
+              responseData: data,
+            );
           }
 
           // If multiple errors, show all detailed errors
-          return ApiException(errorMessages.join('\n'));
+          return ApiException(
+            errorMessages.join('\n'),
+            statusCode: statusCode,
+            responseData: data,
+          );
         }
 
         // Handle other errors with message
         if (data.containsKey('message')) {
-          return ApiException(data['message']); // Return backend message
+          return ApiException(
+            data['message'],
+            statusCode: statusCode,
+            responseData: data,
+          ); // Return backend message
         }
       }
-      return ApiException("${error.response?.statusMessage}");
+      return ApiException(
+        "${error.response?.statusMessage}",
+        statusCode: statusCode,
+      );
     } else {
       switch (error.type) {
         case DioExceptionType.connectionTimeout:
@@ -239,7 +302,13 @@ class InvalidInputException extends AppException {
 class ApiException implements Exception {
   final String message;
 
-  ApiException(dynamic message) : message = message?.toString() ?? '';
+  /// HTTP status of the failed response, when there was one.
+  final int? statusCode;
+
+  final Map<String, dynamic>? responseData;
+
+  ApiException(dynamic message, {this.statusCode, this.responseData})
+    : message = message?.toString() ?? '';
 
   @override
   String toString() => message;

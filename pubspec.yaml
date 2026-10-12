@@ -79,6 +79,8 @@ dependencies:
   flutter_widget_from_html: ^0.15.2
   audioplayers: ^6.1.0
   flutter_inappwebview: ^6.1.5
+  mobile_scanner: ^7.4.2
+  flutter_ringtone_player: ^4.0.0+4
 
 dev_dependencies:
   flutter_test:

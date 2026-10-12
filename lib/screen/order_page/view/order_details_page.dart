@@ -1,5 +1,6 @@
 // ignore_for_file: deprecated_member_use
 
+import 'package:hyper_local_seller/screen/order_page/incoming_orders/cubit/incoming_orders_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hyper_local_seller/config/colors.dart';
@@ -724,7 +725,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                         children: [
                           const Icon(TablerIcons.package, size: 20),
                           const SizedBox(width: 8),
-                          Text(l10n?.markAsPreparing ?? 'Mark as Preparing'),
+                          const Text('Scan & Dispatch'),
                         ],
                       ),
               ),
@@ -756,6 +757,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
       if (context.mounted) {
         context.read<OrderDetailsBloc>().add(FetchOrderDetails(widget.orderId));
         context.read<OrdersBloc>().add(RefreshOrders());
+        await _openScan(context);
       }
     });
   }
@@ -794,16 +796,20 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     }
     if (!DemoGuard.shouldProceed(context)) return;
 
-    final selectedIds = _selectedItemIds.toList();
-    OrderDialogs.showPreparedDialog(context, () async {
-      for (final itemId in selectedIds) {
-        await context.read<OrdersRepo>().updateOrderStatus(itemId, 'preparing');
-      }
-      if (context.mounted) {
-        context.read<OrderDetailsBloc>().add(FetchOrderDetails(widget.orderId));
-        context.read<OrdersBloc>().add(RefreshOrders());
-      }
-    });
+    // Preparing only happens through the scan flow (items, bag, dispatch).
+    _openScan(context);
+  }
+
+  /// Opens this order in the scan popup to verify items, bag and dispatch.
+  Future<void> _openScan(BuildContext context) async {
+    final error = await context.read<IncomingOrdersCubit>().openForScan(
+      widget.orderId,
+    );
+    if (!context.mounted) return;
+    setState(() => _selectedItemIds.clear());
+    if (error != null) {
+      showCustomSnackbar(context: context, message: error, isError: true);
+    }
   }
 }
 

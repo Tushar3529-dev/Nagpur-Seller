@@ -23,7 +23,8 @@ class ProductsBloc extends Bloc<ProductsEvent, ProductsState> {
   /// Bumped by every (re)load so a late response from an older load is dropped.
   int _generation = 0;
 
-  ProductsBloc(this._repo) : super(const ProductsState(isInitialLoading: true)) {
+  ProductsBloc(this._repo)
+    : super(const ProductsState(isInitialLoading: true)) {
     on<LoadProductsInitial>(_onLoadProductsInitial);
     on<LoadMoreProducts>(_onLoadMoreProducts);
     on<RefreshProducts>(_onRefreshProducts);
@@ -32,7 +33,9 @@ class ProductsBloc extends Bloc<ProductsEvent, ProductsState> {
     on<LoadProductFilters>(_onLoadProductFilters);
     on<ApplyProductFilter>(_onApplyProductFilter);
     on<UpdateProductStatus>(_onUpdateProductStatus);
-    on<ClearProducts>((event, emit) => emit(const ProductsState(isInitialLoading: true)));
+    on<ClearProducts>(
+      (event, emit) => emit(const ProductsState(isInitialLoading: true)),
+    );
   }
 
   /// Fetches every page of the current filter set, sorts it and emits
@@ -44,13 +47,15 @@ class ProductsBloc extends Bloc<ProductsEvent, ProductsState> {
   }) async {
     final generation = ++_generation;
 
-    emit(state.copyWith(
-      items: silent ? null : const [],
-      isInitialLoading: !silent,
-      isRefreshing: silent,
-      isPaginating: false,
-      clearOperation: true,
-    ));
+    emit(
+      state.copyWith(
+        items: silent ? null : const [],
+        isInitialLoading: !silent,
+        isRefreshing: silent,
+        isPaginating: false,
+        clearOperation: true,
+      ),
+    );
 
     try {
       final products = <Product>[];
@@ -83,24 +88,28 @@ class ProductsBloc extends Bloc<ProductsEvent, ProductsState> {
         page++;
       }
 
-      emit(state.copyWith(
-        items: ProductsState.sortProducts(products, state.sortBy),
-        isInitialLoading: false,
-        isRefreshing: false,
-        isPaginating: false,
-        hasMore: false,
-        currentPage: page,
-        total: total ?? products.length,
-        error: null,
-      ));
+      emit(
+        state.copyWith(
+          items: ProductsState.sortProducts(products, state.sortBy),
+          isInitialLoading: false,
+          isRefreshing: false,
+          isPaginating: false,
+          hasMore: false,
+          currentPage: page,
+          total: total ?? products.length,
+          error: null,
+        ),
+      );
     } catch (e) {
       if (generation != _generation) return;
-      emit(state.copyWith(
-        isInitialLoading: false,
-        isRefreshing: false,
-        isPaginating: false,
-        error: e.toString(),
-      ));
+      emit(
+        state.copyWith(
+          isInitialLoading: false,
+          isRefreshing: false,
+          isPaginating: false,
+          error: e.toString(),
+        ),
+      );
     }
   }
 
@@ -129,17 +138,19 @@ class ProductsBloc extends Bloc<ProductsEvent, ProductsState> {
         event.verificationStatus == state.selectedVerificationStatus &&
         event.productFilter == state.selectedProductFilter;
 
-    emit(state.copyWith(
-      items: onlySortChanged
-          ? ProductsState.sortProducts(state.items, event.sortBy)
-          : null,
-      selectedType: event.type,
-      selectedStatus: event.status,
-      selectedVerificationStatus: event.verificationStatus,
-      selectedProductFilter: event.productFilter,
-      sortBy: event.sortBy,
-      overrideFilters: true,
-    ));
+    emit(
+      state.copyWith(
+        items: onlySortChanged
+            ? ProductsState.sortProducts(state.items, event.sortBy)
+            : null,
+        selectedType: event.type,
+        selectedStatus: event.status,
+        selectedVerificationStatus: event.verificationStatus,
+        selectedProductFilter: event.productFilter,
+        sortBy: event.sortBy,
+        overrideFilters: true,
+      ),
+    );
 
     if (onlySortChanged) return;
     await _loadAllSorted(emit);
@@ -182,20 +193,24 @@ class ProductsBloc extends Bloc<ProductsEvent, ProductsState> {
   ) async {
     try {
       await _repo.deleteProduct(event.productId);
-      emit(state.copyWith(
-        operationSuccess: true,
-        operationMessage: "Product deleted successfully",
-        lastOperationType: "delete",
-        error: null,
-      ));
+      emit(
+        state.copyWith(
+          operationSuccess: true,
+          operationMessage: "Product deleted successfully",
+          lastOperationType: "delete",
+          error: null,
+        ),
+      );
       // add(RefreshProducts());
     } catch (e) {
       // We could emit a failure state, but for simplicity we'll just log
-      emit(state.copyWith(
-        operationSuccess: false,
-        operationMessage: "Failed to delete product",
-        error: e.toString(),
-      ));
+      emit(
+        state.copyWith(
+          operationSuccess: false,
+          operationMessage: "Failed to delete product",
+          error: e.toString(),
+        ),
+      );
       debugPrint("Delete error: $e");
     }
   }
@@ -206,23 +221,26 @@ class ProductsBloc extends Bloc<ProductsEvent, ProductsState> {
   ) async {
     try {
       await _repo.updateProductStatus(event.productId, event.status);
-      emit(state.copyWith(
-        operationSuccess: true,
-        operationMessage: "Product status updated to ${event.status}",
-        lastOperationType: "update_status",
-        error: null,
-      ));
+      emit(
+        state.copyWith(
+          operationSuccess: true,
+          operationMessage: "Product status updated to ${event.status}",
+          lastOperationType: "update_status",
+          error: null,
+        ),
+      );
       add(RefreshProducts());
     } catch (e) {
-      emit(state.copyWith(
-        operationSuccess: false,
-        operationMessage: "Failed to update product status",
-        error: e.toString(),
-      ));
+      emit(
+        state.copyWith(
+          operationSuccess: false,
+          operationMessage: "Failed to update product status",
+          error: e.toString(),
+        ),
+      );
       debugPrint("Update status error: $e");
     }
   }
-
 
   @override
   void onChange(Change<ProductsState> change) {

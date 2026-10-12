@@ -218,6 +218,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get badgeRecommended => 'RECOMMENDED';
 
   @override
+  String get bagInventory => 'Bag Inventory';
+
+  @override
+  String get bagInventorySubtitle => 'Track and manage bag stock';
+
+  @override
   String get balance => 'Balance: ';
 
   @override
@@ -234,6 +240,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get barcode => 'Barcode';
+
+  @override
+  String get scan => 'Scan';
 
   @override
   String get barcodeRequired => 'Barcode is required';
@@ -2241,12 +2250,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String specialPriceGreaterError(Object store) {
-    return 'Special price cannot be greater than regular price for store: $store';
+    return 'Special price must be lower than regular price for store: $store';
   }
 
   @override
   String specialPriceGreaterErrorVariant(Object store, Object variant) {
-    return 'Special price cannot be greater than regular price for store $store (Variant: $variant)';
+    return 'Special price must be lower than regular price for store $store (Variant: $variant)';
   }
 
   @override
@@ -2847,4 +2856,129 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get noWithdrawHistoryMessage =>
       'You have not made any withdrawal requests yet.';
+
+  @override
+  String get packageContents => 'Package contents';
+
+  @override
+  String get packageContentsHint =>
+      'What the buyer receives, e.g. 500 g, 1 L, 5 pcs. Shipping weight is entered separately.';
+
+  @override
+  String get netQuantity => 'Net quantity';
+
+  @override
+  String get packageUnit => 'Unit';
+
+  @override
+  String get packageUnitHint => 'g, kg, ml, L, pcs…';
+
+  @override
+  String get innerUnitCount => 'Inner units';
+
+  @override
+  String get innerUnitCountHint => 'e.g. 2';
+
+  @override
+  String get innerUnitType => 'Inner unit type';
+
+  @override
+  String get innerUnitTypeHint => 'packet, bottle, sachet';
+
+  @override
+  String get innerUnitsHelp =>
+      'Only for multipacks. Net quantity is then the contents of one inner unit.';
+
+  @override
+  String get packageFromAttribute => 'Package size (from attributes)';
+
+  @override
+  String get packageAttributeMissing =>
+      'No package size found. Use a Size, Weight, Volume, Quantity or Pack attribute with a value like \"500 g\" to enable unit pricing.';
+
+  @override
+  String get unitPrice => 'Unit price';
+
+  @override
+  String get unitPricePer => 'per';
+
+  @override
+  String get unitPriceNeedsPackage =>
+      'Add package contents in the Product Variation step to see unit price.';
+
+  @override
+  String unitPriceNotComparable(String packageUnit, String basisUnit) {
+    return '$packageUnit can\'t be compared with $basisUnit.';
+  }
+
+  @override
+  String useDefaultBasis(String basis) {
+    return 'Use $basis';
+  }
+
+  @override
+  String get unitPriceEditsSpecial =>
+      'Editing unit price updates the special price.';
+
+  @override
+  String get unitPriceEditsRegular => 'Editing unit price updates the price.';
+
+  @override
+  String get wholesalePrice => 'Wholesale Price';
+
+  @override
+  String get taxInclusivePrices => 'Prices include tax';
+
+  @override
+  String get netQuantityUnitRequired => 'Enter a unit for the net quantity';
+
+  @override
+  String get netQuantityInvalid => 'Net quantity must be at least 0.001';
+
+  @override
+  String get unitCountPairRequired =>
+      'Enter both inner units and inner unit type';
+
+  @override
+  String get unitCountInvalid => 'Inner units must be a whole number above 0';
+
+  @override
+  String get unitTooLong => 'Units can be at most 30 characters';
+
+  @override
+  String unitPriceBasisInvalid(String store) {
+    return 'Unit price basis for $store needs an amount above 0 and a unit';
+  }
+
+  @override
+  String get specialPriceMustBeLower =>
+      'Special price must be lower than price';
+
+  @override
+  String get productCategoryAll => 'All';
+
+  @override
+  String get productCategoryOther => 'Other';
+
+  @override
+  String productSubcategoryCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count subcategories',
+      one: '1 subcategory',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String productCategoryProductCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count products',
+      one: '1 product',
+    );
+    return '$_temp0';
+  }
 }

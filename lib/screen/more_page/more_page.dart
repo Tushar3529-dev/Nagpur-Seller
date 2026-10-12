@@ -152,6 +152,24 @@ class _MorePageState extends State<MorePage> {
             },
           ),
           SettingsTileData(
+            img: ImagesPath.bagInventorySvg,
+            title: l10n?.bagInventory ?? "Bag Inventory",
+            subtitle:
+                l10n?.bagInventorySubtitle ?? "Track and manage bag stock",
+            onTap: () {
+              if (!PermissionChecker.hasPermission(AppPermissions.bagView)) {
+                showCustomSnackbar(
+                  context: context,
+                  message: 'You do not have permission to view bags.',
+                  isWarning: true,
+                );
+                return;
+              }
+              debugPrint('Bag Inventory button pressed');
+              context.pushNamed(AppRoutes.bagInventory);
+            },
+          ),
+          SettingsTileData(
             img: ImagesPath.ordersSvg,
             title: l10n?.orders ?? "Orders",
             subtitle:

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:hyper_local_seller/screen/order_page/incoming_orders/repo/scan_session_store.dart';
 
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:hyper_local_seller/config/hive_storage.dart';
@@ -9,6 +10,8 @@ import 'package:hyper_local_seller/screen/order_page/incoming_orders/repo/pendin
 /// A pending order as the backend documents it.
 Map<String, dynamic> orderJson(
   int sellerOrderId, {
+  Map<int, String> barcodes = const {},
+  Map<int, int> quantities = const {},
   String mode = 'regular',
   String? createdAt,
   List<int> itemIds = const [1],
@@ -41,7 +44,8 @@ Map<String, dynamic> orderJson(
           'product': 'Product $id',
           'variant': 'Variant $id',
           'image': ?image,
-          'quantity': 3,
+          'quantity': quantities[id] ?? 3,
+          'barcode': barcodes[id] ?? 'A${itemIds.indexOf(id) + 1}',
           'subtotal': '1266.00',
         },
     ],
@@ -72,16 +76,93 @@ class FakePendingOrdersRepo extends PendingOrdersRepo {
 
   /// When set, accept calls wait for it — simulates a slow network.
   Completer<void>? acceptGate;
+  Completer<void>? preparingGate;
+  final Map<int, Map<int, String>> statuses = {};
+  final Set<int> failStatusFor = {};
+
+  /// Bags assigned, as "sellerOrderId barcode".
+  final List<String> bagCalls = [];
+  Object? assignBagError;
+  Completer<void>? bagGate;
+  int availableBags = 5;
+  int bagCountCalls = 0;
+
+  /// Thrown once by the next [markOrderPreparing].
+  Object? prepareError;
+
+  @override
+  Future<AssignedBag> assignBag(PendingOrder order, String barcode) async {
+    if (bagGate != null) await bagGate!.future;
+    if (assignBagError != null) throw assignBagError!;
+    bagCalls.add('${order.sellerOrderId} ${barcode.trim()}');
+    return AssignedBag(id: order.sellerOrderId, barcode: barcode.trim());
+  }
+
+  @override
+  Future<int> availableBagCount() async {
+    bagCountCalls++;
+    return availableBags;
+  }
+
+  @override
+  Future<Map<int, String>> itemStatuses(int sellerOrderId) async {
+    if (failStatusFor.contains(sellerOrderId)) throw Exception('offline');
+    return statuses[sellerOrderId] ?? {};
+  }
 
   int get totalFetches => fetchCount.values.fold(0, (a, b) => a + b);
 
   @override
-  Future<List<PendingOrder>> getPendingOrders(OrderMode mode) async {
+  Future<List<PendingOrder>> getPendingOrders(
+    OrderMode mode, {
+    bool popupWindowOnly = true,
+  }) async {
     fetchCount[mode] = fetchCount[mode]! + 1;
     if (failing.contains(mode)) throw Exception('${mode.name} is down');
     return server[mode]!
         .map((json) => PendingOrder.fromJson(json, fallbackMode: mode))
         .toList();
+  }
+
+  @override
+  Future<PendingOrder> acceptOrder(
+    PendingOrder order, {
+    Set<int> skipItemIds = const {},
+    void Function(int)? onItemAccepted,
+  }) async {
+    for (final item in order.items) {
+      if (skipItemIds.contains(item.orderItemId)) continue;
+      await acceptItem(item.orderItemId);
+      onItemAccepted?.call(item.orderItemId);
+    }
+    return order.copyWith(
+      items: [
+        for (final item in order.items) item.copyWith(status: 'accepted'),
+      ],
+    );
+  }
+
+  @override
+  Future<void> markOrderPreparing(
+    PendingOrder order, {
+    Map<int, String> verifiedBarcodes = const {},
+    Set<int> skipItemIds = const {},
+    void Function(int)? onItemDone,
+  }) async {
+    if (prepareError case final error?) {
+      prepareError = null;
+      throw error;
+    }
+    for (final item in order.items) {
+      if (skipItemIds.contains(item.orderItemId) ||
+          statuses[order.sellerOrderId]?[item.orderItemId] == 'preparing') {
+        continue;
+      }
+      await markItemPreparing(item.orderItemId);
+      statuses.putIfAbsent(order.sellerOrderId, () => {})[item.orderItemId] =
+          'preparing';
+      onItemDone?.call(item.orderItemId);
+    }
   }
 
   @override
@@ -92,7 +173,12 @@ class FakePendingOrdersRepo extends PendingOrdersRepo {
   }
 
   @override
-  Future<dynamic> markItemPreparing(int orderItemId) async {
+  Future<dynamic> markItemPreparing(
+    int orderItemId, {
+    String? barcode,
+    int? quantity,
+  }) async {
+    if (preparingGate != null) await preparingGate!.future;
     if (failPreparingOnce.remove(orderItemId)) {
       throw Exception('preparing failed');
     }
@@ -100,7 +186,35 @@ class FakePendingOrdersRepo extends PendingOrdersRepo {
   }
 }
 
+/// Signed-in user for tests: allowed to see the incoming-order popup.
+const Map<String, dynamic> testUser = {
+  'id': 1,
+  'assigned_permissions': ['order.view', 'order.update_status', 'order.popup'],
+};
+
 Future<void> initTestHive({String? token = 'test-token'}) async {
   Hive.init(Directory.systemTemp.createTempSync('hive_test').path);
   await HiveStorage.setAccessToken(token);
+  await HiveStorage.setUserData(Map.of(testUser));
+}
+
+class FakeScanSessionStore extends ScanSessionStore {
+  List<ScanSession> sessions = [];
+  final List<List<ScanSession>> saves = [];
+  int clearCount = 0;
+
+  @override
+  Future<List<ScanSession>> load() async => List.of(sessions);
+
+  @override
+  Future<void> save(Iterable<ScanSession> value) async {
+    sessions = List.of(value);
+    saves.add(List.of(sessions));
+  }
+
+  @override
+  Future<void> clear() async {
+    clearCount++;
+    sessions = [];
+  }
 }

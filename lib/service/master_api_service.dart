@@ -21,6 +21,7 @@ import 'package:hyper_local_seller/screen/more_page/view/subscription_plans/bloc
 import 'package:hyper_local_seller/screen/more_page/view/subscription_plans/service/subscription_limit_service.dart';
 import 'package:hyper_local_seller/screen/more_page/view/subscription_plans/service/subscription_reminder_service.dart';
 import 'package:hyper_local_seller/screen/more_page/view/system_users/bloc/system_user_bloc.dart';
+import 'package:hyper_local_seller/screen/more_page/view/system_users/login_approvals/login_approvals_cubit.dart';
 import 'package:hyper_local_seller/screen/more_page/view/tax_group/bloc/tax_group_bloc.dart';
 import 'package:hyper_local_seller/screen/more_page/view/wallet/bloc/transactions_bloc/transactions_history_bloc.dart';
 import 'package:hyper_local_seller/screen/more_page/view/wallet/bloc/wallet_bloc/wallet_bloc.dart';
@@ -90,6 +91,7 @@ class MasterApiService {
     context.read<RolesBloc>().add(LoadRolesInitial());
     context.read<DeliveryZoneBloc>().add(LoadDeliveryZonesInitial());
     context.read<SystemUserBloc>().add(FetchSystemUsersEvent());
+    context.read<LoginApprovalsCubit>().fetch();
   }
 
   /// Called on logout to clear ALL cached/session data from every BLoC.
@@ -146,6 +148,7 @@ class MasterApiService {
 
     // ── System Users & Roles ──
     context.read<SystemUserBloc>().add(SystemUserReset());
+    context.read<LoginApprovalsCubit>().reset();
     context.read<RolesBloc>().add(RolesReset());
     context.read<TaxGroupsBloc>().add(TaxGroupsReset());
 

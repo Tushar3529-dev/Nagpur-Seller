@@ -1,3 +1,4 @@
+import 'package:hyper_local_seller/screen/products_page/products/widgets/product_inventory_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +10,11 @@ import 'package:hyper_local_seller/screen/home_page/bloc/home_page/home_page_blo
 import 'package:hyper_local_seller/screen/products_page/add_products/bloc/add_product_bloc/add_product_bloc.dart';
 import 'package:hyper_local_seller/screen/products_page/add_products/bloc/selected_categories/selected_categories_cubit.dart';
 import 'package:hyper_local_seller/screen/products_page/products/bloc/products_bloc/products_bloc.dart';
+import 'package:hyper_local_seller/screen/more_page/view/categories/repo/categories_repo.dart';
+import 'package:hyper_local_seller/screen/products_page/products/bloc/product_category_cubit/product_category_cubit.dart';
+import 'package:hyper_local_seller/screen/products_page/products/model/product_category_tree.dart';
+import 'package:hyper_local_seller/screen/products_page/products/model/product_model.dart';
+import 'package:hyper_local_seller/screen/products_page/products/widgets/product_category_tabs.dart';
 import 'package:hyper_local_seller/widgets/custom/custom_alert_dialog.dart';
 import 'package:hyper_local_seller/widgets/custom/custom_card.dart';
 import 'package:hyper_local_seller/utils/ui_utils.dart';
@@ -41,16 +47,26 @@ class _ProductsPageState extends State<ProductsPage> {
   final TextEditingController _searchController = TextEditingController();
   final Debouncer _debouncer = Debouncer(milliseconds: 500);
   final SubscriptionLimitService _limitService = SubscriptionLimitService();
+  late final ProductCategoryCubit _categoryCubit;
+
+  /// Selected category tab; null until the first build picks the first tab.
+  int? _selectedCategoryId;
+
+  /// Selected subcategory chip; null is the "All" chip.
+  int? _selectedSubcategoryId;
 
   @override
   void initState() {
     super.initState();
     context.read<ProductsBloc>().add(LoadProductsInitial());
+    _categoryCubit = ProductCategoryCubit(context.read<CategoriesRepo>())
+      ..load();
     _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
+    _categoryCubit.close();
     _scrollController.dispose();
     _searchController.dispose();
     _debouncer.dispose();
@@ -61,6 +77,25 @@ class _ProductsPageState extends State<ProductsPage> {
     if (_isBottom) {
       context.read<ProductsBloc>().add(LoadMoreProducts());
     }
+  }
+
+  void _selectCategory(int id) {
+    if (id == _selectedCategoryId) return;
+    setState(() {
+      _selectedCategoryId = id;
+      _selectedSubcategoryId = null;
+    });
+    _scrollToTop();
+  }
+
+  void _selectSubcategory(int? id) {
+    if (id == _selectedSubcategoryId) return;
+    setState(() => _selectedSubcategoryId = id);
+    _scrollToTop();
+  }
+
+  void _scrollToTop() {
+    if (_scrollController.hasClients) _scrollController.jumpTo(0);
   }
 
   bool get _isBottom {
@@ -90,6 +125,11 @@ class _ProductsPageState extends State<ProductsPage> {
       filterType: FilterType.product,
       body: MultiBlocListener(
         listeners: [
+          // Rebuilds the tabs once the category tree has loaded.
+          BlocListener<ProductCategoryCubit, ProductCategoryState>(
+            bloc: _categoryCubit,
+            listener: (context, _) => setState(() {}),
+          ),
           BlocListener<ProductsBloc, ProductsState>(
             listenWhen: (prev, curr) =>
                 prev.operationSuccess != curr.operationSuccess &&
@@ -213,8 +253,43 @@ class _ProductsPageState extends State<ProductsPage> {
               );
             }
 
-            // Already ordered by price in the bloc (low to high by default).
-            final products = state.items;
+            final categoryState = _categoryCubit.state;
+            final waitingForCategories =
+                state.items.isNotEmpty &&
+                (categoryState.status == ProductCategoryStatus.initial ||
+                    categoryState.status == ProductCategoryStatus.loading);
+            final showShimmer =
+                ((state.isInitialLoading || state.isRefreshing) &&
+                    state.items.isEmpty) ||
+                waitingForCategories;
+
+            // Group into category tabs; without the catalog the plain list shows.
+            final categories = categoryState.catalog.isEmpty
+                ? const <ProductCategoryGroup>[]
+                : ProductCategoryTree.build(
+                    state.items,
+                    categoryState.catalog,
+                    otherTitle: l10n?.productCategoryOther ?? 'Other',
+                  );
+            ProductCategoryGroup? selectedCategory;
+            ProductSubcategoryGroup? selectedSubcategory;
+            if (categories.isNotEmpty) {
+              selectedCategory = categories.firstWhere(
+                (c) => c.id == _selectedCategoryId,
+                orElse: () => categories.first,
+              );
+              for (final sub in selectedCategory.subcategories) {
+                if (sub.id == _selectedSubcategoryId) {
+                  selectedSubcategory = sub;
+                }
+              }
+            }
+
+            // Already ordered in the bloc (stock low to high by default).
+            final List<Product> products =
+                selectedSubcategory?.products ??
+                selectedCategory?.products ??
+                state.items;
             return Column(
               children: [
                 // heading
@@ -230,7 +305,7 @@ class _ProductsPageState extends State<ProductsPage> {
                               height: UIUtils.sectionTitle(screenType),
                             )
                           : Text(
-                              '${l10n?.totalProducts ?? 'Total Products'} (${state.total ?? products.length})',
+                              '${l10n?.totalProducts ?? 'Total Products'} (${state.total ?? state.items.length})',
                               style: TextStyle(
                                 fontSize: UIUtils.sectionTitle(screenType),
                                 fontWeight: UIUtils.bold,
@@ -327,26 +402,37 @@ class _ProductsPageState extends State<ProductsPage> {
                   ),
                 ),
 
+                if (selectedCategory != null && !showShimmer)
+                  ProductCategoryTabs(
+                    categories: categories,
+                    screenType: screenType,
+                    selectedCategoryId: selectedCategory.id,
+                    selectedSubcategoryId: selectedSubcategory?.id,
+                    onCategorySelected: _selectCategory,
+                    onSubcategorySelected: _selectSubcategory,
+                  ),
+                if (selectedCategory != null && !showShimmer)
+                  SizedBox(height: UIUtils.gapMD(screenType)),
+
                 Expanded(
                   child: RefreshIndicator(
                     color: AppColors.primaryColor,
                     onRefresh: () async {
                       context.read<ProductsBloc>().add(RefreshProducts());
+                      // Retries the category tree if it failed to load.
+                      _categoryCubit.load();
                     },
                     child: ListView.builder(
                       controller: _scrollController,
                       padding: UIUtils.cardsPadding(screenType),
-                      itemCount:
-                          (state.isInitialLoading || state.isRefreshing) &&
-                              state.items.isEmpty
+                      itemCount: showShimmer
                           ? 10
                           : products.length +
                                 (state.hasMore
                                     ? (state.isPaginating ? 10 : 1)
                                     : 0),
                       itemBuilder: (context, index) {
-                        if ((state.isInitialLoading || state.isRefreshing) &&
-                            state.items.isEmpty) {
+                        if (showShimmer) {
                           return Padding(
                             padding: EdgeInsets.only(
                               bottom: UIUtils.gapMD(screenType),
@@ -400,6 +486,33 @@ class _ProductsPageState extends State<ProductsPage> {
                                 extra: product,
                               );
                             },
+                            onEditQty:
+                                PermissionChecker.hasPermission(
+                                  AppPermissions.productEdit,
+                                )
+                                ? () async {
+                                    if (!DemoGuard.shouldProceed(context)) {
+                                      return;
+                                    }
+                                    final saved = await showDialog<bool>(
+                                      context: context,
+                                      barrierDismissible: false,
+                                      builder: (_) => ProductInventoryLoader(
+                                        productId: product.id,
+                                      ),
+                                    );
+                                    if (!context.mounted || saved != true) {
+                                      return;
+                                    }
+                                    context.read<ProductsBloc>().add(
+                                      RefreshProducts(),
+                                    );
+                                    showCustomSnackbar(
+                                      context: context,
+                                      message: 'Stock updated successfully',
+                                    );
+                                  }
+                                : null,
                             onEdit: () async {
                               if (!PermissionChecker.hasPermission(
                                 AppPermissions.productEdit,

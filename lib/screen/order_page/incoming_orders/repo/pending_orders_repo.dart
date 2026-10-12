@@ -16,17 +16,22 @@ class PendingOrdersRepo {
   /// every poll.
   final Set<int> _imageLookupMisses = {};
 
-  /// Orders waiting for the seller to accept, across all of their stores.
+  /// Orders awaiting acceptance or scanning, across all seller stores.
   ///
-  /// - regular: every order awaiting a response
+  /// - regular: every order awaiting a response or still accepted
   /// - wholesale: `popup=1` makes the backend return only orders whose
   ///   delivery slot ends within 30 minutes, so no time filtering here.
-  Future<List<PendingOrder>> getPendingOrders(OrderMode mode) async {
+  ///   [popupWindowOnly] false drops that filter, for an order the seller
+  ///   opened from the orders list.
+  Future<List<PendingOrder>> getPendingOrders(
+    OrderMode mode, {
+    bool popupWindowOnly = true,
+  }) async {
     final response = await _helper.get(
       ApiRoutes.pendingRegularOrdersApi,
       queryParameters: {
         'order_mode': mode.name,
-        if (mode == OrderMode.wholesale) 'popup': '1',
+        if (mode == OrderMode.wholesale && popupWindowOnly) 'popup': '1',
       },
       allowMissingSuccessFlag: true,
     );
@@ -55,12 +60,126 @@ class PendingOrdersRepo {
     return _withImages(parsed, mode);
   }
 
+  /// The pending response already supplies packing details and barcodes.
+  /// Acceptance is idempotent and applies to the complete seller order.
+  Future<PendingOrder> acceptOrder(
+    PendingOrder order, {
+    Set<int> skipItemIds = const {},
+    void Function(int orderItemId)? onItemAccepted,
+  }) async {
+    await _helper.post(
+      '${ApiRoutes.ordersApi}/${order.sellerOrderId}/accept-items',
+      {},
+    );
+    for (final item in order.items) {
+      onItemAccepted?.call(item.orderItemId);
+    }
+    return order.copyWith(
+      items: [
+        for (final item in order.items) item.copyWith(status: 'accepted'),
+      ],
+    );
+  }
+
+  /// Submit every locally verified value; the server checks the entire set
+  /// atomically before preparing. Never fall back to per-item status calls.
+  /// TODO(backend): confirm retry behavior after a successful response is lost.
+  Future<void> markOrderPreparing(
+    PendingOrder order, {
+    Map<int, String> verifiedBarcodes = const {},
+    Set<int> skipItemIds = const {},
+    void Function(int orderItemId)? onItemDone,
+  }) async {
+    for (final item in order.items) {
+      if (!item.hasBarcode) {
+        throw ApiException(
+          'Barcode missing for ${item.product}. Contact support.',
+        );
+      }
+      if (!item.matchesCode(verifiedBarcodes[item.orderItemId] ?? '')) {
+        throw ApiException('Scan and verify ${item.product} before preparing.');
+      }
+    }
+    await _helper.post(
+      '${ApiRoutes.ordersApi}/${order.sellerOrderId}/verify-and-prepare',
+      {
+        'items': [
+          for (final item in order.items)
+            {
+              'order_item_id': item.orderItemId,
+              'barcode': verifiedBarcodes[item.orderItemId],
+              'quantity': item.quantity,
+            },
+        ],
+      },
+    );
+    for (final item in order.items) {
+      onItemDone?.call(item.orderItemId);
+    }
+  }
+
+  /// Assigns an available bag from the seller's inventory to [order]. The
+  /// server rejects unknown bags and bags assigned elsewhere with a 422.
+  Future<AssignedBag> assignBag(PendingOrder order, String barcode) async {
+    final response = await _helper.post(
+      '${ApiRoutes.ordersApi}/${order.sellerOrderId}/assign-bag',
+      {'barcode': barcode.trim()},
+    );
+    final bag = (response as Map<String, dynamic>)['data']?['bag'];
+    if (bag is! Map<String, dynamic>) {
+      throw ApiException('The bag was not assigned. Try again.');
+    }
+    return AssignedBag.fromJson(bag);
+  }
+
+  /// Number of bags in the seller's inventory not yet assigned to an order.
+  Future<int> availableBagCount() async {
+    final response = await _helper.get(
+      ApiRoutes.bagsApi,
+      queryParameters: {'status': 'available', 'per_page': '1'},
+    );
+    final total = (response as Map<String, dynamic>)['data']?['total'];
+    return total is num ? total.toInt() : int.tryParse('$total') ?? 0;
+  }
+
   Future<dynamic> acceptItem(int orderItemId) {
     return _helper.post('${ApiRoutes.ordersApi}/$orderItemId/accept', {});
   }
 
-  Future<dynamic> markItemPreparing(int orderItemId) {
-    return _helper.post('${ApiRoutes.ordersApi}/$orderItemId/preparing', {});
+  Future<dynamic> markItemPreparing(
+    int orderItemId, {
+    String? barcode,
+    int? quantity,
+  }) {
+    if (barcode == null ||
+        barcode.trim().isEmpty ||
+        quantity == null ||
+        quantity < 1) {
+      throw ApiException(
+        'Scan the barcode and confirm the quantity before preparing.',
+      );
+    }
+    return _helper.post('${ApiRoutes.ordersApi}/$orderItemId/preparing', {
+      'barcode': barcode,
+      'quantity': quantity,
+    });
+  }
+
+  /// Current status of each item of a seller order, keyed by order_item_id,
+  /// used to check an order restored from the device is still waiting to be
+  /// prepared.
+  Future<Map<int, String>> itemStatuses(int sellerOrderId) async {
+    final response = await _helper.get('${ApiRoutes.ordersApi}/$sellerOrderId');
+    final data = response is Map ? response['data'] : null;
+    final items = data is Map ? data['items'] : null;
+    if (items is! List) return {};
+    return {
+      for (final item in items.whereType<Map>())
+        if (int.tryParse('${(item['orderItem'] as Map?)?['id'] ?? item['id']}')
+            case final id?)
+          id: '${(item['orderItem'] as Map?)?['status'] ?? item['status'] ?? ''}'
+              .toLowerCase(),
+    };
   }
 
   Future<List<PendingOrder>> _withImages(

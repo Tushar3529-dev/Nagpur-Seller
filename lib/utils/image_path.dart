@@ -42,6 +42,7 @@ class ImagesPath {
   static const String logoutSvg = '$svgMainPath/logout.svg';
   static const String languageSvg = '$svgMainPath/language.svg';
   static const String faqSvg = '$svgMainPath/faq.svg';
+  static const String bagInventorySvg = '$svgMainPath/bag_inventory.svg';
   static const String privacyPolicySvg = '$svgMainPath/privacy_policy.svg';
   static const String subscriptionSvg = '$svgMainPath/subscription.svg';
   static const String mySubscriptionSvg = '$svgMainPath/my_subscription.svg';
@@ -91,4 +92,5 @@ class ImagesPath {
 
 class AudioPath {
   static const inAppNotificationSound = 'audio/notification_sound.mp3';
+  static const scannerBeep = 'audio/scanner_beep.mp3';
 }
