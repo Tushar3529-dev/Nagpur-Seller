@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hyper_local_seller/service/notification_service.dart';
+import 'package:hyper_local_seller/service/popup_presence_service.dart';
+import 'package:hyper_local_seller/screen/order_page/popup_users/cubit/popup_users_cubit.dart';
 import 'package:hyper_local_seller/bloc/store_switcher/store_switcher_cubit.dart';
 import 'package:hyper_local_seller/screen/home_page/bloc/home_page/home_page_bloc.dart';
 import 'package:hyper_local_seller/screen/home_page/bloc/notification/notification_list_bloc.dart';
@@ -8,6 +11,7 @@ import 'package:hyper_local_seller/screen/more_page/view/attributes/bloc/attribu
 import 'package:hyper_local_seller/screen/more_page/view/brands/bloc/brands_bloc.dart';
 import 'package:hyper_local_seller/screen/more_page/view/categories/bloc/categories_bloc.dart';
 import 'package:hyper_local_seller/screen/more_page/view/delivery_zone/bloc/delivery_zone_bloc.dart';
+import 'package:hyper_local_seller/screen/more_page/view/delivery_boys/bloc/delivery_boy_bloc.dart';
 import 'package:hyper_local_seller/screen/more_page/view/earning/bloc/settled_earnings_bloc.dart';
 import 'package:hyper_local_seller/screen/more_page/view/earning/bloc/unsettled_earnings_bloc.dart';
 import 'package:hyper_local_seller/screen/more_page/view/profile/bloc/profile_bloc.dart';
@@ -33,6 +37,8 @@ import 'package:hyper_local_seller/screen/order_page/incoming_orders/cubit/incom
 import 'package:hyper_local_seller/screen/order_page/bloc/order_filters_bloc/order_filters_bloc.dart';
 
 import '../screen/more_page/view/subscription_plans/bloc/buy_subscription/buy_subscription_event.dart';
+import 'package:hyper_local_seller/screen/order_page/dispatch/cubit/dispatch_cubit.dart';
+import 'package:hyper_local_seller/screen/order_page/dispatch/cubit/rider_availability_cubit.dart';
 
 class MasterApiService {
   /// Called after successful login to refresh ALL data for the new user.
@@ -42,6 +48,7 @@ class MasterApiService {
 
     // 0. Sync subscription first (Critical for navigation)
     await SubscriptionLimitService().syncSubscription();
+    if (!context.mounted) return;
 
     // 1. Profile (Global)
     context.read<ProfileBloc>().add(
@@ -67,7 +74,10 @@ class MasterApiService {
     context.read<OrdersBloc>().add(LoadOrdersInitial());
     context.read<OrderFiltersBloc>().add(FetchOrderFilters());
 
-    // 6. Notifications + orders waiting to be accepted
+    // 6. Notifications + orders waiting to be accepted. The device token
+    //    and location let the backend offer this user nearby orders.
+    NotificationService().registerFcmToken();
+    PopupPresenceService().sync(requestPermission: true);
     context.read<IncomingOrdersCubit>().fetch();
     context.read<NotificationListBloc>().add(FetchUnreadCount());
     context.read<NotificationListBloc>().add(LoadNotificationsInitial());
@@ -133,6 +143,9 @@ class MasterApiService {
     // ── Notifications ──
     context.read<NotificationListBloc>().add(ClearNotifications());
     context.read<IncomingOrdersCubit>().clear();
+    // Stop location updates; logout itself tells the server.
+    PopupPresenceService().stop(notifyServer: false);
+    context.read<PopupUsersCubit>().reset();
 
     // ── Orders ──
     context.read<OrdersBloc>().add(OrdersReset());
@@ -154,5 +167,8 @@ class MasterApiService {
 
     // ── Delivery Zone ──
     context.read<DeliveryZoneBloc>().add(DeliveryZoneReset());
+    context.read<DeliveryBoyBloc>().add(DeliveryBoyReset());
+    context.read<DispatchCubit>().reset();
+    context.read<RiderAvailabilityCubit>().reset();
   }
 }

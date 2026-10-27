@@ -12,6 +12,10 @@ class SystemUserState {
   final String? search;
   final bool isActionLoading;
   final String? actionMessage;
+  final Set<int> processingIds;
+  final LoginApprovalResult? approvalResult;
+  final int? approvalErrorId;
+  final int? approvalErrorStatus;
 
   SystemUserState({
     this.status = SystemUserStatus.initial,
@@ -23,6 +27,10 @@ class SystemUserState {
     this.search,
     this.isActionLoading = false,
     this.actionMessage,
+    this.processingIds = const {},
+    this.approvalResult,
+    this.approvalErrorId,
+    this.approvalErrorStatus,
   });
 
   SystemUserState copyWith({
@@ -35,9 +43,23 @@ class SystemUserState {
     String? search,
     bool? isActionLoading,
     String? actionMessage,
+    Set<int>? processingIds,
+    LoginApprovalResult? approvalResult,
+    int? approvalErrorId,
+    int? approvalErrorStatus,
     bool clearMessages = false,
   }) {
     return SystemUserState(
+      processingIds: processingIds ?? this.processingIds,
+      approvalResult: clearMessages
+          ? null
+          : (approvalResult ?? this.approvalResult),
+      approvalErrorId: clearMessages
+          ? null
+          : (approvalErrorId ?? this.approvalErrorId),
+      approvalErrorStatus: clearMessages
+          ? null
+          : (approvalErrorStatus ?? this.approvalErrorStatus),
       status: status ?? this.status,
       users: users ?? this.users,
       hasReachedMax: hasReachedMax ?? this.hasReachedMax,
@@ -46,7 +68,9 @@ class SystemUserState {
       total: total ?? this.total,
       search: search ?? this.search,
       isActionLoading: isActionLoading ?? this.isActionLoading,
-      actionMessage: clearMessages ? null : (actionMessage ?? this.actionMessage),
+      actionMessage: clearMessages
+          ? null
+          : (actionMessage ?? this.actionMessage),
     );
   }
 }

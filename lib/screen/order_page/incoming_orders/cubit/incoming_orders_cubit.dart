@@ -29,6 +29,10 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
     : _store = store ?? ScanSessionStore(),
       super(const IncomingOrdersState());
 
+  /// Bumped after every fetch that heard from the server, even when the
+  /// queue didn't change: [state.orders] then mirrors the server's list.
+  final ValueNotifier<int> fetchRevision = ValueNotifier(0);
+
   bool _isFetching = false;
   bool _refetchQueued = false;
   bool _restored = false;
@@ -87,6 +91,9 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
           : const <OrderMode?>[];
       if (isClosed || !_isLoggedIn || generation != _sessionGeneration) return;
       _publish(refreshedModes: refreshed.whereType<OrderMode>().toSet());
+      if (!canPoll || refreshed.any((mode) => mode != null)) {
+        fetchRevision.value++;
+      }
     } finally {
       _isFetching = false;
       if (_refetchQueued && !state.isBusy) {
@@ -345,6 +352,12 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
       return null;
     } catch (e) {
       debugPrint('[IncomingOrders] bag failed for ${order.sellerOrderId}: $e');
+      if (isAssignedElsewhere(e)) {
+        if (!isClosed && generation == _sessionGeneration) {
+          _dropAssignedElsewhere(order, e);
+        }
+        return null; // The order has left the popup; the notice explains.
+      }
       if (!isClosed && generation == _sessionGeneration) {
         emit(state.copyWith(clearAssigningBag: true));
       }
@@ -437,10 +450,67 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
         item.orderItemId,
   };
 
+  /// `data.code` of the 409 returned when the backend has given the order's
+  /// popup offer to another user.
+  static const assignedElsewhereCode =
+      'seller_order_offer_assigned_to_another_user';
+
+  static bool isAssignedElsewhere(Object error) {
+    if (error is! ApiException || error.statusCode != 409) return false;
+    final data = error.responseData?['data'];
+    return data is Map && data['code'] == assignedElsewhereCode;
+  }
+
+  /// The offer for [order] now belongs to someone else: forget it and all
+  /// local progress, never retry it this session, and re-read the pending
+  /// list, which may already hold this user's next order.
+  void _dropAssignedElsewhere(PendingOrder order, Object error) {
+    final id = order.sellerOrderId;
+    debugPrint('[IncomingOrders] $id assigned to another user — dropped');
+    final itemIds = order.items.map((item) => item.orderItemId).toSet();
+    itemIds.forEach(_doneSteps.remove);
+    itemIds.forEach(_matchedCodes.remove);
+    _handled.add(id);
+    _held.remove(id);
+    _latest.updateAll(
+      (_, orders) => [
+        for (final o in orders)
+          if (o.sellerOrderId != id) o,
+      ],
+    );
+    final message = error is ApiException && error.message.isNotEmpty
+        ? error.message
+        : 'This order was assigned to another user.';
+    emit(
+      state.copyWith(
+        clearAccepting: true,
+        clearAssigningBag: true,
+        clearPreparing: true,
+        clearError: true,
+        orders: [
+          for (final o in state.orders)
+            if (o.sellerOrderId != id) o,
+        ],
+        acceptedOrderIds: {...state.acceptedOrderIds}..remove(id),
+        verifiedItemIds: {...state.verifiedItemIds}..removeAll(itemIds),
+        verifiedBarcodes: {...state.verifiedBarcodes}
+          ..removeWhere((itemId, _) => itemIds.contains(itemId)),
+        bags: {...state.bags}..remove(id),
+        notice: message,
+      ),
+    );
+    _save();
+    _resumeFetching();
+  }
+
   void _fail(PendingOrder order, Object error, String action) {
     debugPrint(
       '[IncomingOrders] $action failed for ${order.sellerOrderId}: $error',
     );
+    if (isAssignedElsewhere(error)) {
+      if (!isClosed) _dropAssignedElsewhere(order, error);
+      return;
+    }
     if (!isClosed) {
       final itemErrors = <int, Map<String, String>>{};
       var bagRequired = false;
@@ -512,6 +582,12 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
             },
           ),
     ]);
+  }
+
+  @override
+  Future<void> close() {
+    fetchRevision.dispose();
+    return super.close();
   }
 
   /// Called on logout.

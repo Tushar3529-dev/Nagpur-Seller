@@ -95,4 +95,7 @@ class AppPermissions {
   static const String subscriptionView = "subscription.view";
   static const String subscriptionBuy = "subscription.buy";
 
+  // Delivery boys
+  static const String deliveryBoyView = "delivery_boy.view";
+  static const String deliveryBoyManage = "delivery_boy.manage";
 }

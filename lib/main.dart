@@ -17,6 +17,8 @@ import 'package:hyper_local_seller/bloc/language/language_cubit.dart';
 import 'package:hyper_local_seller/screen/auth/bloc/auth/auth_bloc.dart';
 import 'package:hyper_local_seller/screen/auth/repo/auth_repo.dart';
 import 'package:hyper_local_seller/screen/more_page/view/categories/bloc/categories_bloc.dart';
+import 'package:hyper_local_seller/screen/more_page/view/delivery_boys/bloc/delivery_boy_bloc.dart';
+import 'package:hyper_local_seller/screen/more_page/view/delivery_boys/repo/delivery_boy_repo.dart';
 import 'package:hyper_local_seller/screen/more_page/view/subscription_plans/bloc/my_subscriptions/subscription_history_bloc.dart';
 import 'package:hyper_local_seller/screen/more_page/view/subscription_plans/repo/subscription_history_repo.dart';
 import 'package:hyper_local_seller/screen/more_page/view/subscription_plans/bloc/buy_subscription/buy_subscription_bloc.dart';
@@ -82,6 +84,12 @@ import 'package:hyper_local_seller/screen/home_page/bloc/notification/notificati
 import 'package:hyper_local_seller/screen/home_page/repo/notification_list_repo.dart';
 import 'package:hyper_local_seller/widgets/ui/maintenance_screen.dart';
 import 'package:hyper_local_seller/widgets/ui/no_internet_screen.dart';
+import 'package:hyper_local_seller/utils/permission_checker.dart';
+import 'package:hyper_local_seller/screen/order_page/dispatch/repo/dispatch_repo.dart';
+import 'package:hyper_local_seller/screen/order_page/dispatch/cubit/dispatch_cubit.dart';
+import 'package:hyper_local_seller/screen/order_page/dispatch/cubit/rider_availability_cubit.dart';
+import 'package:hyper_local_seller/screen/order_page/popup_users/cubit/popup_users_cubit.dart';
+import 'package:hyper_local_seller/screen/order_page/popup_users/repo/popup_users_repo.dart';
 
 // ─── Background message handler (top-level, runs in a separate isolate) ───────
 // This function CANNOT access any Flutter widgets or Blocs. It stores a flag in
@@ -96,6 +104,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   final orderId = message.data['order_id']?.toString();
 
   final isOrderNotification =
+      type == NotificationService.sellerNewOrderType ||
       type == 'order' ||
       type == 'orders' ||
       type == 'order_update' ||
@@ -115,13 +124,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     // Always mark that notification count needs refresh
     await box.put('pendingNotificationCountRefresh', true);
 
-    if (message.notification == null &&
-        NotificationService.isNewRegularOrderType(
-          type,
-          message.data['seller_order_id']?.toString(),
-        )) {
-      await NotificationService.showIncomingOrderAlert(message);
-    }
+    // New-order pushes ring natively on Android (OrderAlertReceiver), even
+    // while the app is closed: nothing to do here.
     debugPrint('[BG Handler] Background notification processed: type=$type');
   } catch (e) {
     debugPrint('[BG Handler] Error storing refresh flag: $e');
@@ -158,8 +162,11 @@ void main() async {
         RepositoryProvider(create: (_) => AddStoreRepository()),
         RepositoryProvider(create: (_) => HomeDataRepo()),
         RepositoryProvider(create: (_) => OrdersRepo()),
+        RepositoryProvider(create: (_) => DispatchRepo()),
+        RepositoryProvider(create: (_) => PopupUsersRepo()),
         RepositoryProvider(create: (_) => ProductFaqRepo()),
         RepositoryProvider(create: (_) => DeliveryZoneRepo()),
+        RepositoryProvider(create: (_) => DeliveryBoyRepo()),
         RepositoryProvider(create: (_) => NotificationListRepo()),
         RepositoryProvider(create: (_) => SubscriptionPlansRepo()),
         RepositoryProvider(create: (_) => PendingOrdersRepo()),
@@ -234,6 +241,15 @@ void main() async {
                   ..add(LoadOrdersInitial()),
           ),
           BlocProvider(
+            create: (context) => DispatchCubit(context.read<DispatchRepo>()),
+          ),
+          BlocProvider(
+            create: (context) => RiderAvailabilityCubit(context.read<DispatchRepo>()),
+          ),
+          BlocProvider(
+            create: (context) => PopupUsersCubit(context.read<PopupUsersRepo>()),
+          ),
+          BlocProvider(
             create: (context) =>
                 OrderFiltersBloc(context.read<OrdersRepo>())
                   ..add(FetchOrderFilters()),
@@ -262,6 +278,10 @@ void main() async {
           BlocProvider(
             create: (context) =>
                 DeliveryZoneBloc(context.read<DeliveryZoneRepo>()),
+          ),
+          BlocProvider(
+            create: (context) =>
+                DeliveryBoyBloc(repo: context.read<DeliveryBoyRepo>()),
           ),
           BlocProvider(
             create: (context) => SystemUserBloc(repo: SystemUsersRepo()),
@@ -299,8 +319,39 @@ void main() async {
                 IncomingOrdersCubit(context.read<PendingOrdersRepo>()),
           ),
         ],
-        child: const AppLifecycleObserverWidget(
-          child: IncomingOrdersController(child: AppWrapper()),
+        child: BlocListener<StoreSwitcherCubit, StoreSwitcherState>(
+          listenWhen: (previous, current) =>
+              previous.selectedStore?.id != current.selectedStore?.id,
+          listener: (context, state) {
+            final dispatch = context.read<DispatchCubit>();
+            final availability = context.read<RiderAvailabilityCubit>();
+            dispatch.reset();
+            availability.reset();
+            final lifecycle = WidgetsBinding.instance.lifecycleState;
+            if (state.selectedStore == null ||
+                !PermissionChecker.canViewOrders ||
+                (lifecycle != null && lifecycle != AppLifecycleState.resumed)) {
+              return;
+            }
+            final path = MyAppRoutes.router.routerDelegate.state.uri.path;
+            if ({
+              AppRoutes.orders,
+              AppRoutes.ordersFull,
+              AppRoutes.dispatchCenter,
+            }.contains(path)) {
+              dispatch.startPolling();
+            }
+            if ({
+              AppRoutes.orders,
+              AppRoutes.ordersFull,
+              AppRoutes.dispatchCenter,
+            }.contains(path)) {
+              availability.startPolling();
+            }
+          },
+          child: const AppLifecycleObserverWidget(
+            child: IncomingOrdersController(child: AppWrapper()),
+          ),
         ),
       ),
     ),

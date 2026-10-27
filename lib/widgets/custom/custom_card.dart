@@ -42,6 +42,8 @@ class CustomCard extends StatelessWidget {
   final Function(String)? onToggleStatus;
   final VoidCallback? onTap;
   final VoidCallback? onEditQty;
+  final VoidCallback? onApprove;
+  final bool isProcessing;
   final Widget? extraWidgets;
 
   const CustomCard({
@@ -54,6 +56,8 @@ class CustomCard extends StatelessWidget {
     this.onToggleStatus,
     this.onTap,
     this.onEditQty,
+    this.onApprove,
+    this.isProcessing = false,
     this.extraWidgets,
   });
 
@@ -258,7 +262,12 @@ class CustomCard extends StatelessWidget {
       case CardType.roles:
         return RolesCard(data: data, screenType: screenType);
       case CardType.systemUser:
-        return SystemUserCard(data: data, screenType: screenType);
+        return SystemUserCard(
+          data: data,
+          screenType: screenType,
+          onApprove: onApprove,
+          isProcessing: isProcessing,
+        );
     }
   }
 }

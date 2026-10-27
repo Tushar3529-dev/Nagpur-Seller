@@ -47,6 +47,9 @@ class ApiRoutes {
   static String ordersApi = '$baseUrl/orders';
   static String ordersEnumsApi = '$ordersApi/enums';
   static String pendingRegularOrdersApi = '$ordersApi/pending-regular';
+  static String popupPresenceApi = '$ordersApi/popup-presence';
+  static String popupUsersApi = '$ordersApi/popup-users';
+  static String fcmTokenApi = '$baseUrl/fcm-token';
 
   // wallet / transactions
   static String walletApi = '$baseUrl/wallet';
@@ -72,4 +75,16 @@ class ApiRoutes {
   static String buySubscriptionPlanApi = '$baseUrl/subscription/buy';
   static String currentSubscriptionPlanApi = '$baseUrl/subscription/current';
   static String subscriptionPlanHistoryApi = '$baseUrl/subscription/history';
+  // delivery boys
+  static String deliveryBoysApi = '$baseUrl/delivery-boys';
+  static String deliveryBoyApi(int id) => '$deliveryBoysApi/$id';
+  static String claimDeliveryBoyApi(int id) => '$deliveryBoysApi/$id/claim';
+  static String approveDeliveryBoyLoginApi(int id) => '$deliveryBoysApi/$id/approve-login';
+  static String rejectDeliveryBoyLoginApi(int id) => '$deliveryBoysApi/$id/reject-login';
+  static String deliveryBoyLoginQrApi(int id) => '$deliveryBoysApi/$id/login-qr';
+  static String rotateDeliveryBoyLoginQrApi(int id) => '$deliveryBoysApi/$id/rotate-login-qr';
+  // rider dispatch
+  static String dispatchDashboardApi = '$ordersApi/dispatch-dashboard';
+  static String selfDeliverApi(int orderId) => '$ordersApi/$orderId/self-deliver';
+  static String riderAvailabilityApi = '$ordersApi/rider-availability';
 }

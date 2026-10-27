@@ -891,5 +891,478 @@
   "productCategoryAll": "الكل",
   "productCategoryOther": "أخرى",
   "productSubcategoryCount": "{count, plural, =1{فئة فرعية واحدة} other{{count} فئات فرعية}}",
-  "productCategoryProductCount": "{count, plural, =1{منتج واحد} other{{count} منتجات}}"
+  "productCategoryProductCount": "{count, plural, =1{منتج واحد} other{{count} منتجات}}",
+  "deliveryBoys": "Delivery Boys",
+  "deliveryBoysSubtitle": "Riders, login and QR",
+  "riderActive": "ACTIVE",
+  "riderInactive": "INACTIVE",
+  "riderAddTitle": "Add Delivery Boy",
+  "riderEditTitle": "Edit Delivery Boy",
+  "riderAddToTeam": "Add to my team",
+  "riderApprovalExpired": "Approval expired",
+  "riderApprove": "Approve",
+  "riderDisapprove": "Disapprove",
+  "riderApprovePassword": "Approve password login",
+  "riderExtendApproval": "Extend approval",
+  "riderApprovedUntil": "Login approved until {time}",
+  "@riderApprovedUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "riderApprovePreview": "Rider can log in with email and password until {time}. Approval alone doesn't log them in.",
+  "@riderApprovePreview": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "riderRotatePreview": "New QR valid until {time}. The old QR and its session stop working.",
+  "@riderRotatePreview": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "riderDefaultPreview": "The platform chooses the login duration. Approval alone doesn't log them in.",
+  "riderAssignedTab": "My riders ({count})",
+  "@riderAssignedTab": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "riderAvailableTab": "Available ({count})",
+  "@riderAvailableTab": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "riderBack": "Back",
+  "riderClaimConfirmation": "This rider will be added to your team. Their login approval and QR will be reset and they'll be logged out.",
+  "riderCreationNotice": "After creation, the platform admin must verify the rider before they can log in.",
+  "riderCustomDuration": "Custom",
+  "riderDaysAgo": "{count}d ago",
+  "@riderDaysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "riderHoursAgo": "{count}h ago",
+  "@riderHoursAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "riderMinutesAgo": "{count}m ago",
+  "@riderMinutesAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "riderJustNow": "just now",
+  "riderDelete": "Delete rider",
+  "riderDeleteConfirmation": "Delete this rider and end their sessions?",
+  "riderDeliveryZone": "Delivery zone",
+  "riderDurationError": "Enter a whole number from 1 to 720",
+  "riderDurationHours": "{count}h",
+  "@riderDurationHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "riderDurationLabel": "Duration (hours)",
+  "riderDurationMaximum": "Maximum duration is set by the platform.",
+  "riderEdit": "Edit rider",
+  "riderEndSession": "Disapprove / end session",
+  "riderExpiresIn": "Expires in {time}",
+  "@riderExpiresIn": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "riderFullName": "Full name",
+  "riderLoginNotApproved": "Login not approved",
+  "riderLoginRequested": "Login requested {time}",
+  "@riderLoginRequested": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "riderNameRequired": "Full name is required",
+  "riderNoAssigned": "No riders yet",
+  "riderNoAvailable": "No available riders",
+  "riderNoManagePermission": "You don't have permission to manage delivery boys",
+  "riderNoSearchResults": "No riders match your search",
+  "riderNoViewPermission": "You don't have permission to view delivery boys",
+  "riderPasswordHelper": "Leave empty to keep current password. Changing it logs the rider out.",
+  "riderQrAfterVerification": "Available after platform verification",
+  "riderQrCaption": "The rider scans this in the rider app to log in. Don't share it.",
+  "riderQrTitle": "Login QR · {name}",
+  "@riderQrTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "riderRegenerateQr": "Regenerate QR",
+  "riderRejectConfirmation": "This disapproves password login and ends the rider's current session. The QR stays valid until it expires or you regenerate it.",
+  "riderSearchHint": "Search name, email or mobile",
+  "riderShowQr": "Show login QR",
+  "riderUseDefault": "Use platform default",
+  "riderValidEmail": "Enter a valid email address",
+  "riderVerificationCaption": "Platform admin must verify before login",
+  "riderVerificationPending": "Verification pending",
+  "riderVerified": "Verified",
+  "riderZoneRequired": "Select a delivery zone",
+  "riderSave": "Save",
+  "approvalDisapproved": "Disapproved",
+  "approvalNotRequested": "Not requested",
+  "approvedUntil": "until {time}",
+  "@approvedUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "requestedAgo": "requested {ago}",
+  "@requestedAgo": {
+    "placeholders": {
+      "ago": {
+        "type": "String"
+      }
+    }
+  },
+  "approveLoginFor": "Approve login for {name}",
+  "@approveLoginFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "approveLoginSubtitle": "They can sign in for 24 hours. Approval doesn't log them in.",
+  "accessDuration": "Access duration",
+  "defaultDuration": "12 h (default)",
+  "hoursLabel": "Hours",
+  "enterValidHours": "Enter a number of hours",
+  "accessUntilPreview": "Access until {time}",
+  "@accessUntilPreview": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "aboutAccessUntilPreview": "About {time}",
+  "@aboutAccessUntilPreview": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "extendAccess": "Extend access",
+  "revokeAccess": "Revoke access",
+  "revokeAccessTitle": "Revoke access?",
+  "revokeAccessBody": "{name} won't be able to sign in and any active session on their device will end.",
+  "@revokeAccessBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "loginApproved": "Login approved",
+  "accessRevoked": "Access revoked",
+  "activityLabel": "Activity",
+  "activeLoggedIn": "Active (logged in)",
+  "loginApprovalLabel": "Login approval",
+  "accessUntilLabel": "Access until",
+  "lastRequestedLabel": "Last requested",
+  "approvalFooterNote": "Approval allows sign-in. Status turns Active only after they log in.",
+  "durationHours": "{hours} h",
+  "@durationHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "revoke": "Revoke",
+  "loginApprovalsTitle": "Login Approvals",
+  "noPermissionViewLoginApprovals": "You don't have permission to view login approvals",
+  "noPendingLoginRequests": "No pending login requests",
+  "loginRequestsAppearHere": "Requests from your system users will appear here.",
+  "loginRequestedAt": "Requested {time}",
+  "@loginRequestedAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "askSellerApproveLogin": "Ask your seller to approve this login. Your seller chooses how long access lasts.",
+  "pendingLoginApprovalCount": "{count, plural, =1{1 login request awaiting your approval} other{{count} login requests awaiting your approval}}",
+  "@pendingLoginApprovalCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "reviewLoginApprovals": "Review",
+  "systemUserDetailsUnavailable": "System user details are unavailable.",
+  "dispatchCenter": "Dispatch center",
+  "dispatchEntry": "Dispatch",
+  "dispatchAutoRefresh": "Updated {time} · auto-refresh every 15s",
+  "@dispatchAutoRefresh": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "dispatchNoRiderAlertTitle": "{count, plural, =1{1 order has no nearby rider} other{{count} orders have no nearby rider}}",
+  "@dispatchNoRiderAlertTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dispatchNoRiderAlertBody": "Deliver it yourself or wait for a rider nearby.",
+  "dispatchReady": "Ready",
+  "dispatchNoRider": "No rider",
+  "dispatchAssigned": "Assigned",
+  "dispatchFilterAll": "All",
+  "dispatchFilterNeedsAction": "Needs action",
+  "dispatchFilterAwaiting": "Awaiting",
+  "dispatchFilterAssigned": "Assigned",
+  "dispatchStatusNoNearbyRiders": "No nearby riders",
+  "dispatchStatusWaitingForDispatch": "Waiting for dispatch",
+  "dispatchStatusAwaitingRider": "Awaiting rider",
+  "dispatchStatusRiderAssigned": "Rider assigned",
+  "dispatchStatusSelfDelivery": "Self delivery",
+  "dispatchOfferedTo": "Offered to {name}",
+  "@dispatchOfferedTo": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "dispatchRiderName": "Rider: {name}",
+  "@dispatchRiderName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "dispatchRiderId": "rider #{id}",
+  "@dispatchRiderId": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "dispatchRiderFallback": "Rider",
+  "dispatchNearbyRiders": "{count, plural, =1{1 rider nearby} other{{count} riders nearby}}",
+  "@dispatchNearbyRiders": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dispatchDeliverMyself": "Deliver myself",
+  "dispatchSelfDeliverTitle": "Deliver this order yourself?",
+  "dispatchSelfDeliverPendingOffer": "{name} has a pending offer for this order. It will be cancelled and you'll be responsible for delivery.",
+  "@dispatchSelfDeliverPendingOffer": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "dispatchSelfDeliverInfo": "This order will stop being offered to riders and you'll be responsible for delivery.",
+  "dispatchSelfDeliveryInfo": "You're responsible for delivering this order. Completing it in the app isn't available yet.",
+  "dispatchRidersNearStores": "Riders near your stores",
+  "dispatchActiveRiders": "Active",
+  "dispatchAvailableNearby": "Available nearby",
+  "dispatchOfflineRiders": "Offline",
+  "dispatchRiderAvailable": "Available",
+  "dispatchReasonInactive": "Offline",
+  "dispatchReasonNotVerified": "Not verified",
+  "dispatchReasonNoFcmToken": "Notifications not set up",
+  "dispatchReasonLocationStale": "Location not updated recently",
+  "dispatchReasonNoPickupStore": "No pickup store",
+  "dispatchReasonOutsideRadius": "Too far from store",
+  "dispatchReasonPendingOffer": "Has a pending offer",
+  "dispatchReasonActiveDelivery": "On a delivery",
+  "dispatchDistanceFromStore": "{meters} m from store",
+  "@dispatchDistanceFromStore": {
+    "placeholders": {
+      "meters": {
+        "type": "int"
+      }
+    }
+  },
+  "dispatchLocationAge": "Location {age}",
+  "@dispatchLocationAge": {
+    "placeholders": {
+      "age": {
+        "type": "String"
+      }
+    }
+  },
+  "dispatchAgeSeconds": "{seconds}s ago",
+  "@dispatchAgeSeconds": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "dispatchAgeMinutes": "{minutes}m ago",
+  "@dispatchAgeMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "dispatchAvailabilityUpdated": "Updated {time}",
+  "@dispatchAvailabilityUpdated": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "dispatchNoRidersFound": "No riders found for your stores and delivery zones.",
+  "dispatchEmptyTitle": "No orders waiting for dispatch",
+  "dispatchEmptyBody": "Bagged orders will appear here while riders are being assigned.",
+  "dispatchEmptyFilter": "No orders in this filter",
+  "dispatchShowAll": "Show all",
+  "dispatchNoViewPermission": "You don't have permission to view orders",
+  "popupUsersTitle": "System user availability",
+  "popupUsersOwnerOnly": "Only the store owner can view system user availability",
+  "popupUsersAutoRefresh": "Updated {time} · auto-refresh every 30s",
+  "@popupUsersAutoRefresh": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "popupUsersTotal": "Total",
+  "popupUsersEligible": "Eligible",
+  "popupUsersActive": "Active",
+  "popupUsersBusy": "Busy",
+  "popupUsersInactive": "Inactive",
+  "popupUsersRules": "New orders go to one eligible system user within {radius} m of the order's store whose location was updated in the last {minutes} min. You get them only when no system user is eligible.",
+  "@popupUsersRules": {
+    "placeholders": {
+      "radius": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "popupUsersEmpty": "No system users yet",
+  "popupUsersEligibleBadge": "Can receive orders",
+  "popupUsersCurrentOrder": "Current order {order}",
+  "@popupUsersCurrentOrder": {
+    "placeholders": {
+      "order": {
+        "type": "String"
+      }
+    }
+  },
+  "popupUsersNearestStore": "{store} · {distance} m",
+  "@popupUsersNearestStore": {
+    "placeholders": {
+      "store": {
+        "type": "String"
+      },
+      "distance": {
+        "type": "int"
+      }
+    }
+  },
+  "popupUsersNoLocation": "No location reported",
+  "popupUsersLoginUntil": "Login approved until {date}",
+  "@popupUsersLoginUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "popupUsersLoginStatus": "Login {status}",
+  "@popupUsersLoginStatus": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "popupUsersLoginUnknown": "Login approval unknown",
+  "popupUsersMembership": "Membership",
+  "popupUsersPopupPermission": "Popup permission",
+  "popupUsersAlertsOn": "Order alerts on",
+  "popupUsersPushReady": "Push notifications",
+  "popupReasonAccountInactive": "Account inactive",
+  "popupReasonSystemUserInactive": "Membership inactive",
+  "popupReasonLoginNotApproved": "Login not approved or expired",
+  "popupReasonPermissionMissing": "No order popup permission",
+  "popupReasonPresenceInactive": "Order alerts off",
+  "popupReasonLocationStale": "Location not updated recently",
+  "popupReasonLocationUnavailable": "Location or store unavailable",
+  "popupReasonOutsideRadius": "More than {radius} m from a store",
+  "@popupReasonOutsideRadius": {
+    "placeholders": {
+      "radius": {
+        "type": "int"
+      }
+    }
+  },
+  "popupReasonOrderInProgress": "Handling an order",
+  "orderAlertsTitle": "Order alerts",
+  "orderAlertsActive": "On · nearby orders can reach you",
+  "orderAlertsLocating": "Getting your location…",
+  "orderAlertsOffline": "Couldn't update your location. Retrying…",
+  "orderAlertsServiceDisabled": "Location is off. Turn it on to receive nearby orders.",
+  "orderAlertsPermissionDenied": "Allow location access to receive nearby orders.",
+  "orderAlertsTurnOnLocation": "Turn on",
+  "orderAlertsAllow": "Allow",
+  "orderAlertsOpenSettings": "Settings",
+  "orderAlertsOff": "Off · you won't receive new orders",
+  "orderAlertsOwnerActive": "On · you get orders no nearby staff member can take"
 }

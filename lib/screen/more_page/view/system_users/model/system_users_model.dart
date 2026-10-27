@@ -1,3 +1,4 @@
+import 'package:hyper_local_seller/service/api_base_helper.dart';
 import 'package:hyper_local_seller/service/json_parser.dart';
 
 const String modelName = 'system_users_model';
@@ -54,7 +55,7 @@ class SystemUsersPageData {
 
       users: JsonParser.list<SystemUser>(
         json['data'],
-            (v) => SystemUser.fromJson(v as Map<String, dynamic>),
+        (v) => SystemUser.fromJson(v as Map<String, dynamic>),
       ),
     );
   }
@@ -89,6 +90,10 @@ class SystemUser {
   String? createdAt;
   String? updatedAt;
   String? profileImage;
+  String loginApprovalStatus;
+  DateTime? loginApprovalRequestedAt;
+  DateTime? loginApprovedUntil;
+  String systemUserStatus;
   List<dynamic>? media; // usually empty or list of media objects/urls
 
   SystemUser({
@@ -109,12 +114,54 @@ class SystemUser {
     this.updatedAt,
     this.profileImage,
     this.media,
+    this.loginApprovalStatus = 'not_requested',
+    this.loginApprovalRequestedAt,
+    this.loginApprovedUntil,
+    this.systemUserStatus = 'inactive',
+  });
+
+  bool get isActive => systemUserStatus == 'active';
+  bool get isApprovalPending => loginApprovalStatus == 'pending';
+  bool get isApproved => loginApprovalStatus == 'approved';
+  bool get isDisapproved => loginApprovalStatus == 'disapproved';
+
+  static String parseApprovalStatus(dynamic value) {
+    final status = JsonParser.string(value);
+    return const [
+          'not_requested',
+          'pending',
+          'approved',
+          'disapproved',
+        ].contains(status)
+        ? status
+        : 'not_requested';
+  }
+
+  static String parseActivityStatus(dynamic value) =>
+      JsonParser.string(value) == 'active' ? 'active' : 'inactive';
+
+  SystemUser copyWithApproval({
+    String? loginApprovalStatus,
+    DateTime? loginApprovedUntil,
+    bool clearApprovedUntil = false,
+    String? systemUserStatus,
+  }) => SystemUser.fromJson({
+    ...toJson(),
+    'login_approval_status': loginApprovalStatus ?? this.loginApprovalStatus,
+    'login_approved_until': clearApprovedUntil
+        ? null
+        : (loginApprovedUntil ?? this.loginApprovedUntil)?.toIso8601String(),
+    'system_user_status': systemUserStatus ?? this.systemUserStatus,
   });
 
   factory SystemUser.fromJson(Map<String, dynamic> json) {
     return SystemUser(
       id: JsonParser.requireInt(json['id'], model: modelName, field: 'id'),
-      mobile: JsonParser.requireString(json['mobile'], model: modelName, field: 'mobile'),
+      mobile: JsonParser.requireString(
+        json['mobile'],
+        model: modelName,
+        field: 'mobile',
+      ),
 
       referralCode: JsonParser.string(json['referral_code']),
       friendsCode: JsonParser.string(json['friends_code']),
@@ -133,11 +180,19 @@ class SystemUser {
       createdAt: JsonParser.string(json['created_at'] ?? ''),
       updatedAt: JsonParser.string(json['updated_at'] ?? ''),
 
+      loginApprovalStatus: parseApprovalStatus(json['login_approval_status']),
+      loginApprovalRequestedAt: DateTime.tryParse(
+        JsonParser.string(json['login_approval_requested_at']),
+      )?.toLocal(),
+      loginApprovedUntil: DateTime.tryParse(
+        JsonParser.string(json['login_approved_until']),
+      )?.toLocal(),
+      systemUserStatus: parseActivityStatus(json['system_user_status']),
       profileImage: JsonParser.string(json['profile_image']),
 
       media: JsonParser.list<dynamic>(
         json['media'],
-            (v) => v, // can be refined later if media has known structure
+        (v) => v, // can be refined later if media has known structure
       ),
     );
   }
@@ -161,6 +216,37 @@ class SystemUser {
     data['updated_at'] = updatedAt;
     data['profile_image'] = profileImage;
     data['media'] = media;
+    data['login_approval_status'] = loginApprovalStatus;
+    data['login_approval_requested_at'] = loginApprovalRequestedAt
+        ?.toIso8601String();
+    data['login_approved_until'] = loginApprovedUntil?.toIso8601String();
+    data['system_user_status'] = systemUserStatus;
     return data;
+  }
+}
+
+/// Detail statuses live beside `user` and always override the nested fields.
+class SystemUserDetail {
+  final SystemUser user;
+
+  const SystemUserDetail({required this.user});
+
+  factory SystemUserDetail.fromJson(Map<String, dynamic> data) {
+    final user = data['user'];
+    if (user is! Map) {
+      throw ApiException('System user details are unavailable.');
+    }
+    return SystemUserDetail(
+      user: SystemUser.fromJson({
+        ...Map<String, dynamic>.from(user),
+        for (final key in const [
+          'login_approval_status',
+          'login_approval_requested_at',
+          'login_approved_until',
+          'system_user_status',
+        ])
+          key: data[key],
+      }),
+    );
   }
 }

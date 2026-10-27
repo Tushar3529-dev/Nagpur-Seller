@@ -22,6 +22,14 @@ import 'package:hyper_local_seller/config/app_permissions.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/cubit/incoming_orders_cubit.dart';
 import 'package:hyper_local_seller/utils/permission_checker.dart';
 import 'package:hyper_local_seller/widgets/custom/custom_snackbar.dart';
+import 'package:hyper_local_seller/screen/order_page/dispatch/cubit/dispatch_cubit.dart';
+import 'package:hyper_local_seller/screen/order_page/dispatch/model/dispatch_model.dart';
+import 'package:hyper_local_seller/screen/order_page/dispatch/view/dispatch_visibility.dart';
+import 'package:hyper_local_seller/screen/order_page/dispatch/cubit/rider_availability_cubit.dart';
+import 'package:hyper_local_seller/screen/order_page/dispatch/widgets/dispatch_alert_banner.dart';
+import 'package:hyper_local_seller/screen/order_page/dispatch/widgets/rider_availability_section.dart';
+import 'package:hyper_local_seller/screen/order_page/incoming_orders/widgets/order_alerts_banner.dart';
+import 'package:hyper_local_seller/screen/order_page/popup_users/cubit/popup_users_cubit.dart';
 
 class OrderPage extends StatefulWidget {
   const OrderPage({super.key});
@@ -31,8 +39,38 @@ class OrderPage extends StatefulWidget {
 }
 
 class _OrderPageState extends State<OrderPage>
-    with SingleTickerProviderStateMixin {
+    with
+        SingleTickerProviderStateMixin,
+        WidgetsBindingObserver,
+        DispatchVisibility<OrderPage> {
   static const _modes = OrderMode.values;
+  late final DispatchCubit _dispatch;
+  late final RiderAvailabilityCubit _availability;
+  @override
+  Set<String> get dispatchVisiblePaths => {
+    AppRoutes.orders,
+    AppRoutes.ordersFull,
+  };
+  @override
+  void dispatchVisibilityChanged(bool visible) {
+    if (visible && _dispatch.state.dashboard == null) _dispatch.load();
+    _dispatch.setPollingOwner(this, visible: visible);
+    // Rider availability refreshes every 30s while Orders is on screen.
+    _availability.setPollingOwner(this, visible: visible);
+    // Only the main seller owner may open system user availability; the
+    // first load tells (a 403 hides the button). Owners have every
+    // permission, so other roles without system-user access skip the call.
+    if (visible &&
+        (PermissionChecker.isDefaultSeller ||
+            PermissionChecker.hasPermission(AppPermissions.systemUserView))) {
+      context.read<PopupUsersCubit>().checkAccess();
+    }
+  }
+
+  void _openDispatch({bool needsAction = false}) {
+    if (needsAction) _dispatch.setFilter(DispatchFilter.needsAction);
+    context.pushNamed(AppRoutes.dispatchCenter);
+  }
 
   final ScrollController _scrollController = ScrollController();
   final Debouncer _debouncer = Debouncer(milliseconds: 500);
@@ -41,6 +79,8 @@ class _OrderPageState extends State<OrderPage>
   @override
   void initState() {
     super.initState();
+    _dispatch = context.read<DispatchCubit>();
+    _availability = context.read<RiderAvailabilityCubit>();
     _scrollController.addListener(_onScroll);
     final mode = context.read<OrdersBloc>().state.orderMode;
     _tabController = TabController(
@@ -117,6 +157,14 @@ class _OrderPageState extends State<OrderPage>
 
   @override
   Widget build(BuildContext context) {
+    final dispatchState = context.watch<DispatchCubit>().state;
+    final dispatchByNumber = <String, DispatchOrder>{
+      for (final order in dispatchState.dashboard?.orders ?? <DispatchOrder>[])
+        order.orderNumber: order,
+    };
+    final canViewDispatch = PermissionChecker.hasPermission(
+      AppPermissions.orderView,
+    );
     return BlocBuilder<ScreenSizeBloc, ScreenSizeState>(
       builder: (context, screenSizeState) {
         final screenType = screenSizeState.screenType;
@@ -126,6 +174,40 @@ class _OrderPageState extends State<OrderPage>
           title: l10n?.orders ?? "Orders",
           centerTitle: true,
           showAppbar: true,
+          appBarActions: [
+            if (canViewDispatch)
+              TextButton.icon(
+                onPressed: _openDispatch,
+                icon: Badge(
+                  isLabelVisible:
+                      (dispatchState.dashboard?.summary.noNearbyRiders ?? 0) >
+                      0,
+                  label: Text(
+                    '${dispatchState.dashboard?.summary.noNearbyRiders ?? 0}',
+                  ),
+                  child: const Icon(Icons.delivery_dining_outlined),
+                ),
+                label: Text(l10n?.dispatchEntry ?? 'Dispatch'),
+              ),
+            BlocBuilder<PopupUsersCubit, PopupUsersState>(
+              builder: (context, popupUsers) {
+                if (!popupUsers.hasAccess) return const SizedBox.shrink();
+                return IconButton(
+                  onPressed: () => context.pushNamed(AppRoutes.popupUsers),
+                  tooltip:
+                      l10n?.popupUsersTitle ?? 'System user availability',
+                  icon: Badge(
+                    // Nobody can take a new order: owner is the fallback.
+                    isLabelVisible:
+                        popupUsers.data!.summary.totalSystemUsers > 0 &&
+                        popupUsers.data!.summary.eligibleUsers == 0,
+                    smallSize: 8,
+                    child: const Icon(Icons.groups_outlined),
+                  ),
+                );
+              },
+            ),
+          ],
           isHaveSearch: true,
           searchHint: l10n?.search ?? 'Search',
           showFilters: true,
@@ -137,6 +219,32 @@ class _OrderPageState extends State<OrderPage>
           },
           body: Column(
             children: [
+              if (canViewDispatch &&
+                  dispatchState.dashboard?.summary.hasAlert == true)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  child: DispatchAlertBanner(
+                    count: dispatchState.dashboard!.summary.noNearbyRiders,
+                    compact: true,
+                    onTap: () => _openDispatch(needsAction: true),
+                  ),
+                ),
+              if (canViewDispatch)
+                ConstrainedBox(
+                  // Expanded rider details scroll here rather than pushing
+                  // the order list off screen.
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.sizeOf(context).height * 0.35,
+                  ),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: RiderAvailabilitySection(
+                      hasDispatchAlert:
+                          dispatchState.dashboard?.summary.hasAlert ?? false,
+                    ),
+                  ),
+                ),
+              const OrderAlertsBanner(),
               _buildTabBar(l10n),
               Expanded(
                 child: BlocConsumer<OrdersBloc, OrdersState>(
@@ -248,6 +356,8 @@ class _OrderPageState extends State<OrderPage>
                                         HiveStorage.currencySymbol,
                                       ),
                                       'status': order.status,
+                                      'dispatch_status':
+                                          dispatchByNumber[order.orderNumber],
                                       'image': order.image,
                                       'isRushOrder': order.isRushOrder,
                                       'created_at': order.createdAt,

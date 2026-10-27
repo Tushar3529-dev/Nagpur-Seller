@@ -5,10 +5,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hyper_local_seller/config/app_permissions.dart';
 import 'package:hyper_local_seller/config/colors.dart';
 import 'package:hyper_local_seller/config/hive_storage.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/cubit/incoming_orders_cubit.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/model/pending_order_model.dart';
+import 'package:hyper_local_seller/utils/permission_checker.dart';
 import 'package:hyper_local_seller/widgets/custom/barcode_scan_widgets.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
@@ -16,11 +18,11 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 /// bag, [ready]: bag assigned, waiting for "Dispatch order".
 enum _Phase { items, bag, ready }
 
-/// Shown full screen once an order is accepted. The camera stays open while
-/// a page per product slides past: the seller scans a product, then adds its
-/// quantity (with + or more scans); once it matches the order the next
-/// product slides in, no confirm taps. Then the seller packs the items, scans
-/// a bag, and "Dispatch order" appears.
+/// Shown full screen once an order is accepted. The first camera scan of each
+/// product freezes for Retake / Confirm, then extra units count with + / − or
+/// more scans. Once the quantity matches, the next product slides in. After
+/// packing, the bag scan freezes for Retake / Assign bag, then "Dispatch order"
+/// appears. Typed codes skip the review.
 class OrderScanPanel extends StatefulWidget {
   final PendingOrder order;
   final IncomingOrdersState state;
@@ -59,9 +61,9 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
   int _page = 0;
   final _codeController = TextEditingController();
 
-  /// Units counted per product (by order_item_id). Nothing until its barcode
-  /// is scanned: each scan counts one unit and + / − adjust it. The product
-  /// is verified as soon as the count reaches the ordered quantity.
+  /// Units counted per product (by order_item_id). The first camera scan needs
+  /// confirmation; typed codes and extra scans count directly, and + / −
+  /// adjust it. The product is verified at the ordered quantity.
   final Map<int, int> _counts = {};
 
   /// Typing codes instead of using the camera.
@@ -72,7 +74,10 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
   bool _bagScanStarted = false;
   String? _error;
 
-  /// Product just verified, shown over the camera for a moment.
+  /// Camera scan waiting for Retake / Confirm. Null while the camera is live.
+  _Review? _review;
+
+  /// Verification or quantity feedback, shown over the camera for a moment.
   String? _matched;
   Timer? _matchedTimer;
 
@@ -116,6 +121,7 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
     final phase = _phase;
     if (phase != _phaseOf(oldWidget.state)) {
       _error = null;
+      _review = null;
       _lastCode = null;
       // Back to items (the server rejected some): open the first one left.
       if (phase == _Phase.items) {
@@ -143,11 +149,12 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
   void _syncCamera() {
     final wanted =
         widget.cameraBuilder == null &&
+        _review == null &&
         !_manual &&
         !_packing &&
         _phase != _Phase.ready;
     if (wanted) {
-      _scanner ??= MobileScannerController();
+      _scanner ??= MobileScannerController(returnImage: true);
     } else {
       _scanner?.dispose();
       _scanner = null;
@@ -170,8 +177,15 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
     });
   }
 
+  /// Bag inventory needs `bag.view` to open and `bag.create` to add bags.
+  static bool get _canAddBags =>
+      PermissionChecker.hasPermission(AppPermissions.bagView) &&
+      PermissionChecker.hasPermission(AppPermissions.bagCreate);
+
+  /// Opens Bag inventory when this role may add bags; otherwise someone
+  /// else has to, so this only checks the count again.
   Future<void> _addBags() async {
-    await widget.onAddBags?.call();
+    if (_canAddBags) await widget.onAddBags?.call();
     if (!mounted) return;
     setState(() => _checkingBags = true);
     final count = await _cubit.availableBagCount();
@@ -215,22 +229,22 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
 
   void _onDetect(BarcodeCapture capture) {
     final code = firstBarcodeValue(capture);
-    if (code != null) _onCameraCode(code, null);
+    if (code != null) _onCameraCode(code, capture.image);
   }
 
-  void _onCameraCode(String code, Uint8List? _) {
+  void _onCameraCode(String code, Uint8List? image) {
     code = code.trim();
-    if (!mounted || _manual || code.isEmpty) return;
+    if (!mounted || _manual || _review != null || code.isEmpty) return;
     final now = DateTime.now();
     final repeated =
         code == _lastCode && now.difference(_lastCodeAt!) < _repeatDelay;
     _lastCodeAt = now;
     if (repeated) return;
     _lastCode = code;
-    _handleCode(code);
+    _handleCode(code, fromCamera: true, image: image);
   }
 
-  void _handleCode(String code) {
+  void _handleCode(String code, {bool fromCamera = false, Uint8List? image}) {
     code = code.trim();
     if (code.isEmpty) {
       setState(
@@ -242,17 +256,48 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
     }
     switch (_phase) {
       case _Phase.items:
-        _checkItem(code);
+        _checkItem(code, fromCamera: fromCamera, image: image);
       case _Phase.bag:
-        _assignBag(code);
+        if (fromCamera) {
+          HapticFeedback.selectionClick();
+          _openReview(_Review(code: code, image: image, bag: true));
+        } else {
+          _assignBag(code);
+        }
       case _Phase.ready:
         break;
     }
   }
 
-  /// Counts one unit of the product [code] belongs to.
-  void _checkItem(String code) {
+  /// Reviews the first camera scan of a product. Extra units and typed codes
+  /// count directly; a camera scan of the bag is reviewed separately.
+  void _checkItem(String code, {bool fromCamera = false, Uint8List? image}) {
     final (match, item) = _cubit.matchCode(widget.order, code);
+    if (fromCamera && !(match == ScanMatch.matched && _countOf(item!) > 0)) {
+      if (match == ScanMatch.matched) {
+        HapticFeedback.selectionClick();
+        _showPage(item!);
+      } else {
+        HapticFeedback.heavyImpact();
+      }
+      _openReview(
+        _Review(
+          code: code,
+          image: image,
+          bag: false,
+          match: match,
+          item: item,
+          error: switch (match) {
+            ScanMatch.matched => null,
+            ScanMatch.alreadyVerified =>
+              '${item!.product} is already verified. Scan the next item.',
+            ScanMatch.notInOrder =>
+              "This barcode isn't in this order. Check the product and try again.",
+          },
+        ),
+      );
+      return;
+    }
     switch (match) {
       case ScanMatch.matched:
         final count = _countOf(item!) + 1;
@@ -287,6 +332,60 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
     }
   }
 
+  void _openReview(_Review review) {
+    _matchedTimer?.cancel();
+    setState(() {
+      _review = review;
+      _error = null;
+      _matched = null;
+      _syncCamera();
+    });
+  }
+
+  void _retake() {
+    final review = _review;
+    if (review == null || _isAssigningBag) return;
+    setState(() {
+      _lastCode = review.code;
+      _lastCodeAt = DateTime.now();
+      _review = null;
+      _error = null;
+      _syncCamera();
+    });
+  }
+
+  void _confirmReview() {
+    final review = _review;
+    if (review == null || !review.canConfirm || _isAssigningBag) return;
+    _lastCodeAt = DateTime.now();
+    if (review.bag) {
+      _assignBag(review.code);
+      return;
+    }
+    final item = review.item!;
+    final count = _countOf(item) + 1;
+    setState(() => _review = null);
+    if (count >= item.quantity) {
+      _verify(item);
+    } else {
+      HapticFeedback.mediumImpact();
+      setState(() => _counts[item.orderItemId] = count);
+      _showMatched('$count of ${item.quantity} counted');
+    }
+    _syncCamera();
+  }
+
+  void _showMatched(String message) {
+    _matchedTimer?.cancel();
+    _matchedTimer = Timer(const Duration(milliseconds: 1200), () {
+      if (mounted) setState(() => _matched = null);
+    });
+    setState(() {
+      _error = null;
+      _matched = message;
+    });
+  }
+
   /// Marks [item] verified with its full quantity, then slides on to the
   /// next product still to scan.
   void _verify(PendingOrderItem item) {
@@ -299,14 +398,7 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
       return;
     }
     HapticFeedback.mediumImpact();
-    _matchedTimer?.cancel();
-    _matchedTimer = Timer(const Duration(milliseconds: 1200), () {
-      if (mounted) setState(() => _matched = null);
-    });
-    setState(() {
-      _error = null;
-      _matched = item.product;
-    });
+    _showMatched('${item.product} verified');
     _showNextAfter(item);
   }
 
@@ -336,15 +428,29 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
 
   Future<void> _assignBag(String code) async {
     if (_isAssigningBag) return;
+    final review = _review;
     setState(() => _error = null);
     final error = await _cubit.assignBag(widget.order, code);
     if (!mounted) return;
     if (error != null) {
       HapticFeedback.heavyImpact();
-      setState(() => _error = error);
+      if (review != null) {
+        setState(() {
+          _review = _Review(
+            code: review.code,
+            image: review.image,
+            bag: true,
+            error: error,
+          );
+        });
+      } else {
+        setState(() => _error = error);
+      }
       return;
     }
     HapticFeedback.mediumImpact();
+    setState(() => _review = null);
+    _syncCamera();
   }
 
   Future<void> _markPreparing() async {
@@ -364,11 +470,13 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
         children: [
           _ScanHeader(
             order: widget.order,
-            title: switch (phase) {
-              _Phase.items => 'Scan items',
-              _Phase.bag => 'Assign a bag',
-              _Phase.ready => 'Ready to dispatch',
-            },
+            title: _review != null
+                ? (_review!.bag ? 'Check the bag' : 'Check the scan')
+                : switch (phase) {
+                    _Phase.items => 'Scan items',
+                    _Phase.bag => 'Assign a bag',
+                    _Phase.ready => 'Ready to dispatch',
+                  },
             position: phase == _Phase.items ? '${_page + 1} / $total' : null,
           ),
           Expanded(
@@ -383,7 +491,11 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
                       children: [
                         Expanded(
                           flex: constraints.maxHeight < 520 ? 3 : 4,
-                          child: _manual ? _buildManual() : _buildCamera(),
+                          child: _review != null
+                              ? _buildFrozen()
+                              : _manual
+                              ? _buildManual()
+                              : _buildCamera(),
                         ),
                         Expanded(
                           flex: 5,
@@ -405,7 +517,7 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
 
   Widget _buildCamera() {
     final message = _matched != null
-        ? _ScanMessage(text: '$_matched verified', success: true)
+        ? _ScanMessage(text: _matched!, success: true)
         : _error != null
         ? _ScanMessage(text: _error!, success: false)
         : null;
@@ -418,6 +530,64 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
           ? "Point the camera at the bag's barcode."
           : "Point the camera at the product's barcode.",
       footer: message,
+    );
+  }
+
+  Widget _buildFrozen() {
+    final review = _review!;
+    final item = review.item;
+    final message = review.bag
+        ? review.error
+        : switch (review.match!) {
+            ScanMatch.matched =>
+              'Matches ${item!.product}'
+                  '${item.variant != null ? ' · ${item.variant}' : ''}',
+            ScanMatch.alreadyVerified => '${item!.product} is already verified',
+            ScanMatch.notInOrder => 'Not in this order',
+          };
+    return ColoredBox(
+      color: Colors.black,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (review.image != null)
+            Image.memory(review.image!, fit: BoxFit.contain)
+          else
+            Center(
+              child: Icon(
+                review.bag ? Icons.shopping_bag_outlined : Icons.qr_code_2,
+                color: Colors.white70,
+                size: 64,
+              ),
+            ),
+          Positioned(
+            top: 12,
+            left: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.pause, color: Colors.white, size: 16),
+                  SizedBox(width: 4),
+                  Text('Frozen frame', style: TextStyle(color: Colors.white)),
+                ],
+              ),
+            ),
+          ),
+          if (message != null)
+            Positioned(
+              left: 12,
+              right: 12,
+              bottom: 12,
+              child: _ScanMessage(text: message, success: review.canConfirm),
+            ),
+        ],
+      ),
     );
   }
 
@@ -450,7 +620,7 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
           ),
           if (_matched != null) ...[
             const SizedBox(height: 10),
-            _ScanMessage(text: '$_matched verified', success: true),
+            _ScanMessage(text: _matched!, success: true),
           ],
         ],
       ),
@@ -460,11 +630,16 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
   Widget _buildPages() {
     final items = widget.order.items;
     final state = widget.state;
+    final review = _review;
     return Column(
       children: [
         Expanded(
+          flex: review != null ? 3 : 1,
           child: PageView.builder(
             controller: _pages,
+            physics: review != null
+                ? const NeverScrollableScrollPhysics()
+                : null,
             itemCount: items.length,
             onPageChanged: (page) => setState(() {
               _page = page;
@@ -477,7 +652,9 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
                 count: _countOf(item),
                 verified: state.isVerified(item),
                 errors: state.itemErrors[item.orderItemId] ?? const {},
-                onQuantity: (delta) => _changeQuantity(item, delta),
+                onQuantity: (delta) {
+                  if (_review == null) _changeQuantity(item, delta);
+                },
               );
             },
           ),
@@ -491,26 +668,80 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
               verified: [for (final item in items) state.isVerified(item)],
             ),
           ),
+        if (review != null)
+          Flexible(
+            flex: 2,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildReviewCode('Detected code', review.code),
+                  const SizedBox(height: 6),
+                  if (review.error != null)
+                    ScanErrorText(review.error!)
+                  else
+                    Text(
+                      review.item!.quantity == 1
+                          ? 'Confirm verifies ${review.item!.product}.'
+                          : 'Confirm counts 1 of ${review.item!.quantity}.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).hintColor,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }
 
+  /// Keep the shared code box readable at large text scales without overflow.
+  Widget _buildReviewCode(String label, String code) {
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minWidth: constraints.maxWidth),
+          child: IntrinsicWidth(
+            child: ScanCodeBox(label: label, code: code),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildBag() {
+    final review = _review;
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _BagRow(bag: null, noBagsAvailable: _availableBags == 0),
+          if (review != null)
+            _buildReviewCode('Bag code', review.code)
+          else
+            _BagRow(
+              bag: null,
+              noBagsAvailable: _availableBags == 0,
+              canAddBags: _canAddBags,
+            ),
           const SizedBox(height: 10),
-          Text(
-            'All ${widget.order.items.length} items verified. Scan a free bag '
-            'from your inventory; it stays with this order.',
-            textAlign: TextAlign.center,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: Theme.of(context).hintColor),
-          ),
+          if (review?.error != null)
+            ScanErrorText(review!.error!)
+          else
+            Text(
+              review != null
+                  ? 'All ${widget.order.items.length} items verified. Confirm to assign this bag to the order.'
+                  : 'All ${widget.order.items.length} items verified. Scan a free bag '
+                        'from your inventory; it stays with this order.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).hintColor,
+              ),
+            ),
           if (_isAssigningBag) ...[
             const SizedBox(height: 12),
             const Center(child: CircularProgressIndicator()),
@@ -557,7 +788,7 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
           ),
           const SizedBox(height: 16),
           if (_availableBags == 0) ...[
-            const _BagRow(bag: null, noBagsAvailable: true),
+            _BagRow(bag: null, noBagsAvailable: true, canAddBags: _canAddBags),
             const SizedBox(height: 12),
           ],
           for (final item in items)
@@ -610,10 +841,37 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
         isLoading: state.preparingOrderId == orderId,
         onPressed: _markPreparing,
       );
+    } else if (_review case final review?) {
+      actions = review.canConfirm
+          ? Row(
+              children: [
+                Expanded(
+                  child: ScanSecondaryButton(
+                    label: 'Retake',
+                    onPressed: _isAssigningBag ? null : _retake,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ScanPrimaryButton(
+                    label: review.bag ? 'Assign bag' : 'Confirm',
+                    icon: Icons.check,
+                    color: Colors.green.shade600,
+                    isLoading: _isAssigningBag,
+                    onPressed: _confirmReview,
+                  ),
+                ),
+              ],
+            )
+          : ScanPrimaryButton(
+              label: 'Retake',
+              icon: Icons.refresh,
+              onPressed: _retake,
+            );
     } else if (phase == _Phase.bag && _availableBags == 0) {
       actions = ScanPrimaryButton(
-        label: 'Add bags',
-        icon: Icons.add,
+        label: _canAddBags ? 'Add bags' : 'Check again',
+        icon: _canAddBags ? Icons.add : Icons.refresh,
         isLoading: _checkingBags,
         onPressed: _addBags,
       );
@@ -679,6 +937,26 @@ class _OrderScanPanelState extends State<OrderScanPanel> {
       ],
     );
   }
+}
+
+class _Review {
+  final String code;
+  final Uint8List? image;
+  final bool bag;
+  final ScanMatch? match;
+  final PendingOrderItem? item;
+  final String? error;
+
+  const _Review({
+    required this.code,
+    this.image,
+    required this.bag,
+    this.match,
+    this.item,
+    this.error,
+  });
+
+  bool get canConfirm => error == null;
 }
 
 class _ScanHeader extends StatelessWidget {
@@ -1070,8 +1348,13 @@ class _PageDots extends StatelessWidget {
 class _BagRow extends StatelessWidget {
   final AssignedBag? bag;
   final bool noBagsAvailable;
+  final bool canAddBags;
 
-  const _BagRow({required this.bag, required this.noBagsAvailable});
+  const _BagRow({
+    required this.bag,
+    required this.noBagsAvailable,
+    this.canAddBags = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1113,8 +1396,11 @@ class _BagRow extends StatelessWidget {
                   )
                 : Text(
                     noBagsAvailable
-                        ? "You don't have any available bags. Add bags to your "
-                              'inventory to continue.'
+                        ? canAddBags
+                              ? "You don't have any available bags. Add bags "
+                                    'to your inventory to continue.'
+                              : 'No bags are available. Ask your store owner '
+                                    'to add bags, then check again.'
                         : 'No bag assigned yet. Scan a bag for this order.',
                     style: theme.textTheme.bodyMedium?.copyWith(color: color),
                   ),

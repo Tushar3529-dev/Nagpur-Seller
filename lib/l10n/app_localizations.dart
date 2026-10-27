@@ -5451,6 +5451,1128 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 product} other{{count} products}}'**
   String productCategoryProductCount(int count);
+
+  /// No description provided for @deliveryBoys.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery Boys'**
+  String get deliveryBoys;
+
+  /// No description provided for @deliveryBoysSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Riders, login and QR'**
+  String get deliveryBoysSubtitle;
+
+  /// No description provided for @riderActive.
+  ///
+  /// In en, this message translates to:
+  /// **'ACTIVE'**
+  String get riderActive;
+
+  /// No description provided for @riderInactive.
+  ///
+  /// In en, this message translates to:
+  /// **'INACTIVE'**
+  String get riderInactive;
+
+  /// No description provided for @riderAddTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Delivery Boy'**
+  String get riderAddTitle;
+
+  /// No description provided for @riderEditTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Delivery Boy'**
+  String get riderEditTitle;
+
+  /// No description provided for @riderAddToTeam.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to my team'**
+  String get riderAddToTeam;
+
+  /// No description provided for @riderApprovalExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Approval expired'**
+  String get riderApprovalExpired;
+
+  /// No description provided for @riderApprove.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve'**
+  String get riderApprove;
+
+  /// No description provided for @riderDisapprove.
+  ///
+  /// In en, this message translates to:
+  /// **'Disapprove'**
+  String get riderDisapprove;
+
+  /// No description provided for @riderApprovePassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve password login'**
+  String get riderApprovePassword;
+
+  /// No description provided for @riderExtendApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'Extend approval'**
+  String get riderExtendApproval;
+
+  /// No description provided for @riderApprovedUntil.
+  ///
+  /// In en, this message translates to:
+  /// **'Login approved until {time}'**
+  String riderApprovedUntil(String time);
+
+  /// No description provided for @riderApprovePreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Rider can log in with email and password until {time}. Approval alone doesn\'t log them in.'**
+  String riderApprovePreview(String time);
+
+  /// No description provided for @riderRotatePreview.
+  ///
+  /// In en, this message translates to:
+  /// **'New QR valid until {time}. The old QR and its session stop working.'**
+  String riderRotatePreview(String time);
+
+  /// No description provided for @riderDefaultPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'The platform chooses the login duration. Approval alone doesn\'t log them in.'**
+  String get riderDefaultPreview;
+
+  /// No description provided for @riderAssignedTab.
+  ///
+  /// In en, this message translates to:
+  /// **'My riders ({count})'**
+  String riderAssignedTab(int count);
+
+  /// No description provided for @riderAvailableTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Available ({count})'**
+  String riderAvailableTab(int count);
+
+  /// No description provided for @riderBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get riderBack;
+
+  /// No description provided for @riderClaimConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'This rider will be added to your team. Their login approval and QR will be reset and they\'ll be logged out.'**
+  String get riderClaimConfirmation;
+
+  /// No description provided for @riderCreationNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'After creation, the platform admin must verify the rider before they can log in.'**
+  String get riderCreationNotice;
+
+  /// No description provided for @riderCustomDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get riderCustomDuration;
+
+  /// No description provided for @riderDaysAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}d ago'**
+  String riderDaysAgo(int count);
+
+  /// No description provided for @riderHoursAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}h ago'**
+  String riderHoursAgo(int count);
+
+  /// No description provided for @riderMinutesAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}m ago'**
+  String riderMinutesAgo(int count);
+
+  /// No description provided for @riderJustNow.
+  ///
+  /// In en, this message translates to:
+  /// **'just now'**
+  String get riderJustNow;
+
+  /// No description provided for @riderDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete rider'**
+  String get riderDelete;
+
+  /// No description provided for @riderDeleteConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this rider and end their sessions?'**
+  String get riderDeleteConfirmation;
+
+  /// No description provided for @riderDeliveryZone.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery zone'**
+  String get riderDeliveryZone;
+
+  /// No description provided for @riderDurationError.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a whole number from 1 to 720'**
+  String get riderDurationError;
+
+  /// No description provided for @riderDurationHours.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}h'**
+  String riderDurationHours(int count);
+
+  /// No description provided for @riderDurationLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Duration (hours)'**
+  String get riderDurationLabel;
+
+  /// No description provided for @riderDurationMaximum.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum duration is set by the platform.'**
+  String get riderDurationMaximum;
+
+  /// No description provided for @riderEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit rider'**
+  String get riderEdit;
+
+  /// No description provided for @riderEndSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Disapprove / end session'**
+  String get riderEndSession;
+
+  /// No description provided for @riderExpiresIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires in {time}'**
+  String riderExpiresIn(String time);
+
+  /// No description provided for @riderFullName.
+  ///
+  /// In en, this message translates to:
+  /// **'Full name'**
+  String get riderFullName;
+
+  /// No description provided for @riderLoginNotApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Login not approved'**
+  String get riderLoginNotApproved;
+
+  /// No description provided for @riderLoginRequested.
+  ///
+  /// In en, this message translates to:
+  /// **'Login requested {time}'**
+  String riderLoginRequested(String time);
+
+  /// No description provided for @riderNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Full name is required'**
+  String get riderNameRequired;
+
+  /// No description provided for @riderNoAssigned.
+  ///
+  /// In en, this message translates to:
+  /// **'No riders yet'**
+  String get riderNoAssigned;
+
+  /// No description provided for @riderNoAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No available riders'**
+  String get riderNoAvailable;
+
+  /// No description provided for @riderNoManagePermission.
+  ///
+  /// In en, this message translates to:
+  /// **'You don\'t have permission to manage delivery boys'**
+  String get riderNoManagePermission;
+
+  /// No description provided for @riderNoSearchResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No riders match your search'**
+  String get riderNoSearchResults;
+
+  /// No description provided for @riderNoViewPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'You don\'t have permission to view delivery boys'**
+  String get riderNoViewPermission;
+
+  /// No description provided for @riderPasswordHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave empty to keep current password. Changing it logs the rider out.'**
+  String get riderPasswordHelper;
+
+  /// No description provided for @riderQrAfterVerification.
+  ///
+  /// In en, this message translates to:
+  /// **'Available after platform verification'**
+  String get riderQrAfterVerification;
+
+  /// No description provided for @riderQrCaption.
+  ///
+  /// In en, this message translates to:
+  /// **'The rider scans this in the rider app to log in. Don\'t share it.'**
+  String get riderQrCaption;
+
+  /// No description provided for @riderQrTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Login QR · {name}'**
+  String riderQrTitle(String name);
+
+  /// No description provided for @riderRegenerateQr.
+  ///
+  /// In en, this message translates to:
+  /// **'Regenerate QR'**
+  String get riderRegenerateQr;
+
+  /// No description provided for @riderRejectConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'This disapproves password login and ends the rider\'s current session. The QR stays valid until it expires or you regenerate it.'**
+  String get riderRejectConfirmation;
+
+  /// No description provided for @riderSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search name, email or mobile'**
+  String get riderSearchHint;
+
+  /// No description provided for @riderShowQr.
+  ///
+  /// In en, this message translates to:
+  /// **'Show login QR'**
+  String get riderShowQr;
+
+  /// No description provided for @riderUseDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Use platform default'**
+  String get riderUseDefault;
+
+  /// No description provided for @riderValidEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid email address'**
+  String get riderValidEmail;
+
+  /// No description provided for @riderVerificationCaption.
+  ///
+  /// In en, this message translates to:
+  /// **'Platform admin must verify before login'**
+  String get riderVerificationCaption;
+
+  /// No description provided for @riderVerificationPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification pending'**
+  String get riderVerificationPending;
+
+  /// No description provided for @riderVerified.
+  ///
+  /// In en, this message translates to:
+  /// **'Verified'**
+  String get riderVerified;
+
+  /// No description provided for @riderZoneRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a delivery zone'**
+  String get riderZoneRequired;
+
+  /// No description provided for @riderSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get riderSave;
+
+  /// No description provided for @approvalDisapproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Disapproved'**
+  String get approvalDisapproved;
+
+  /// No description provided for @approvalNotRequested.
+  ///
+  /// In en, this message translates to:
+  /// **'Not requested'**
+  String get approvalNotRequested;
+
+  /// No description provided for @approvedUntil.
+  ///
+  /// In en, this message translates to:
+  /// **'until {time}'**
+  String approvedUntil(String time);
+
+  /// No description provided for @requestedAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'requested {ago}'**
+  String requestedAgo(String ago);
+
+  /// No description provided for @approveLoginFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve login for {name}'**
+  String approveLoginFor(String name);
+
+  /// No description provided for @approveLoginSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'They can sign in for 24 hours. Approval doesn\'t log them in.'**
+  String get approveLoginSubtitle;
+
+  /// No description provided for @accessDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Access duration'**
+  String get accessDuration;
+
+  /// No description provided for @defaultDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'12 h (default)'**
+  String get defaultDuration;
+
+  /// No description provided for @hoursLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Hours'**
+  String get hoursLabel;
+
+  /// No description provided for @enterValidHours.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a number of hours'**
+  String get enterValidHours;
+
+  /// No description provided for @accessUntilPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Access until {time}'**
+  String accessUntilPreview(String time);
+
+  /// No description provided for @aboutAccessUntilPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'About {time}'**
+  String aboutAccessUntilPreview(String time);
+
+  /// No description provided for @extendAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Extend access'**
+  String get extendAccess;
+
+  /// No description provided for @revokeAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke access'**
+  String get revokeAccess;
+
+  /// No description provided for @revokeAccessTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke access?'**
+  String get revokeAccessTitle;
+
+  /// No description provided for @revokeAccessBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} won\'t be able to sign in and any active session on their device will end.'**
+  String revokeAccessBody(String name);
+
+  /// No description provided for @loginApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Login approved'**
+  String get loginApproved;
+
+  /// No description provided for @accessRevoked.
+  ///
+  /// In en, this message translates to:
+  /// **'Access revoked'**
+  String get accessRevoked;
+
+  /// No description provided for @activityLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Activity'**
+  String get activityLabel;
+
+  /// No description provided for @activeLoggedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Active (logged in)'**
+  String get activeLoggedIn;
+
+  /// No description provided for @loginApprovalLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Login approval'**
+  String get loginApprovalLabel;
+
+  /// No description provided for @accessUntilLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Access until'**
+  String get accessUntilLabel;
+
+  /// No description provided for @lastRequestedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Last requested'**
+  String get lastRequestedLabel;
+
+  /// No description provided for @approvalFooterNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Approval allows sign-in. Status turns Active only after they log in.'**
+  String get approvalFooterNote;
+
+  /// No description provided for @durationHours.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours} h'**
+  String durationHours(int hours);
+
+  /// No description provided for @revoke.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke'**
+  String get revoke;
+
+  /// No description provided for @loginApprovalsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Login Approvals'**
+  String get loginApprovalsTitle;
+
+  /// No description provided for @noPermissionViewLoginApprovals.
+  ///
+  /// In en, this message translates to:
+  /// **'You don\'t have permission to view login approvals'**
+  String get noPermissionViewLoginApprovals;
+
+  /// No description provided for @noPendingLoginRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'No pending login requests'**
+  String get noPendingLoginRequests;
+
+  /// No description provided for @loginRequestsAppearHere.
+  ///
+  /// In en, this message translates to:
+  /// **'Requests from your system users will appear here.'**
+  String get loginRequestsAppearHere;
+
+  /// No description provided for @loginRequestedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Requested {time}'**
+  String loginRequestedAt(String time);
+
+  /// No description provided for @askSellerApproveLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask your seller to approve this login. Your seller chooses how long access lasts.'**
+  String get askSellerApproveLogin;
+
+  /// No description provided for @pendingLoginApprovalCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 login request awaiting your approval} other{{count} login requests awaiting your approval}}'**
+  String pendingLoginApprovalCount(int count);
+
+  /// No description provided for @reviewLoginApprovals.
+  ///
+  /// In en, this message translates to:
+  /// **'Review'**
+  String get reviewLoginApprovals;
+
+  /// No description provided for @systemUserDetailsUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'System user details are unavailable.'**
+  String get systemUserDetailsUnavailable;
+
+  /// No description provided for @dispatchCenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispatch center'**
+  String get dispatchCenter;
+
+  /// No description provided for @dispatchEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispatch'**
+  String get dispatchEntry;
+
+  /// No description provided for @dispatchAutoRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated {time} · auto-refresh every 15s'**
+  String dispatchAutoRefresh(String time);
+
+  /// No description provided for @dispatchNoRiderAlertTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 order has no nearby rider} other{{count} orders have no nearby rider}}'**
+  String dispatchNoRiderAlertTitle(int count);
+
+  /// No description provided for @dispatchNoRiderAlertBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Deliver it yourself or wait for a rider nearby.'**
+  String get dispatchNoRiderAlertBody;
+
+  /// No description provided for @dispatchReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get dispatchReady;
+
+  /// No description provided for @dispatchNoRider.
+  ///
+  /// In en, this message translates to:
+  /// **'No rider'**
+  String get dispatchNoRider;
+
+  /// No description provided for @dispatchAssigned.
+  ///
+  /// In en, this message translates to:
+  /// **'Assigned'**
+  String get dispatchAssigned;
+
+  /// No description provided for @dispatchFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get dispatchFilterAll;
+
+  /// No description provided for @dispatchFilterNeedsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs action'**
+  String get dispatchFilterNeedsAction;
+
+  /// No description provided for @dispatchFilterAwaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Awaiting'**
+  String get dispatchFilterAwaiting;
+
+  /// No description provided for @dispatchFilterAssigned.
+  ///
+  /// In en, this message translates to:
+  /// **'Assigned'**
+  String get dispatchFilterAssigned;
+
+  /// No description provided for @dispatchStatusNoNearbyRiders.
+  ///
+  /// In en, this message translates to:
+  /// **'No nearby riders'**
+  String get dispatchStatusNoNearbyRiders;
+
+  /// No description provided for @dispatchStatusWaitingForDispatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for dispatch'**
+  String get dispatchStatusWaitingForDispatch;
+
+  /// No description provided for @dispatchStatusAwaitingRider.
+  ///
+  /// In en, this message translates to:
+  /// **'Awaiting rider'**
+  String get dispatchStatusAwaitingRider;
+
+  /// No description provided for @dispatchStatusRiderAssigned.
+  ///
+  /// In en, this message translates to:
+  /// **'Rider assigned'**
+  String get dispatchStatusRiderAssigned;
+
+  /// No description provided for @dispatchStatusSelfDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'Self delivery'**
+  String get dispatchStatusSelfDelivery;
+
+  /// No description provided for @dispatchOfferedTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Offered to {name}'**
+  String dispatchOfferedTo(String name);
+
+  /// No description provided for @dispatchRiderName.
+  ///
+  /// In en, this message translates to:
+  /// **'Rider: {name}'**
+  String dispatchRiderName(String name);
+
+  /// No description provided for @dispatchRiderId.
+  ///
+  /// In en, this message translates to:
+  /// **'rider #{id}'**
+  String dispatchRiderId(int id);
+
+  /// No description provided for @dispatchRiderFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Rider'**
+  String get dispatchRiderFallback;
+
+  /// No description provided for @dispatchNearbyRiders.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 rider nearby} other{{count} riders nearby}}'**
+  String dispatchNearbyRiders(int count);
+
+  /// No description provided for @dispatchDeliverMyself.
+  ///
+  /// In en, this message translates to:
+  /// **'Deliver myself'**
+  String get dispatchDeliverMyself;
+
+  /// No description provided for @dispatchSelfDeliverTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Deliver this order yourself?'**
+  String get dispatchSelfDeliverTitle;
+
+  /// No description provided for @dispatchSelfDeliverPendingOffer.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} has a pending offer for this order. It will be cancelled and you\'ll be responsible for delivery.'**
+  String dispatchSelfDeliverPendingOffer(String name);
+
+  /// No description provided for @dispatchSelfDeliverInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'This order will stop being offered to riders and you\'ll be responsible for delivery.'**
+  String get dispatchSelfDeliverInfo;
+
+  /// No description provided for @dispatchSelfDeliveryInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re responsible for delivering this order. Completing it in the app isn\'t available yet.'**
+  String get dispatchSelfDeliveryInfo;
+
+  /// No description provided for @dispatchRidersNearStores.
+  ///
+  /// In en, this message translates to:
+  /// **'Riders near your stores'**
+  String get dispatchRidersNearStores;
+
+  /// No description provided for @dispatchActiveRiders.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get dispatchActiveRiders;
+
+  /// No description provided for @dispatchAvailableNearby.
+  ///
+  /// In en, this message translates to:
+  /// **'Available nearby'**
+  String get dispatchAvailableNearby;
+
+  /// No description provided for @dispatchOfflineRiders.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get dispatchOfflineRiders;
+
+  /// No description provided for @dispatchRiderAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Available'**
+  String get dispatchRiderAvailable;
+
+  /// No description provided for @dispatchReasonInactive.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get dispatchReasonInactive;
+
+  /// No description provided for @dispatchReasonNotVerified.
+  ///
+  /// In en, this message translates to:
+  /// **'Not verified'**
+  String get dispatchReasonNotVerified;
+
+  /// No description provided for @dispatchReasonNoFcmToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications not set up'**
+  String get dispatchReasonNoFcmToken;
+
+  /// No description provided for @dispatchReasonLocationStale.
+  ///
+  /// In en, this message translates to:
+  /// **'Location not updated recently'**
+  String get dispatchReasonLocationStale;
+
+  /// No description provided for @dispatchReasonNoPickupStore.
+  ///
+  /// In en, this message translates to:
+  /// **'No pickup store'**
+  String get dispatchReasonNoPickupStore;
+
+  /// No description provided for @dispatchReasonOutsideRadius.
+  ///
+  /// In en, this message translates to:
+  /// **'Too far from store'**
+  String get dispatchReasonOutsideRadius;
+
+  /// No description provided for @dispatchReasonPendingOffer.
+  ///
+  /// In en, this message translates to:
+  /// **'Has a pending offer'**
+  String get dispatchReasonPendingOffer;
+
+  /// No description provided for @dispatchReasonActiveDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'On a delivery'**
+  String get dispatchReasonActiveDelivery;
+
+  /// No description provided for @dispatchDistanceFromStore.
+  ///
+  /// In en, this message translates to:
+  /// **'{meters} m from store'**
+  String dispatchDistanceFromStore(int meters);
+
+  /// No description provided for @dispatchLocationAge.
+  ///
+  /// In en, this message translates to:
+  /// **'Location {age}'**
+  String dispatchLocationAge(String age);
+
+  /// No description provided for @dispatchAgeSeconds.
+  ///
+  /// In en, this message translates to:
+  /// **'{seconds}s ago'**
+  String dispatchAgeSeconds(int seconds);
+
+  /// No description provided for @dispatchAgeMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes}m ago'**
+  String dispatchAgeMinutes(int minutes);
+
+  /// No description provided for @dispatchAvailabilityUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated {time}'**
+  String dispatchAvailabilityUpdated(String time);
+
+  /// No description provided for @dispatchNoRidersFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No riders found for your stores and delivery zones.'**
+  String get dispatchNoRidersFound;
+
+  /// No description provided for @dispatchEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No orders waiting for dispatch'**
+  String get dispatchEmptyTitle;
+
+  /// No description provided for @dispatchEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Bagged orders will appear here while riders are being assigned.'**
+  String get dispatchEmptyBody;
+
+  /// No description provided for @dispatchEmptyFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'No orders in this filter'**
+  String get dispatchEmptyFilter;
+
+  /// No description provided for @dispatchShowAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Show all'**
+  String get dispatchShowAll;
+
+  /// No description provided for @dispatchNoViewPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'You don\'t have permission to view orders'**
+  String get dispatchNoViewPermission;
+
+  /// No description provided for @popupUsersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'System user availability'**
+  String get popupUsersTitle;
+
+  /// No description provided for @popupUsersOwnerOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the store owner can view system user availability'**
+  String get popupUsersOwnerOnly;
+
+  /// No description provided for @popupUsersAutoRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated {time} · auto-refresh every 30s'**
+  String popupUsersAutoRefresh(String time);
+
+  /// No description provided for @popupUsersTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get popupUsersTotal;
+
+  /// No description provided for @popupUsersEligible.
+  ///
+  /// In en, this message translates to:
+  /// **'Eligible'**
+  String get popupUsersEligible;
+
+  /// No description provided for @popupUsersActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get popupUsersActive;
+
+  /// No description provided for @popupUsersBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Busy'**
+  String get popupUsersBusy;
+
+  /// No description provided for @popupUsersInactive.
+  ///
+  /// In en, this message translates to:
+  /// **'Inactive'**
+  String get popupUsersInactive;
+
+  /// No description provided for @popupUsersRules.
+  ///
+  /// In en, this message translates to:
+  /// **'New orders go to one eligible system user within {radius} m of the order\'s store whose location was updated in the last {minutes} min. You get them only when no system user is eligible.'**
+  String popupUsersRules(int radius, int minutes);
+
+  /// No description provided for @popupUsersEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No system users yet'**
+  String get popupUsersEmpty;
+
+  /// No description provided for @popupUsersEligibleBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Can receive orders'**
+  String get popupUsersEligibleBadge;
+
+  /// No description provided for @popupUsersCurrentOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Current order {order}'**
+  String popupUsersCurrentOrder(String order);
+
+  /// No description provided for @popupUsersNearestStore.
+  ///
+  /// In en, this message translates to:
+  /// **'{store} · {distance} m'**
+  String popupUsersNearestStore(String store, int distance);
+
+  /// No description provided for @popupUsersNoLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'No location reported'**
+  String get popupUsersNoLocation;
+
+  /// No description provided for @popupUsersLoginUntil.
+  ///
+  /// In en, this message translates to:
+  /// **'Login approved until {date}'**
+  String popupUsersLoginUntil(String date);
+
+  /// No description provided for @popupUsersLoginStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Login {status}'**
+  String popupUsersLoginStatus(String status);
+
+  /// No description provided for @popupUsersLoginUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Login approval unknown'**
+  String get popupUsersLoginUnknown;
+
+  /// No description provided for @popupUsersMembership.
+  ///
+  /// In en, this message translates to:
+  /// **'Membership'**
+  String get popupUsersMembership;
+
+  /// No description provided for @popupUsersPopupPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Popup permission'**
+  String get popupUsersPopupPermission;
+
+  /// No description provided for @popupUsersAlertsOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Order alerts on'**
+  String get popupUsersAlertsOn;
+
+  /// No description provided for @popupUsersPushReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Push notifications'**
+  String get popupUsersPushReady;
+
+  /// No description provided for @popupReasonAccountInactive.
+  ///
+  /// In en, this message translates to:
+  /// **'Account inactive'**
+  String get popupReasonAccountInactive;
+
+  /// No description provided for @popupReasonSystemUserInactive.
+  ///
+  /// In en, this message translates to:
+  /// **'Membership inactive'**
+  String get popupReasonSystemUserInactive;
+
+  /// No description provided for @popupReasonLoginNotApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Login not approved or expired'**
+  String get popupReasonLoginNotApproved;
+
+  /// No description provided for @popupReasonPermissionMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'No order popup permission'**
+  String get popupReasonPermissionMissing;
+
+  /// No description provided for @popupReasonPresenceInactive.
+  ///
+  /// In en, this message translates to:
+  /// **'Order alerts off'**
+  String get popupReasonPresenceInactive;
+
+  /// No description provided for @popupReasonLocationStale.
+  ///
+  /// In en, this message translates to:
+  /// **'Location not updated recently'**
+  String get popupReasonLocationStale;
+
+  /// No description provided for @popupReasonLocationUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Location or store unavailable'**
+  String get popupReasonLocationUnavailable;
+
+  /// No description provided for @popupReasonOutsideRadius.
+  ///
+  /// In en, this message translates to:
+  /// **'More than {radius} m from a store'**
+  String popupReasonOutsideRadius(int radius);
+
+  /// No description provided for @popupReasonOrderInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Handling an order'**
+  String get popupReasonOrderInProgress;
+
+  /// No description provided for @orderAlertsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Order alerts'**
+  String get orderAlertsTitle;
+
+  /// No description provided for @orderAlertsActive.
+  ///
+  /// In en, this message translates to:
+  /// **'On · nearby orders can reach you'**
+  String get orderAlertsActive;
+
+  /// No description provided for @orderAlertsLocating.
+  ///
+  /// In en, this message translates to:
+  /// **'Getting your location…'**
+  String get orderAlertsLocating;
+
+  /// No description provided for @orderAlertsOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t update your location. Retrying…'**
+  String get orderAlertsOffline;
+
+  /// No description provided for @orderAlertsServiceDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Location is off. Turn it on to receive nearby orders.'**
+  String get orderAlertsServiceDisabled;
+
+  /// No description provided for @orderAlertsPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow location access to receive nearby orders.'**
+  String get orderAlertsPermissionDenied;
+
+  /// No description provided for @orderAlertsTurnOnLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on'**
+  String get orderAlertsTurnOnLocation;
+
+  /// No description provided for @orderAlertsAllow.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow'**
+  String get orderAlertsAllow;
+
+  /// No description provided for @orderAlertsOpenSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get orderAlertsOpenSettings;
+
+  /// No description provided for @orderAlertsOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off · you won\'t receive new orders'**
+  String get orderAlertsOff;
+
+  /// No description provided for @orderAlertsOwnerActive.
+  ///
+  /// In en, this message translates to:
+  /// **'On · you get orders no nearby staff member can take'**
+  String get orderAlertsOwnerActive;
 }
 
 class _AppLocalizationsDelegate

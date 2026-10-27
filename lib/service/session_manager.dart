@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hyper_local_seller/utils/auth_log.dart';
 import 'package:hyper_local_seller/config/global_keys.dart';
 import 'package:hyper_local_seller/config/hive_storage.dart';
 import 'package:hyper_local_seller/router/app_routes.dart';
@@ -29,7 +30,10 @@ class SessionManager {
 
     _isHandling = true;
     try {
-      debugPrint('[SessionManager] session rejected — logging out');
+      authLog(
+        'session rejected by server → forced logout'
+        '${message != null ? ' ($message)' : ''}',
+      );
       await HiveStorage.clearAll();
 
       final context = GlobalKeys.navigatorKey.currentContext;

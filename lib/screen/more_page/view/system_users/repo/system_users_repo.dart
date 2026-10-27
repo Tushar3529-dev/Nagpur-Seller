@@ -1,5 +1,6 @@
 import 'package:hyper_local_seller/config/api_routes.dart';
 import 'package:hyper_local_seller/screen/more_page/view/system_users/model/login_approval_model.dart';
+import 'package:hyper_local_seller/screen/more_page/view/system_users/model/system_users_model.dart';
 import 'package:hyper_local_seller/service/api_base_helper.dart';
 
 class SystemUsersRepo {
@@ -24,7 +25,7 @@ class SystemUsersRepo {
 
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -33,7 +34,7 @@ class SystemUsersRepo {
       final response = await _helper.get('${ApiRoutes.systemUsersApi}/$id');
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -52,7 +53,7 @@ class SystemUsersRepo {
 
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -62,7 +63,7 @@ class SystemUsersRepo {
 
       return response;
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -81,11 +82,29 @@ class SystemUsersRepo {
     return LoginApprovalsPage.fromJson(Map<String, dynamic>.from(response));
   }
 
-  /// Grants the system user access for 24 hours.
-  Future<dynamic> approveLogin(int userId) =>
-      _helper.post(ApiRoutes.approveLoginApi(userId), {});
+  Future<SystemUser> getSystemUserDetail(int id) async {
+    final response = await _helper.get('${ApiRoutes.systemUsersApi}/$id');
+    return SystemUserDetail.fromJson(
+      Map<String, dynamic>.from(
+        response['data'] is Map ? response['data'] : {},
+      ),
+    ).user;
+  }
+
+  /// Grants access until `login_approved_until`, currently 24 hours. The
+  /// server sets the length; no body is sent.
+  Future<LoginApprovalResult> approveLogin(int userId) async {
+    final response = await _helper.post(ApiRoutes.approveLoginApi(userId), null);
+    return LoginApprovalResult.fromJson(
+      Map<String, dynamic>.from(response['data']),
+    );
+  }
 
   /// Sets the status to `disapproved` and revokes the user's tokens.
-  Future<dynamic> disapproveLogin(int userId) =>
-      _helper.post(ApiRoutes.rejectLoginApi(userId), {});
+  Future<LoginApprovalResult> disapproveLogin(int userId) async {
+    final response = await _helper.post(ApiRoutes.rejectLoginApi(userId), null);
+    return LoginApprovalResult.fromJson(
+      Map<String, dynamic>.from(response['data']),
+    );
+  }
 }

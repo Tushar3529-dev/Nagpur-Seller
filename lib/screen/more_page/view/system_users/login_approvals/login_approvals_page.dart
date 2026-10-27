@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 import 'package:hyper_local_seller/config/colors.dart';
+import 'package:hyper_local_seller/l10n/app_localizations.dart';
+import 'package:hyper_local_seller/screen/more_page/view/system_users/bloc/system_user_bloc.dart';
 import 'package:hyper_local_seller/screen/more_page/view/system_users/login_approvals/login_approvals_cubit.dart';
 import 'package:hyper_local_seller/screen/more_page/view/system_users/model/login_approval_model.dart';
+import 'package:hyper_local_seller/screen/more_page/view/system_users/widgets/approve_login_bottom_sheet.dart';
+import 'package:hyper_local_seller/screen/more_page/view/system_users/widgets/system_user_detail_bottom_sheet.dart';
+import 'package:hyper_local_seller/screen/more_page/view/system_users/widgets/system_user_status_badges.dart';
 import 'package:hyper_local_seller/service/demo_guard.dart';
 import 'package:hyper_local_seller/utils/image_path.dart';
 import 'package:hyper_local_seller/utils/ui_utils.dart';
@@ -12,6 +16,7 @@ import 'package:hyper_local_seller/widgets/custom/custom_loading_indicator.dart'
 import 'package:hyper_local_seller/widgets/custom/custom_scaffold.dart';
 import 'package:hyper_local_seller/widgets/custom/custom_snackbar.dart';
 import 'package:hyper_local_seller/widgets/ui/empty_state_widget.dart';
+import 'package:intl/intl.dart';
 
 /// Pending login requests from system users, with approve / disapprove.
 class LoginApprovalsPage extends StatefulWidget {
@@ -21,12 +26,15 @@ class LoginApprovalsPage extends StatefulWidget {
   State<LoginApprovalsPage> createState() => _LoginApprovalsPageState();
 }
 
-class _LoginApprovalsPageState extends State<LoginApprovalsPage> {
+class _LoginApprovalsPageState extends State<LoginApprovalsPage>
+    with WidgetsBindingObserver {
+  final Set<int> _choosingIds = {};
   final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(() {
       if (!_scrollController.hasClients) return;
       final position = _scrollController.position;
@@ -35,27 +43,41 @@ class _LoginApprovalsPageState extends State<LoginApprovalsPage> {
       }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<LoginApprovalsCubit>().fetch();
+      if (mounted) context.read<LoginApprovalsCubit>().fetch();
     });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      context.read<LoginApprovalsCubit>().fetch();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return CustomScaffold(
       showAppbar: true,
-      title: 'Login Approvals',
+      title:
+          AppLocalizations.of(context)?.loginApprovalsTitle ??
+          'Login Approvals',
       centerTitle: true,
       body: LoginApprovalsCubit.canView
           ? _buildBody(context)
-          : const EmptyStateWidget(
+          : EmptyStateWidget(
               svgPath: ImagesPath.noSearchFoundSvg,
-              title: "You don't have permission to view login approvals",
+              title:
+                  AppLocalizations.of(
+                    context,
+                  )?.noPermissionViewLoginApprovals ??
+                  "You don't have permission to view login approvals",
             ),
     );
   }
@@ -66,19 +88,42 @@ class _LoginApprovalsPageState extends State<LoginApprovalsPage> {
     return BlocConsumer<LoginApprovalsCubit, LoginApprovalsState>(
       listenWhen: (previous, current) =>
           previous.errorMessage != current.errorMessage ||
-          previous.actionMessage != current.actionMessage,
+          previous.actionMessage != current.actionMessage ||
+          previous.lastResult != current.lastResult,
       listener: (context, state) {
+        final result = state.lastResult;
+        if (result != null && state.actionMessage != null) {
+          try {
+            final bloc = context.read<SystemUserBloc>();
+            bloc.add(ApplyLoginApprovalResultEvent(result));
+            bloc.add(
+              FetchSystemUsersEvent(
+                isRefresh: true,
+                silent: true,
+                search: bloc.state.search,
+              ),
+            );
+          } catch (_) {
+            // The inbox can also be mounted without the app-wide users bloc.
+          }
+        }
         // Load failures are shown by the empty state instead.
         if (state.errorMessage != null &&
-            state.status != LoginApprovalsStatus.failure) {
+            (state.status != LoginApprovalsStatus.failure ||
+                state.items.isNotEmpty)) {
           showCustomSnackbar(
             context: context,
-            message: state.errorMessage!,
+            message: systemUserErrorMessage(context, state.errorMessage!),
             isError: true,
           );
           context.read<LoginApprovalsCubit>().clearMessages();
         } else if (state.actionMessage != null) {
-          showCustomSnackbar(context: context, message: state.actionMessage!);
+          showCustomSnackbar(
+            context: context,
+            message: result == null
+                ? state.actionMessage!
+                : loginApprovalMessage(context, result),
+          );
           context.read<LoginApprovalsCubit>().clearMessages();
         }
       },
@@ -100,9 +145,14 @@ class _LoginApprovalsPageState extends State<LoginApprovalsPage> {
             state.status == LoginApprovalsStatus.failure) {
           return EmptyStateWidget(
             svgPath: ImagesPath.noOrderFoundSvg,
-            title: state.errorMessage ?? 'Seems like there is some issue',
-            subtitle: 'Please try again later',
-            actionText: 'Try Again',
+            title: state.errorMessage != null
+                ? systemUserErrorMessage(context, state.errorMessage!)
+                : AppLocalizations.of(context)?.somethingWentWrong ??
+                      'Seems like there is some issue',
+            subtitle:
+                AppLocalizations.of(context)?.tryAgainLater ??
+                'Please try again later',
+            actionText: AppLocalizations.of(context)?.tryAgain ?? 'Try Again',
             onAction: cubit.fetch,
           );
         }
@@ -113,12 +163,19 @@ class _LoginApprovalsPageState extends State<LoginApprovalsPage> {
           child: state.items.isEmpty
               ? ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  children: const [
-                    SizedBox(height: 60),
+                  children: [
+                    const SizedBox(height: 60),
                     EmptyStateWidget(
                       svgPath: ImagesPath.noSearchFoundSvg,
-                      title: 'No pending login requests',
+                      title:
+                          AppLocalizations.of(
+                            context,
+                          )?.noPendingLoginRequests ??
+                          'No pending login requests',
                       subtitle:
+                          AppLocalizations.of(
+                            context,
+                          )?.loginRequestsAppearHere ??
                           'Requests from your system users will appear here.',
                     ),
                   ],
@@ -150,51 +207,49 @@ class _LoginApprovalsPageState extends State<LoginApprovalsPage> {
     );
   }
 
-  bool _canManage(BuildContext context) {
-    if (!LoginApprovalsCubit.canManage) {
-      showCustomSnackbar(
-        context: context,
-        message: "You don't have permission to manage system users",
-        isWarning: true,
-      );
-      return false;
+  Future<void> _approve(
+    BuildContext context,
+    LoginApprovalRequest request,
+  ) async {
+    final cubit = context.read<LoginApprovalsCubit>();
+    if (_choosingIds.contains(request.userId) ||
+        cubit.state.processingIds.contains(request.userId)) {
+      return;
     }
-    return DemoGuard.shouldProceed(context);
-  }
-
-  void _approve(BuildContext context, LoginApprovalRequest request) {
-    if (!_canManage(context)) return;
-    context.read<LoginApprovalsCubit>().approve(request.userId);
+    _choosingIds.add(request.userId);
+    try {
+      final approved = await ApproveLoginBottomSheet.show(
+        context,
+        name: request.name,
+      );
+      if (approved && context.mounted) await cubit.approve(request.userId);
+    } finally {
+      _choosingIds.remove(request.userId);
+    }
   }
 
   Future<void> _disapprove(
     BuildContext context,
     LoginApprovalRequest request,
   ) async {
-    if (!_canManage(context)) return;
     final cubit = context.read<LoginApprovalsCubit>();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Disapprove login?'),
-        content: Text(
-          '${request.name} will not be able to sign in and any active '
-          'session on their device will be ended.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Disapprove'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true) cubit.disapprove(request.userId);
+    if (_choosingIds.contains(request.userId) ||
+        cubit.state.processingIds.contains(request.userId) ||
+        !canManageSystemUserLogin(context)) {
+      return;
+    }
+    _choosingIds.add(request.userId);
+    try {
+      final confirmed = await confirmRevokeSystemUserLogin(
+        context,
+        request.name,
+      );
+      if (confirmed && context.mounted && canManageSystemUserLogin(context)) {
+        await cubit.disapprove(request.userId);
+      }
+    } finally {
+      _choosingIds.remove(request.userId);
+    }
   }
 }
 
@@ -258,21 +313,7 @@ class _LoginApprovalCard extends StatelessWidget {
                   ),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  'Pending',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.orange,
-                  ),
-                ),
-              ),
+              LoginApprovalBadge(request.status),
             ],
           ),
           if (request.email != null && request.email!.isNotEmpty)
@@ -282,10 +323,17 @@ class _LoginApprovalCard extends StatelessWidget {
           if (request.requestedAt != null)
             detail(
               Icons.schedule,
-              'Requested ${DateFormat('dd MMM yyyy, hh:mm a').format(request.requestedAt!)}',
+              AppLocalizations.of(context)?.loginRequestedAt(
+                    DateFormat(
+                      'dd MMM yyyy, hh:mm a',
+                    ).format(request.requestedAt!.toLocal()),
+                  ) ??
+                  'Requested ${DateFormat('dd MMM yyyy, hh:mm a').format(request.requestedAt!.toLocal())}',
             ),
           const SizedBox(height: 12),
-          if (isProcessing)
+          if (!LoginApprovalsCubit.canManage)
+            const SizedBox.shrink()
+          else if (isProcessing)
             const SizedBox(
               height: 40,
               child: Center(
@@ -299,7 +347,10 @@ class _LoginApprovalCard extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: onDisapprove,
                     icon: const Icon(Icons.close, size: 18),
-                    label: const Text('Disapprove'),
+                    label: Text(
+                      AppLocalizations.of(context)?.riderDisapprove ??
+                          'Disapprove',
+                    ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
                       side: const BorderSide(color: Colors.red),
@@ -311,7 +362,9 @@ class _LoginApprovalCard extends StatelessWidget {
                   child: FilledButton.icon(
                     onPressed: onApprove,
                     icon: const Icon(Icons.check, size: 18),
-                    label: const Text('Approve'),
+                    label: Text(
+                      AppLocalizations.of(context)?.riderApprove ?? 'Approve',
+                    ),
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.primaryColor,
                     ),

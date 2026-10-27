@@ -2981,4 +2981,690 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get deliveryBoys => 'Delivery Boys';
+
+  @override
+  String get deliveryBoysSubtitle => 'Riders, login and QR';
+
+  @override
+  String get riderActive => 'ACTIVE';
+
+  @override
+  String get riderInactive => 'INACTIVE';
+
+  @override
+  String get riderAddTitle => 'Add Delivery Boy';
+
+  @override
+  String get riderEditTitle => 'Edit Delivery Boy';
+
+  @override
+  String get riderAddToTeam => 'Add to my team';
+
+  @override
+  String get riderApprovalExpired => 'Approval expired';
+
+  @override
+  String get riderApprove => 'Approve';
+
+  @override
+  String get riderDisapprove => 'Disapprove';
+
+  @override
+  String get riderApprovePassword => 'Approve password login';
+
+  @override
+  String get riderExtendApproval => 'Extend approval';
+
+  @override
+  String riderApprovedUntil(String time) {
+    return 'Login approved until $time';
+  }
+
+  @override
+  String riderApprovePreview(String time) {
+    return 'Rider can log in with email and password until $time. Approval alone doesn\'t log them in.';
+  }
+
+  @override
+  String riderRotatePreview(String time) {
+    return 'New QR valid until $time. The old QR and its session stop working.';
+  }
+
+  @override
+  String get riderDefaultPreview =>
+      'The platform chooses the login duration. Approval alone doesn\'t log them in.';
+
+  @override
+  String riderAssignedTab(int count) {
+    return 'My riders ($count)';
+  }
+
+  @override
+  String riderAvailableTab(int count) {
+    return 'Available ($count)';
+  }
+
+  @override
+  String get riderBack => 'Back';
+
+  @override
+  String get riderClaimConfirmation =>
+      'This rider will be added to your team. Their login approval and QR will be reset and they\'ll be logged out.';
+
+  @override
+  String get riderCreationNotice =>
+      'After creation, the platform admin must verify the rider before they can log in.';
+
+  @override
+  String get riderCustomDuration => 'Custom';
+
+  @override
+  String riderDaysAgo(int count) {
+    return '${count}d ago';
+  }
+
+  @override
+  String riderHoursAgo(int count) {
+    return '${count}h ago';
+  }
+
+  @override
+  String riderMinutesAgo(int count) {
+    return '${count}m ago';
+  }
+
+  @override
+  String get riderJustNow => 'just now';
+
+  @override
+  String get riderDelete => 'Delete rider';
+
+  @override
+  String get riderDeleteConfirmation =>
+      'Delete this rider and end their sessions?';
+
+  @override
+  String get riderDeliveryZone => 'Delivery zone';
+
+  @override
+  String get riderDurationError => 'Enter a whole number from 1 to 720';
+
+  @override
+  String riderDurationHours(int count) {
+    return '${count}h';
+  }
+
+  @override
+  String get riderDurationLabel => 'Duration (hours)';
+
+  @override
+  String get riderDurationMaximum => 'Maximum duration is set by the platform.';
+
+  @override
+  String get riderEdit => 'Edit rider';
+
+  @override
+  String get riderEndSession => 'Disapprove / end session';
+
+  @override
+  String riderExpiresIn(String time) {
+    return 'Expires in $time';
+  }
+
+  @override
+  String get riderFullName => 'Full name';
+
+  @override
+  String get riderLoginNotApproved => 'Login not approved';
+
+  @override
+  String riderLoginRequested(String time) {
+    return 'Login requested $time';
+  }
+
+  @override
+  String get riderNameRequired => 'Full name is required';
+
+  @override
+  String get riderNoAssigned => 'No riders yet';
+
+  @override
+  String get riderNoAvailable => 'No available riders';
+
+  @override
+  String get riderNoManagePermission =>
+      'You don\'t have permission to manage delivery boys';
+
+  @override
+  String get riderNoSearchResults => 'No riders match your search';
+
+  @override
+  String get riderNoViewPermission =>
+      'You don\'t have permission to view delivery boys';
+
+  @override
+  String get riderPasswordHelper =>
+      'Leave empty to keep current password. Changing it logs the rider out.';
+
+  @override
+  String get riderQrAfterVerification =>
+      'Available after platform verification';
+
+  @override
+  String get riderQrCaption =>
+      'The rider scans this in the rider app to log in. Don\'t share it.';
+
+  @override
+  String riderQrTitle(String name) {
+    return 'Login QR · $name';
+  }
+
+  @override
+  String get riderRegenerateQr => 'Regenerate QR';
+
+  @override
+  String get riderRejectConfirmation =>
+      'This disapproves password login and ends the rider\'s current session. The QR stays valid until it expires or you regenerate it.';
+
+  @override
+  String get riderSearchHint => 'Search name, email or mobile';
+
+  @override
+  String get riderShowQr => 'Show login QR';
+
+  @override
+  String get riderUseDefault => 'Use platform default';
+
+  @override
+  String get riderValidEmail => 'Enter a valid email address';
+
+  @override
+  String get riderVerificationCaption =>
+      'Platform admin must verify before login';
+
+  @override
+  String get riderVerificationPending => 'Verification pending';
+
+  @override
+  String get riderVerified => 'Verified';
+
+  @override
+  String get riderZoneRequired => 'Select a delivery zone';
+
+  @override
+  String get riderSave => 'Save';
+
+  @override
+  String get approvalDisapproved => 'Disapproved';
+
+  @override
+  String get approvalNotRequested => 'Not requested';
+
+  @override
+  String approvedUntil(String time) {
+    return 'until $time';
+  }
+
+  @override
+  String requestedAgo(String ago) {
+    return 'requested $ago';
+  }
+
+  @override
+  String approveLoginFor(String name) {
+    return 'Approve login for $name';
+  }
+
+  @override
+  String get approveLoginSubtitle =>
+      'They can sign in for 24 hours. Approval doesn\'t log them in.';
+
+  @override
+  String get accessDuration => 'Access duration';
+
+  @override
+  String get defaultDuration => '12 h (default)';
+
+  @override
+  String get hoursLabel => 'Hours';
+
+  @override
+  String get enterValidHours => 'Enter a number of hours';
+
+  @override
+  String accessUntilPreview(String time) {
+    return 'Access until $time';
+  }
+
+  @override
+  String aboutAccessUntilPreview(String time) {
+    return 'About $time';
+  }
+
+  @override
+  String get extendAccess => 'Extend access';
+
+  @override
+  String get revokeAccess => 'Revoke access';
+
+  @override
+  String get revokeAccessTitle => 'Revoke access?';
+
+  @override
+  String revokeAccessBody(String name) {
+    return '$name won\'t be able to sign in and any active session on their device will end.';
+  }
+
+  @override
+  String get loginApproved => 'Login approved';
+
+  @override
+  String get accessRevoked => 'Access revoked';
+
+  @override
+  String get activityLabel => 'Activity';
+
+  @override
+  String get activeLoggedIn => 'Active (logged in)';
+
+  @override
+  String get loginApprovalLabel => 'Login approval';
+
+  @override
+  String get accessUntilLabel => 'Access until';
+
+  @override
+  String get lastRequestedLabel => 'Last requested';
+
+  @override
+  String get approvalFooterNote =>
+      'Approval allows sign-in. Status turns Active only after they log in.';
+
+  @override
+  String durationHours(int hours) {
+    return '$hours h';
+  }
+
+  @override
+  String get revoke => 'Revoke';
+
+  @override
+  String get loginApprovalsTitle => 'Login Approvals';
+
+  @override
+  String get noPermissionViewLoginApprovals =>
+      'You don\'t have permission to view login approvals';
+
+  @override
+  String get noPendingLoginRequests => 'No pending login requests';
+
+  @override
+  String get loginRequestsAppearHere =>
+      'Requests from your system users will appear here.';
+
+  @override
+  String loginRequestedAt(String time) {
+    return 'Requested $time';
+  }
+
+  @override
+  String get askSellerApproveLogin =>
+      'Ask your seller to approve this login. Your seller chooses how long access lasts.';
+
+  @override
+  String pendingLoginApprovalCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count login requests awaiting your approval',
+      one: '1 login request awaiting your approval',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get reviewLoginApprovals => 'Review';
+
+  @override
+  String get systemUserDetailsUnavailable =>
+      'System user details are unavailable.';
+
+  @override
+  String get dispatchCenter => 'Dispatch center';
+
+  @override
+  String get dispatchEntry => 'Dispatch';
+
+  @override
+  String dispatchAutoRefresh(String time) {
+    return 'Updated $time · auto-refresh every 15s';
+  }
+
+  @override
+  String dispatchNoRiderAlertTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count orders have no nearby rider',
+      one: '1 order has no nearby rider',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get dispatchNoRiderAlertBody =>
+      'Deliver it yourself or wait for a rider nearby.';
+
+  @override
+  String get dispatchReady => 'Ready';
+
+  @override
+  String get dispatchNoRider => 'No rider';
+
+  @override
+  String get dispatchAssigned => 'Assigned';
+
+  @override
+  String get dispatchFilterAll => 'All';
+
+  @override
+  String get dispatchFilterNeedsAction => 'Needs action';
+
+  @override
+  String get dispatchFilterAwaiting => 'Awaiting';
+
+  @override
+  String get dispatchFilterAssigned => 'Assigned';
+
+  @override
+  String get dispatchStatusNoNearbyRiders => 'No nearby riders';
+
+  @override
+  String get dispatchStatusWaitingForDispatch => 'Waiting for dispatch';
+
+  @override
+  String get dispatchStatusAwaitingRider => 'Awaiting rider';
+
+  @override
+  String get dispatchStatusRiderAssigned => 'Rider assigned';
+
+  @override
+  String get dispatchStatusSelfDelivery => 'Self delivery';
+
+  @override
+  String dispatchOfferedTo(String name) {
+    return 'Offered to $name';
+  }
+
+  @override
+  String dispatchRiderName(String name) {
+    return 'Rider: $name';
+  }
+
+  @override
+  String dispatchRiderId(int id) {
+    return 'rider #$id';
+  }
+
+  @override
+  String get dispatchRiderFallback => 'Rider';
+
+  @override
+  String dispatchNearbyRiders(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count riders nearby',
+      one: '1 rider nearby',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get dispatchDeliverMyself => 'Deliver myself';
+
+  @override
+  String get dispatchSelfDeliverTitle => 'Deliver this order yourself?';
+
+  @override
+  String dispatchSelfDeliverPendingOffer(String name) {
+    return '$name has a pending offer for this order. It will be cancelled and you\'ll be responsible for delivery.';
+  }
+
+  @override
+  String get dispatchSelfDeliverInfo =>
+      'This order will stop being offered to riders and you\'ll be responsible for delivery.';
+
+  @override
+  String get dispatchSelfDeliveryInfo =>
+      'You\'re responsible for delivering this order. Completing it in the app isn\'t available yet.';
+
+  @override
+  String get dispatchRidersNearStores => 'Riders near your stores';
+
+  @override
+  String get dispatchActiveRiders => 'Active';
+
+  @override
+  String get dispatchAvailableNearby => 'Available nearby';
+
+  @override
+  String get dispatchOfflineRiders => 'Offline';
+
+  @override
+  String get dispatchRiderAvailable => 'Available';
+
+  @override
+  String get dispatchReasonInactive => 'Offline';
+
+  @override
+  String get dispatchReasonNotVerified => 'Not verified';
+
+  @override
+  String get dispatchReasonNoFcmToken => 'Notifications not set up';
+
+  @override
+  String get dispatchReasonLocationStale => 'Location not updated recently';
+
+  @override
+  String get dispatchReasonNoPickupStore => 'No pickup store';
+
+  @override
+  String get dispatchReasonOutsideRadius => 'Too far from store';
+
+  @override
+  String get dispatchReasonPendingOffer => 'Has a pending offer';
+
+  @override
+  String get dispatchReasonActiveDelivery => 'On a delivery';
+
+  @override
+  String dispatchDistanceFromStore(int meters) {
+    return '$meters m from store';
+  }
+
+  @override
+  String dispatchLocationAge(String age) {
+    return 'Location $age';
+  }
+
+  @override
+  String dispatchAgeSeconds(int seconds) {
+    return '${seconds}s ago';
+  }
+
+  @override
+  String dispatchAgeMinutes(int minutes) {
+    return '${minutes}m ago';
+  }
+
+  @override
+  String dispatchAvailabilityUpdated(String time) {
+    return 'Updated $time';
+  }
+
+  @override
+  String get dispatchNoRidersFound =>
+      'No riders found for your stores and delivery zones.';
+
+  @override
+  String get dispatchEmptyTitle => 'No orders waiting for dispatch';
+
+  @override
+  String get dispatchEmptyBody =>
+      'Bagged orders will appear here while riders are being assigned.';
+
+  @override
+  String get dispatchEmptyFilter => 'No orders in this filter';
+
+  @override
+  String get dispatchShowAll => 'Show all';
+
+  @override
+  String get dispatchNoViewPermission =>
+      'You don\'t have permission to view orders';
+
+  @override
+  String get popupUsersTitle => 'System user availability';
+
+  @override
+  String get popupUsersOwnerOnly =>
+      'Only the store owner can view system user availability';
+
+  @override
+  String popupUsersAutoRefresh(String time) {
+    return 'Updated $time · auto-refresh every 30s';
+  }
+
+  @override
+  String get popupUsersTotal => 'Total';
+
+  @override
+  String get popupUsersEligible => 'Eligible';
+
+  @override
+  String get popupUsersActive => 'Active';
+
+  @override
+  String get popupUsersBusy => 'Busy';
+
+  @override
+  String get popupUsersInactive => 'Inactive';
+
+  @override
+  String popupUsersRules(int radius, int minutes) {
+    return 'New orders go to one eligible system user within $radius m of the order\'s store whose location was updated in the last $minutes min. You get them only when no system user is eligible.';
+  }
+
+  @override
+  String get popupUsersEmpty => 'No system users yet';
+
+  @override
+  String get popupUsersEligibleBadge => 'Can receive orders';
+
+  @override
+  String popupUsersCurrentOrder(String order) {
+    return 'Current order $order';
+  }
+
+  @override
+  String popupUsersNearestStore(String store, int distance) {
+    return '$store · $distance m';
+  }
+
+  @override
+  String get popupUsersNoLocation => 'No location reported';
+
+  @override
+  String popupUsersLoginUntil(String date) {
+    return 'Login approved until $date';
+  }
+
+  @override
+  String popupUsersLoginStatus(String status) {
+    return 'Login $status';
+  }
+
+  @override
+  String get popupUsersLoginUnknown => 'Login approval unknown';
+
+  @override
+  String get popupUsersMembership => 'Membership';
+
+  @override
+  String get popupUsersPopupPermission => 'Popup permission';
+
+  @override
+  String get popupUsersAlertsOn => 'Order alerts on';
+
+  @override
+  String get popupUsersPushReady => 'Push notifications';
+
+  @override
+  String get popupReasonAccountInactive => 'Account inactive';
+
+  @override
+  String get popupReasonSystemUserInactive => 'Membership inactive';
+
+  @override
+  String get popupReasonLoginNotApproved => 'Login not approved or expired';
+
+  @override
+  String get popupReasonPermissionMissing => 'No order popup permission';
+
+  @override
+  String get popupReasonPresenceInactive => 'Order alerts off';
+
+  @override
+  String get popupReasonLocationStale => 'Location not updated recently';
+
+  @override
+  String get popupReasonLocationUnavailable => 'Location or store unavailable';
+
+  @override
+  String popupReasonOutsideRadius(int radius) {
+    return 'More than $radius m from a store';
+  }
+
+  @override
+  String get popupReasonOrderInProgress => 'Handling an order';
+
+  @override
+  String get orderAlertsTitle => 'Order alerts';
+
+  @override
+  String get orderAlertsActive => 'On · nearby orders can reach you';
+
+  @override
+  String get orderAlertsLocating => 'Getting your location…';
+
+  @override
+  String get orderAlertsOffline => 'Couldn\'t update your location. Retrying…';
+
+  @override
+  String get orderAlertsServiceDisabled =>
+      'Location is off. Turn it on to receive nearby orders.';
+
+  @override
+  String get orderAlertsPermissionDenied =>
+      'Allow location access to receive nearby orders.';
+
+  @override
+  String get orderAlertsTurnOnLocation => 'Turn on';
+
+  @override
+  String get orderAlertsAllow => 'Allow';
+
+  @override
+  String get orderAlertsOpenSettings => 'Settings';
+
+  @override
+  String get orderAlertsOff => 'Off · you won\'t receive new orders';
+
+  @override
+  String get orderAlertsOwnerActive =>
+      'On · you get orders no nearby staff member can take';
 }

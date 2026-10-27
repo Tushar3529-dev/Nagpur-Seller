@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:firebase_core/firebase_core.dart';
+// Firebase exposes its test mocks through the transitive platform interface.
+// ignore: depend_on_referenced_packages
 import 'package:firebase_core_platform_interface/test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -130,7 +132,7 @@ Widget _app(
             cameraBuilder: (onCode) => Center(
               child: Wrap(
                 children: [
-                  for (final code in ['A1', 'A2', 'ZZ9'])
+                  for (final code in ['A1', 'A2', 'ZZ9', 'BAG-USED', 'BAG-OK'])
                     TextButton(
                       onPressed: () => onCode(code, null),
                       child: Text('Detect $code'),
@@ -590,8 +592,30 @@ void main() {
   }
 
   Future<void> detect(WidgetTester tester, String code) async {
-    await tester.tap(find.text('Detect $code'));
+    // Simulate the camera callback even when its hint covers the fake button
+    // on a short screen or at a large text scale.
+    tester
+        .widget<TextButton>(find.widgetWithText(TextButton, 'Detect $code'))
+        .onPressed!();
     await settleScan(tester);
+  }
+
+  Future<void> confirmScan(WidgetTester tester) async {
+    await tester.tap(find.text('Confirm'));
+    await settleScan(tester);
+  }
+
+  Future<void> retake(WidgetTester tester) async {
+    await tester.tap(find.text('Retake'));
+    await settleScan(tester);
+  }
+
+  /// Repeat suppression uses DateTime.now(), which pump doesn't advance.
+  Future<void> waitForRepeat(WidgetTester tester) async {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 1600)),
+    );
+    await tester.pump(const Duration(milliseconds: 1600));
   }
 
   /// Counts the rest of the scanned product with + (test orders have 3 of
@@ -607,6 +631,168 @@ void main() {
 
   String qty(WidgetTester tester, int itemId) =>
       tester.widget<Text>(find.byKey(ValueKey('qty-$itemId'))).data!;
+
+  testWidgets('first camera scan freezes and waits for confirm', (
+    tester,
+  ) async {
+    await startScan(tester);
+    final callsBeforeScan = List.of(repo.calls);
+    // Keep callbacks from the live preview to simulate late camera events.
+    final detectA1 = tester
+        .widget<TextButton>(find.widgetWithText(TextButton, 'Detect A1'))
+        .onPressed!;
+    final detectA2 = tester
+        .widget<TextButton>(find.widgetWithText(TextButton, 'Detect A2'))
+        .onPressed!;
+
+    await detect(tester, 'A1');
+    expect(find.text('Check the scan'), findsOneWidget);
+    expect(find.text('Frozen frame'), findsOneWidget);
+    expect(find.byIcon(Icons.qr_code_2), findsOneWidget);
+    expect(find.text('Matches Product 11 · Variant 11'), findsOneWidget);
+    expect(find.text('Confirm counts 1 of 3.'), findsOneWidget);
+    expect(find.text('Detected code'), findsOneWidget);
+    expect(find.text('A1'), findsOneWidget);
+    expect(find.text('Confirm'), findsOneWidget);
+    expect(find.text('Retake'), findsOneWidget);
+    expect(find.text('Detect A1'), findsNothing);
+    expect(find.byTooltip('Enter code manually'), findsNothing);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+    expect(find.byKey(const ValueKey('qty-11')), findsNothing);
+    expect(cubit.state.verifiedItemIds, isEmpty);
+    expect(repo.calls, callsBeforeScan);
+
+    detectA1();
+    detectA2();
+    await settleScan(tester);
+    expect(find.text('Matches Product 11 · Variant 11'), findsOneWidget);
+    expect(find.text('1 / 2'), findsOneWidget);
+    expect(find.byKey(const ValueKey('qty-11')), findsNothing);
+    expect(find.byKey(const ValueKey('qty-12')), findsNothing);
+    expect(cubit.state.verifiedItemIds, isEmpty);
+    expect(repo.calls, callsBeforeScan);
+    await disposeApp(tester);
+  });
+
+  testWidgets('retake discards the scan', (tester) async {
+    await startScan(tester);
+    await detect(tester, 'A1');
+    await retake(tester);
+    expect(find.text('Scan items'), findsOneWidget);
+    expect(
+      find.text('Scan the barcode, then add the quantity.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('qty-11')), findsNothing);
+    expect(cubit.state.verifiedItemIds, isEmpty);
+    expect(find.text('Frozen frame'), findsNothing);
+    await detect(tester, 'A1');
+    expect(find.text('Check the scan'), findsNothing);
+
+    await waitForRepeat(tester);
+    await detect(tester, 'A1');
+    expect(find.text('Check the scan'), findsOneWidget);
+    expect(find.text('Matches Product 11 · Variant 11'), findsOneWidget);
+    await disposeApp(tester);
+  });
+
+  testWidgets('wrong or already-verified code offers only retake', (
+    tester,
+  ) async {
+    await startScan(tester);
+    await detect(tester, 'ZZ9');
+    expect(find.text('Not in this order'), findsOneWidget);
+    expect(
+      find.text(
+        "This barcode isn't in this order. Check the product and try again.",
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Confirm'), findsNothing);
+    expect(find.text('Retake'), findsOneWidget);
+    await retake(tester);
+    await detect(tester, 'A1');
+    await confirmScan(tester);
+    await countRest(tester);
+    expect(cubit.state.verifiedItemIds, {11});
+    await tester.fling(find.byType(PageView), const Offset(400, 0), 1000);
+    await settleScan(tester);
+    expect(find.text('1 / 2'), findsOneWidget);
+    await waitForRepeat(tester);
+    await detect(tester, 'A1');
+    expect(find.text('Product 11 is already verified'), findsOneWidget);
+    expect(
+      find.text('Product 11 is already verified. Scan the next item.'),
+      findsOneWidget,
+    );
+    expect(find.text('Confirm'), findsNothing);
+    expect(find.text('Retake'), findsOneWidget);
+    expect(cubit.state.verifiedItemIds, {11});
+    await disposeApp(tester);
+  });
+
+  testWidgets('extra units after the first confirm count without review', (
+    tester,
+  ) async {
+    await startScan(tester);
+    await detect(tester, 'A1');
+    await confirmScan(tester);
+    expect(qty(tester, 11), '1');
+    await waitForRepeat(tester);
+    await detect(tester, 'A1');
+    expect(qty(tester, 11), '2');
+    expect(find.text('Check the scan'), findsNothing);
+    expect(find.text('Frozen frame'), findsNothing);
+    expect(cubit.state.verifiedItemIds, isEmpty);
+    await waitForRepeat(tester);
+    await detect(tester, 'A1');
+    expect(cubit.state.verifiedItemIds, {11});
+    expect(find.text('Product 11 verified'), findsOneWidget);
+    expect(find.text('2 / 2'), findsOneWidget);
+    expect(find.text('Check the scan'), findsNothing);
+    await disposeApp(tester);
+  });
+
+  testWidgets('page swipes and quantity buttons are locked while reviewing', (
+    tester,
+  ) async {
+    await startScan(tester);
+    await detect(tester, 'A2');
+    expect(find.text('2 / 2'), findsOneWidget);
+    await tester.fling(find.byType(PageView), const Offset(400, 0), 1000);
+    await settleScan(tester);
+    expect(find.text('2 / 2'), findsOneWidget);
+    expect(find.text('Matches Product 12 · Variant 12'), findsOneWidget);
+    expect(cubit.state.verifiedItemIds, isEmpty);
+    await confirmScan(tester);
+    await tester.tap(find.byTooltip('Increase'));
+    await tester.pump();
+    expect(qty(tester, 12), '2');
+
+    // An error review can leave a partially counted product's controls visible.
+    await detect(tester, 'ZZ9');
+    await tester.ensureVisible(find.byTooltip('Increase'));
+    await tester.tap(find.byTooltip('Increase'));
+    await tester.tap(find.byTooltip('Decrease'));
+    await tester.pump();
+    expect(qty(tester, 12), '2');
+    expect(cubit.state.verifiedItemIds, isEmpty);
+    await retake(tester);
+    expect(qty(tester, 12), '2');
+    await disposeApp(tester);
+  });
+
+  testWidgets('typed codes skip the review', (tester) async {
+    await startScan(tester);
+    await manual(tester, 'A1');
+    expect(qty(tester, 11), '1');
+    expect(find.text('Check the scan'), findsNothing);
+    expect(find.text('Frozen frame'), findsNothing);
+    expect(find.text('Confirm'), findsNothing);
+    expect(find.text('Retake'), findsNothing);
+    expect(cubit.state.verifiedItemIds, isEmpty);
+    await disposeApp(tester);
+  });
 
   testWidgets(
     'missing backend barcode shows an error without a dummy fallback',
@@ -672,11 +858,22 @@ void main() {
       expect(find.text('Ordered 3'), findsOneWidget);
       expect(find.byTooltip('Increase'), findsNothing);
 
-      // The scan counts one unit; the rest is asked for.
+      // The first scan waits for confirmation before counting one unit.
       await detect(tester, 'A1');
+      expect(find.text('Check the scan'), findsOneWidget);
+      expect(find.text('Matches Product 11 · Variant 11'), findsOneWidget);
+      expect(find.text('Detected code'), findsOneWidget);
+      expect(find.text('A1'), findsOneWidget);
+      expect(find.text('Retake'), findsOneWidget);
+      expect(find.text('Confirm'), findsOneWidget);
+      expect(find.text('Add quantity'), findsNothing);
+      expect(cubit.state.verifiedItemIds, isEmpty);
+
+      await confirmScan(tester);
+      expect(find.text('Scan items'), findsOneWidget);
       expect(qty(tester, 11), '1');
       expect(find.text('Add quantity'), findsOneWidget);
-      expect(find.text('1 of 3 counted'), findsOneWidget);
+      expect(find.text('1 of 3 counted'), findsNWidgets(2));
       expect(cubit.state.verifiedItemIds, isEmpty);
 
       // The camera still sees A1: not counted twice.
@@ -694,19 +891,25 @@ void main() {
       expect(cubit.state.verifiedItemIds, {11});
       expect(find.text('Product 11 verified'), findsOneWidget);
       expect(find.text('1 of 2 verified'), findsOneWidget);
-      // Slid to the next product without any confirm tap.
+      // Adding the remaining quantity slides to the next product.
       expect(find.text('2 / 2'), findsOneWidget);
       expect(find.text('Product 12'), findsOneWidget);
 
       await detect(tester, 'ZZ9');
+      expect(find.text('Not in this order'), findsOneWidget);
+      expect(find.text('Confirm'), findsNothing);
+      expect(find.text('Retake'), findsOneWidget);
       expect(
         find.text(
           "This barcode isn't in this order. Check the product and try again.",
         ),
         findsOneWidget,
       );
+      await retake(tester);
+      expect(find.text('Scan items'), findsOneWidget);
 
       await detect(tester, 'A2');
+      await confirmScan(tester);
       await countRest(tester);
       expect(cubit.state.verifiedItemIds, {11, 12});
       expect(find.text('Assign a bag'), findsOneWidget);
@@ -715,7 +918,7 @@ void main() {
     },
   );
 
-  testWidgets('a product ordered once is verified by its scan alone', (
+  testWidgets('a product ordered once is verified by one confirmed scan', (
     tester,
   ) async {
     repo.server[OrderMode.regular] = [
@@ -725,6 +928,9 @@ void main() {
     await tester.tap(find.text('Accept order'));
     await settleScan(tester);
     await detect(tester, 'A1');
+    expect(cubit.state.verifiedItemIds, isEmpty);
+    expect(find.text('Confirm verifies Product 11.'), findsOneWidget);
+    await confirmScan(tester);
     expect(cubit.state.verifiedItemIds, {11});
     expect(find.text('2 / 2'), findsOneWidget);
     await disposeApp(tester);
@@ -735,6 +941,8 @@ void main() {
   ) async {
     await startScan(tester);
     await detect(tester, 'A2');
+    expect(find.text('2 / 2'), findsOneWidget);
+    await confirmScan(tester);
     await countRest(tester);
     expect(cubit.state.verifiedItemIds, {12});
     // Product 11 is the one left, and it's already on screen.
@@ -870,40 +1078,48 @@ void main() {
   Future<void> verifyOnlyItem(WidgetTester tester) async {
     await startScan(tester, ids: [11]);
     await detect(tester, 'A1');
+    await confirmScan(tester);
     await countRest(tester);
   }
 
-  testWidgets('a scanned bag is assigned straight away and unlocks dispatch', (
-    tester,
-  ) async {
-    await verifyOnlyItem(tester);
-    expect(find.text('Assign a bag'), findsOneWidget);
-    // A packing step comes before the bag scanner.
-    expect(find.text('Put all items in a bag'), findsOneWidget);
-    expect(find.text('Detect A2'), findsNothing);
-    expect(repo.bagCountCalls, 1);
+  testWidgets(
+    'a scanned bag is assigned after Assign bag and unlocks dispatch',
+    (tester) async {
+      await verifyOnlyItem(tester);
+      expect(find.text('Assign a bag'), findsOneWidget);
+      // A packing step comes before the bag scanner.
+      expect(find.text('Put all items in a bag'), findsOneWidget);
+      expect(find.text('Detect A2'), findsNothing);
+      expect(repo.bagCountCalls, 1);
 
-    await tester.tap(find.text('Scan bag'));
-    await tester.pump();
-    expect(
-      find.text('No bag assigned yet. Scan a bag for this order.'),
-      findsOneWidget,
-    );
-    expect(repo.bagCalls, isEmpty);
+      await tester.tap(find.text('Scan bag'));
+      await tester.pump();
+      expect(
+        find.text('No bag assigned yet. Scan a bag for this order.'),
+        findsOneWidget,
+      );
+      expect(repo.bagCalls, isEmpty);
 
-    await detect(tester, 'A2');
-    expect(repo.bagCalls, ['1 A2']);
-    expect(find.text('Ready to dispatch'), findsOneWidget);
-    expect(find.text('A2'), findsOneWidget);
-    expect(find.text('Assigned'), findsOneWidget);
-    expect(find.text('Detect A2'), findsNothing);
+      await detect(tester, 'A2');
+      expect(find.text('Check the bag'), findsOneWidget);
+      expect(find.text('Bag code'), findsOneWidget);
+      expect(find.text('Frozen frame'), findsOneWidget);
+      expect(repo.bagCalls, isEmpty);
+      await tester.tap(find.text('Assign bag'));
+      await settleScan(tester);
+      expect(repo.bagCalls, ['1 A2']);
+      expect(find.text('Ready to dispatch'), findsOneWidget);
+      expect(find.text('A2'), findsOneWidget);
+      expect(find.text('Assigned'), findsOneWidget);
+      expect(find.text('Detect A2'), findsNothing);
 
-    await tester.tap(find.text('Dispatch order'));
-    await settleScan(tester);
-    expect(cubit.state.hasPending, isFalse);
-    expect(find.text('Home screen'), findsOneWidget);
-    await disposeApp(tester);
-  });
+      await tester.tap(find.text('Dispatch order'));
+      await settleScan(tester);
+      expect(cubit.state.hasPending, isFalse);
+      expect(find.text('Home screen'), findsOneWidget);
+      await disposeApp(tester);
+    },
+  );
 
   testWidgets('a rejected bag shows the server message and can be retyped', (
     tester,
@@ -937,9 +1153,119 @@ void main() {
     await disposeApp(tester);
   });
 
+  testWidgets('rejected bag keeps the frozen scan with only retake', (
+    tester,
+  ) async {
+    repo.assignBagError = ApiException(
+      'The bag is not available in your bag pool.',
+      statusCode: 422,
+    );
+    await verifyOnlyItem(tester);
+    await tester.tap(find.text('Scan bag'));
+    await tester.pump();
+    await detect(tester, 'BAG-USED');
+    expect(repo.bagCalls, isEmpty);
+    await tester.tap(find.text('Assign bag'));
+    await settleScan(tester);
+    expect(find.text('Check the bag'), findsOneWidget);
+    expect(find.text('Frozen frame'), findsOneWidget);
+    expect(find.text('BAG-USED'), findsOneWidget);
+    expect(
+      find.text('The bag is not available in your bag pool.'),
+      findsNWidgets(2),
+    );
+    expect(find.text('Assign bag'), findsNothing);
+    expect(find.text('Retake'), findsOneWidget);
+    expect(find.text('Dispatch order'), findsNothing);
+    repo.assignBagError = null;
+    await retake(tester);
+    await waitForRepeat(tester);
+    await detect(tester, 'BAG-OK');
+    await tester.tap(find.text('Assign bag'));
+    await settleScan(tester);
+    expect(repo.bagCalls.last, '1 BAG-OK');
+    expect(find.text('Dispatch order'), findsOneWidget);
+    expect(find.text('Frozen frame'), findsNothing);
+    await disposeApp(tester);
+  });
+
+  testWidgets('bag assignment loads and disables retake until it finishes', (
+    tester,
+  ) async {
+    await verifyOnlyItem(tester);
+    await tester.tap(find.text('Scan bag'));
+    await tester.pump();
+    await detect(tester, 'BAG-OK');
+    repo.bagGate = Completer<void>();
+    await tester.tap(find.text('Assign bag'));
+    await tester.pump();
+    expect(find.text('Frozen frame'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNWidgets(2));
+    expect(
+      tester
+          .widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Retake'))
+          .onPressed,
+      isNull,
+    );
+    expect(repo.bagCalls, isEmpty);
+    repo.bagGate!.complete();
+    await settleScan(tester);
+    expect(repo.bagCalls, ['1 BAG-OK']);
+    expect(find.text('Ready to dispatch'), findsOneWidget);
+    await disposeApp(tester);
+  });
+
+  for (final (size, scale) in [
+    (const Size(320, 568), 1.3),
+    (const Size(360, 640), 1.3),
+    (const Size(412, 915), 1.3),
+    (const Size(360, 640), 1.0),
+    (const Size(360, 640), 1.5),
+    (const Size(412, 915), 2.0),
+    (const Size(800, 1280), 1.0),
+  ]) {
+    testWidgets(
+      'no overflow reviewing product and bag at $size, scale $scale',
+      (tester) async {
+        await startScan(tester, size: size, scale: scale);
+        await detect(tester, 'A1');
+        expect(find.text('Frozen frame'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await confirmScan(tester);
+        await countRest(tester);
+        await detect(tester, 'A2');
+        expect(tester.takeException(), isNull);
+        await confirmScan(tester);
+        await countRest(tester);
+        await tester.tap(find.text('Scan bag'));
+        await tester.pump();
+        await detect(tester, 'BAG-OK');
+        expect(find.text('Check the bag'), findsOneWidget);
+        expect(find.text('Bag code'), findsOneWidget);
+        expect(find.text('Frozen frame'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await disposeApp(tester);
+      },
+    );
+  }
+
   testWidgets('no available bags sends the seller to add bags, then resumes', (
     tester,
   ) async {
+    // Hive does real I/O, which never completes in testWidgets' fake time.
+    await tester.runAsync(
+      () => HiveStorage.setUserData({
+        ...testUser,
+        'assigned_permissions': [
+          ...testUser['assigned_permissions'] as List,
+          'bag.view',
+          'bag.create',
+        ],
+      }),
+    );
+    addTearDown(
+      () => tester.runAsync(() => HiveStorage.setUserData(Map.of(testUser))),
+    );
     repo.availableBags = 0;
     final inventoryClosed = Completer<void>();
     var opened = 0;
@@ -956,6 +1282,7 @@ void main() {
     await tester.tap(find.text('Accept order'));
     await settleScan(tester);
     await detect(tester, 'A1');
+    await confirmScan(tester);
     await countRest(tester);
 
     expect(
@@ -981,6 +1308,40 @@ void main() {
     expect(find.text('Assign a bag'), findsOneWidget);
     expect(find.text('Scan bag'), findsOneWidget);
     expect(cubit.state.verifiedItemIds, {11});
+    await disposeApp(tester);
+  });
+
+  testWidgets('without bag.create, no bags asks for the owner and only '
+      'checks again', (tester) async {
+    repo.availableBags = 0;
+    var opened = 0;
+    repo.server[OrderMode.regular] = [
+      _order(1, itemIds: [11]),
+    ];
+    await pumpApp(
+      tester,
+      openBagInventory: () async {
+        opened++;
+      },
+    );
+    await tester.tap(find.text('Accept order'));
+    await settleScan(tester);
+    await detect(tester, 'A1');
+    await confirmScan(tester);
+    await countRest(tester);
+
+    expect(find.textContaining('Ask your store owner'), findsOneWidget);
+    expect(find.text('Add bags'), findsNothing);
+    final checksBefore = repo.bagCountCalls;
+
+    repo.availableBags = 2;
+    await tester.tap(find.text('Check again'));
+    await settleScan(tester);
+    await settleScan(tester);
+
+    expect(opened, 0, reason: 'Bag inventory would be refused');
+    expect(repo.bagCountCalls, greaterThan(checksBefore));
+    expect(find.text('Scan bag'), findsOneWidget);
     await disposeApp(tester);
   });
 }

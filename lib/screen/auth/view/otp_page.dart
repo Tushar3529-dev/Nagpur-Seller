@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hyper_local_seller/config/hive_storage.dart';
+import 'package:hyper_local_seller/utils/auth_log.dart';
 import 'package:hyper_local_seller/bloc/store_switcher/store_switcher_cubit.dart';
 import 'package:hyper_local_seller/config/colors.dart';
 import 'package:hyper_local_seller/l10n/app_localizations.dart';
@@ -85,6 +87,10 @@ class _OtpPageState extends State<OtpPage> {
             );
           } else if (state is AuthSuccess || state is AuthOTPVerified) {
             // IMPORTANT: Refresh all data BEFORE navigating.
+            authLog(
+              'OTP login ${state.runtimeType} → loading app data, → Home '
+              '(token saved: ${HiveStorage.userToken?.isNotEmpty == true})',
+            );
             MasterApiService.callNeededApisOnLogin(context);
             context.go(AppRoutes.home);
             showCustomSnackbar(

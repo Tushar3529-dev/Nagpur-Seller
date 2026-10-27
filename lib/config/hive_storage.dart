@@ -26,6 +26,7 @@ class HiveStorage {
       _fcmToken = prefBox.get(_fcmTokenKey) as String?;
       _apnsToken = prefBox.get(_apnsTokenKey) as String?;
       _accessToken = prefBox.get(_accessTokenKey) as String?;
+      _orderAlertsEnabled = prefBox.get(_orderAlertsEnabledKey) as bool?;
       _isFirstTimeSubscriptionVisit =
           prefBox.get(_isFirstTimeSubscriptionVisitKey, defaultValue: true)
               as bool? ??
@@ -74,7 +75,6 @@ class HiveStorage {
       debugPrint('Initialize Prefs :: isFirstTime $_isFirstTime');
       debugPrint('Initialize Prefs :: languageCode $_languageCode');
       debugPrint('Initialize Prefs :: themeMode $_themeMode');
-      debugPrint('Initialize Prefs :: accessToken $_accessToken');
       debugPrint('Initialize Prefs :: fcmToken $_fcmToken');
     } catch (e) {
       debugPrint('Failed to initialize Prefs :: $e ');
@@ -288,7 +288,6 @@ class HiveStorage {
       await prefBox.put(_accessTokenKey, value);
     }
     _accessToken = value;
-    debugPrint('Set AccessToken :: $_accessToken');
   }
 
   static const String _userDataKey = "userData";
@@ -570,4 +569,21 @@ class HiveStorage {
   }
 
   // Subscription Available -------------------------------------------------------
+
+  // Order alerts -------------------------------------------------------
+
+  static const String _orderAlertsEnabledKey = "orderAlertsEnabled";
+  static bool? _orderAlertsEnabled;
+
+  /// Whether this device reports popup presence (location) so nearby
+  /// incoming orders are offered to the user. On unless they turned it off.
+  static bool get orderAlertsEnabled => _orderAlertsEnabled ?? true;
+
+  static Future<void> setOrderAlertsEnabled(bool value) async {
+    final Box prefBox = await Hive.openBox(_prefBoxName);
+    await prefBox.put(_orderAlertsEnabledKey, value);
+    _orderAlertsEnabled = value;
+  }
+
+  // Order alerts -------------------------------------------------------
 }

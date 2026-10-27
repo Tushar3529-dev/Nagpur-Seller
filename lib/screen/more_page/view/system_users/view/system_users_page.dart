@@ -6,13 +6,17 @@ import 'package:hyper_local_seller/config/colors.dart';
 import 'package:hyper_local_seller/config/hive_storage.dart';
 import 'package:hyper_local_seller/l10n/app_localizations.dart';
 import 'package:hyper_local_seller/router/app_routes.dart';
-import 'package:hyper_local_seller/service/demo_guard.dart';
+import 'package:hyper_local_seller/screen/more_page/view/subscription_plans/service/subscription_limit_service.dart';
 import 'package:hyper_local_seller/screen/more_page/view/system_users/bloc/system_user_bloc.dart';
 import 'package:hyper_local_seller/screen/more_page/view/system_users/login_approvals/login_approvals_cubit.dart';
 import 'package:hyper_local_seller/screen/more_page/view/system_users/model/system_users_model.dart';
 import 'package:hyper_local_seller/screen/more_page/view/system_users/repo/system_users_repo.dart';
-import 'package:hyper_local_seller/screen/more_page/view/system_users/widgets/system_user_card.dart';
+import 'package:hyper_local_seller/screen/more_page/view/system_users/widgets/approve_login_bottom_sheet.dart';
 import 'package:hyper_local_seller/screen/more_page/view/system_users/widgets/manage_system_user_bottom_sheet.dart';
+import 'package:hyper_local_seller/screen/more_page/view/system_users/widgets/system_user_card.dart';
+import 'package:hyper_local_seller/screen/more_page/view/system_users/widgets/system_user_detail_bottom_sheet.dart';
+import 'package:hyper_local_seller/screen/more_page/view/system_users/widgets/system_user_status_badges.dart';
+import 'package:hyper_local_seller/service/demo_guard.dart';
 import 'package:hyper_local_seller/utils/debouncer.dart';
 import 'package:hyper_local_seller/utils/image_path.dart';
 import 'package:hyper_local_seller/utils/permission_checker.dart';
@@ -26,7 +30,6 @@ import 'package:hyper_local_seller/widgets/custom/custom_search_field.dart';
 import 'package:hyper_local_seller/widgets/custom/custom_shimmer.dart';
 import 'package:hyper_local_seller/widgets/custom/custom_snackbar.dart';
 import 'package:hyper_local_seller/widgets/ui/empty_state_widget.dart';
-import 'package:hyper_local_seller/screen/more_page/view/subscription_plans/service/subscription_limit_service.dart';
 
 class SystemUsersPage extends StatefulWidget {
   const SystemUsersPage({super.key});
@@ -35,17 +38,21 @@ class SystemUsersPage extends StatefulWidget {
   State<SystemUsersPage> createState() => _SystemUsersPage();
 }
 
-class _SystemUsersPage extends State<SystemUsersPage> {
+class _SystemUsersPage extends State<SystemUsersPage>
+    with WidgetsBindingObserver {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final _debouncer = Debouncer(milliseconds: 500);
+  final Set<int> _choosingIds = {};
   final SubscriptionLimitService _limitService = SubscriptionLimitService();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !LoginApprovalsCubit.canView) return;
       context.read<SystemUserBloc>().add(
         FetchSystemUsersEvent(isRefresh: true),
       );
@@ -55,9 +62,27 @@ class _SystemUsersPage extends State<SystemUsersPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        mounted &&
+        LoginApprovalsCubit.canView) {
+      final bloc = context.read<SystemUserBloc>();
+      bloc.add(
+        FetchSystemUsersEvent(
+          isRefresh: true,
+          silent: true,
+          search: bloc.state.search,
+        ),
+      );
+      context.read<LoginApprovalsCubit>().fetch();
+    }
   }
 
   void _onScroll() {
@@ -84,18 +109,26 @@ class _SystemUsersPage extends State<SystemUsersPage> {
           centerTitle: true,
           isHaveSearch: true,
           onSearchChanged: (value) {
+            _searchController.text = value;
             _debouncer.run(() {
               context.read<SystemUserBloc>().add(
                 FetchSystemUsersEvent(isRefresh: true, search: value),
               );
             });
           },
-          body: Column(
-            children: [
-              const _PendingLoginApprovalsBanner(),
-              Expanded(child: _buildBody(context, l10n)),
-            ],
-          ),
+          body: !LoginApprovalsCubit.canView
+              ? EmptyStateWidget(
+                  svgPath: ImagesPath.noSearchFoundSvg,
+                  title:
+                      l10n?.noPermissionViewSystemUsers ??
+                      "You don't have permission to view system users",
+                )
+              : Column(
+                  children: [
+                    const _PendingLoginApprovalsBanner(),
+                    Expanded(child: _buildBody(context, l10n)),
+                  ],
+                ),
         );
       },
     );
@@ -109,16 +142,31 @@ class _SystemUsersPage extends State<SystemUsersPage> {
           previous.errorMessage != current.errorMessage ||
           previous.actionMessage != current.actionMessage,
       listener: (context, state) {
-        if (state.errorMessage != null && state.errorMessage!.isNotEmpty) {
+        if (state.errorMessage != null &&
+            state.errorMessage!.isNotEmpty &&
+            (state.approvalErrorId == null ||
+                ModalRoute.of(context)?.isCurrent != false)) {
           showCustomSnackbar(
             context: context,
-            message: state.errorMessage!,
+            message: systemUserErrorMessage(context, state.errorMessage!),
             isError: true,
           );
           context.read<SystemUserBloc>().add(ClearSystemUserMessages());
         }
-        if (state.actionMessage != null && state.actionMessage!.isNotEmpty) {
-          showCustomSnackbar(context: context, message: state.actionMessage!);
+        if (state.actionMessage != null &&
+            state.actionMessage!.isNotEmpty &&
+            (state.approvalResult == null ||
+                ModalRoute.of(context)?.isCurrent != false)) {
+          final result = state.approvalResult;
+          showCustomSnackbar(
+            context: context,
+            message: result == null
+                ? state.actionMessage!
+                : loginApprovalMessage(context, result),
+          );
+          if (result != null && ModalRoute.of(context)?.isCurrent == true) {
+            context.read<LoginApprovalsCubit>().fetch();
+          }
           context.read<SystemUserBloc>().add(ClearSystemUserMessages());
         }
       },
@@ -317,7 +365,18 @@ class _SystemUsersPage extends State<SystemUsersPage> {
                         'email': user.email,
                         'mobile': user.mobile,
                         'date': user.createdAt,
+                        'systemUserStatus': user.systemUserStatus,
+                        'loginApprovalStatus': user.loginApprovalStatus,
+                        'loginApprovedUntil': user.loginApprovedUntil,
+                        'loginApprovalRequestedAt':
+                            user.loginApprovalRequestedAt,
                       },
+                      onTap: () =>
+                          SystemUserDetailBottomSheet.show(context, user.id),
+                      isProcessing: state.processingIds.contains(user.id),
+                      onApprove: LoginApprovalsCubit.canManage
+                          ? () => _approve(user)
+                          : null,
                       onEdit:
                           !PermissionChecker.hasPermission(
                             AppPermissions.systemUserEdit,
@@ -349,6 +408,26 @@ class _SystemUsersPage extends State<SystemUsersPage> {
         );
       },
     );
+  }
+
+  Future<void> _approve(SystemUser user) async {
+    final bloc = context.read<SystemUserBloc>();
+    if (_choosingIds.contains(user.id) ||
+        bloc.state.processingIds.contains(user.id)) {
+      return;
+    }
+    _choosingIds.add(user.id);
+    try {
+      final approved = await ApproveLoginBottomSheet.show(
+        context,
+        name: user.name ?? '',
+      );
+      if (approved && mounted) {
+        bloc.add(ApproveSystemUserLoginEvent(id: user.id));
+      }
+    } finally {
+      _choosingIds.remove(user.id);
+    }
   }
 
   Widget _buildShimmerList(BuildContext context) {
@@ -383,7 +462,9 @@ class _PendingLoginApprovalsBanner extends StatelessWidget {
     return BlocBuilder<LoginApprovalsCubit, LoginApprovalsState>(
       buildWhen: (previous, current) => previous.total != current.total,
       builder: (context, state) {
-        if (state.total <= 0) return const SizedBox.shrink();
+        if (!LoginApprovalsCubit.canView || state.total <= 0) {
+          return const SizedBox.shrink();
+        }
         return Padding(
           padding: UIUtils.pagePadding(
             screenType,
@@ -393,7 +474,19 @@ class _PendingLoginApprovalsBanner extends StatelessWidget {
             borderRadius: BorderRadius.circular(UIUtils.radiusMD(screenType)),
             child: InkWell(
               borderRadius: BorderRadius.circular(UIUtils.radiusMD(screenType)),
-              onTap: () => context.push(AppRoutes.loginApprovals),
+              onTap: () async {
+                await context.push(AppRoutes.loginApprovals);
+                if (!context.mounted) return;
+                final bloc = context.read<SystemUserBloc>();
+                bloc.add(
+                  FetchSystemUsersEvent(
+                    isRefresh: true,
+                    silent: true,
+                    search: bloc.state.search,
+                  ),
+                );
+                context.read<LoginApprovalsCubit>().fetch();
+              },
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
@@ -405,9 +498,10 @@ class _PendingLoginApprovalsBanner extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        state.total == 1
-                            ? '1 login request awaiting your approval'
-                            : '${state.total} login requests awaiting your approval',
+                        AppLocalizations.of(
+                              context,
+                            )?.pendingLoginApprovalCount(state.total) ??
+                            '${state.total} login requests awaiting your approval',
                         style: TextStyle(
                           fontSize: UIUtils.body(screenType),
                           fontWeight: FontWeight.w600,
@@ -415,7 +509,8 @@ class _PendingLoginApprovalsBanner extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'Review',
+                      AppLocalizations.of(context)?.reviewLoginApprovals ??
+                          'Review',
                       style: TextStyle(
                         fontSize: UIUtils.body(screenType),
                         fontWeight: FontWeight.bold,

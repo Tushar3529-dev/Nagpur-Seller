@@ -6,6 +6,7 @@ import 'package:hyper_local_seller/screen/auth/bloc/auth/auth_state.dart';
 import 'package:hyper_local_seller/screen/auth/repo/auth_repo.dart';
 import 'package:hyper_local_seller/screen/more_page/view/profile/bloc/profile_bloc.dart';
 import 'package:hyper_local_seller/service/phone_auth.dart';
+import 'package:hyper_local_seller/utils/auth_log.dart';
 import 'package:hyper_local_seller/screen/more_page/view/subscription_plans/service/subscription_reminder_service.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
@@ -21,14 +22,32 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthPhoneVerifyOTPRequested>(_onPhoneVerifyOTPRequested);
   }
 
+  @override
+  void onChange(Change<AuthState> change) {
+    super.onChange(change);
+    final next = change.nextState;
+    final detail = switch (next) {
+      AuthFailure(:final error) => ': $error',
+      AuthSuccess(:final message) => ': $message',
+      AuthApprovalPending(:final message) => ': $message',
+      AuthOTPSent(:final phoneNumber) => ': to $phoneNumber',
+      _ => '',
+    };
+    authLog(
+      'state ${change.currentState.runtimeType} → ${next.runtimeType}$detail',
+    );
+  }
+
   Future<void> _onLoginRequested(
     AuthLoginRequested event,
     Emitter<AuthState> emit,
   ) async {
     emit(AuthLoading());
     try {
+      authLog('email login requested for ${event.email}');
       await authRepository.login(email: event.email, password: event.password);
       // Fetch and store user profile after successful login
+      authLog('login ok → fetching profile');
       await ProfileBloc.fetchAndStoreProfile();
       emit(const AuthSuccess(message: "Login Successful"));
     } on LoginApprovalPendingException catch (e) {
@@ -99,6 +118,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(AuthLoading());
     try {
+      authLog(
+        'phone OTP requested for ${event.phoneNumber} '
+        'via ${HiveStorage.isCustomSms ? 'custom SMS' : 'Firebase'}',
+      );
       if (HiveStorage.isCustomSms) {
         final response = await authRepository.customSendOtp(phone: event.phoneNumber);
         if (response['success'] == true) {
@@ -124,6 +147,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           }
         },
         onAutoVerify: () {
+          authLog(
+            'Firebase auto-verified the number '
+            '(handler ${emit.isDone ? 'already finished; ignored' : 'active'})',
+          );
           if (!emit.isDone) {
             emit(const AuthOTPVerified(message: "Auto verified successfully"));
           }
@@ -161,6 +188,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
          return;
       }
 
+      authLog(
+        'OTP verify requested via '
+        '${HiveStorage.isCustomSms ? 'custom SMS' : 'Firebase'}',
+      );
       final userCredential = await phoneAuthService.verifyOTP(
         verificationId: event.verificationId,
         otp: event.otp,
@@ -169,6 +200,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       if (userCredential.user != null) {
         // Get the ID Token from Firebase User
         final idToken = await userCredential.user!.getIdToken();
+        authLog(
+          'Firebase sign-in ok uid=${userCredential.user!.uid}; '
+          'idToken=${mask(idToken)}',
+        );
         
         if (idToken != null) {
           // Call backend callback with this token

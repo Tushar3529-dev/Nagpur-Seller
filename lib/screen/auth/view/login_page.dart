@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hyper_local_seller/utils/auth_log.dart';
 import 'package:hyper_local_seller/screen/more_page/view/profile/bloc/profile_bloc.dart';
 import 'package:intl_phone_field/phone_number.dart';
 import 'package:hyper_local_seller/bloc/store_switcher/store_switcher_cubit.dart';
@@ -152,6 +153,7 @@ class _LoginPageState extends State<LoginPage>
             // IMPORTANT: Refresh all data BEFORE navigating.
             // This ensures BLoCs fetch fresh data with the new token
             // before the home screen widgets try to read state.
+            authLog('login success → loading app data');
             await MasterApiService.callNeededApisOnLogin(context);
 
             // Navigate based on subscription availability and active plan
@@ -159,14 +161,17 @@ class _LoginPageState extends State<LoginPage>
                 (HiveStorage.activePlanId == null ||
                     HiveStorage.activePlanId == 0) &&
                 HiveStorage.pendingSubscriptionId == null) {
+              authLog('→ Choose plan (no active or pending subscription)');
               context.go(AppRoutes.subscriptionChoosePlan);
             } else {
+              authLog('→ Home');
               context.go(AppRoutes.home);
             }
 
             showCustomSnackbar(context: context, message: state.message);
           } else if (state is AuthOTPSent) {
             // Navigate to OTP verification page
+            authLog('→ OTP page for ${state.phoneNumber}');
             showCustomSnackbar(context: context, message: state.message);
             context.push(
               AppRoutes.otp,

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:curl_logger_dio_interceptor/curl_logger_dio_interceptor.dart';
+import 'package:hyper_local_seller/utils/auth_log.dart';
 import 'package:hyper_local_seller/service/security.dart';
 import 'package:hyper_local_seller/service/session_manager.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
@@ -49,12 +50,20 @@ class ApiBaseHelper {
         onError: (DioException e, handler) {
           final statusCode = e.response?.statusCode;
           if (statusCode == 401) {
+            authLog('HTTP 401 on ${e.requestOptions.path}');
             // Expired/invalid/revoked token — log the user out globally.
             SessionManager.handleUnauthorized();
           } else if (statusCode == 403 &&
               SessionManager.isLoginApprovalError(e.response?.data)) {
             // A system user's seller approval expired or was withdrawn.
             final data = e.response?.data;
+            final detail = data is Map ? data['data'] : null;
+            final approval = detail is Map
+                ? detail['login_approval_status']
+                : null;
+            authLog(
+              'HTTP 403 approval on ${e.requestOptions.path}: $approval',
+            );
             SessionManager.handleUnauthorized(
               message: data is Map ? data['message']?.toString() : null,
             );
@@ -68,7 +77,7 @@ class ApiBaseHelper {
 
   Future<dynamic> post(
     String url,
-    Map<String, dynamic> body, {
+    Map<String, dynamic>? body, {
     bool debugInventory = false,
   }) async {
     try {

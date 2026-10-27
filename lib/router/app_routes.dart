@@ -51,7 +51,13 @@ import 'package:hyper_local_seller/screen/more_page/view/earning/view/earning_pa
 import 'package:hyper_local_seller/screen/products_page/products/view/product_faqs_page.dart';
 import 'package:hyper_local_seller/screen/more_page/view/bag_inventory/view/bag_inventory_page.dart';
 import 'package:hyper_local_seller/screen/more_page/view/delivery_zone/view/delivery_zones_page.dart';
+import 'package:hyper_local_seller/screen/more_page/view/delivery_boys/model/delivery_boy_model.dart';
+import 'package:hyper_local_seller/screen/more_page/view/delivery_boys/view/add_edit_rider_page.dart';
+import 'package:hyper_local_seller/screen/more_page/view/delivery_boys/view/delivery_boys_page.dart';
+import 'package:hyper_local_seller/screen/more_page/view/delivery_boys/view/rider_qr_page.dart';
 import 'package:hyper_local_seller/screen/home_page/view/notification_list_page.dart';
+import 'package:hyper_local_seller/screen/order_page/dispatch/view/dispatch_center_page.dart';
+import 'package:hyper_local_seller/screen/order_page/popup_users/view/popup_users_page.dart';
 
 Page platformPage(Widget child) {
   if (Platform.isIOS) {
@@ -71,6 +77,8 @@ class AppRoutes {
   static const String register = '/register';
   static const String home = '/home';
   static const String orders = '/orders';
+  static const String dispatchCenter = '/orders/dispatch';
+  static const String popupUsers = '/orders/popup-users';
   static const String products = '/products';
   static const String productDetails = '/product-details';
   static const String addProduct = '/add-products';
@@ -100,6 +108,9 @@ class AppRoutes {
   static const String rolesAndPermission = '/roles-permission';
   static const String permissions = '/permissions';
   static const String deliveryZones = '/delivery-zones';
+  static const String deliveryBoys = '/delivery-boys';
+  static const String addEditRider = '/delivery-boys/manage';
+  static const String riderLoginQr = '/delivery-boys/qr';
   static const String systemUsers = '/system-users';
   static const String loginApprovals = '/login-approvals';
   static const String notifications = '/notifications';
@@ -208,6 +219,16 @@ class MyAppRoutes {
             ],
           ),
         ],
+      ),
+      GoRoute(
+        path: AppRoutes.dispatchCenter,
+        name: AppRoutes.dispatchCenter,
+        pageBuilder: (context, state) => platformPage(const DispatchCenterPage()),
+      ),
+      GoRoute(
+        path: AppRoutes.popupUsers,
+        name: AppRoutes.popupUsers,
+        pageBuilder: (context, state) => platformPage(const PopupUsersPage()),
       ),
       GoRoute(
         path: AppRoutes.addProduct,
@@ -366,6 +387,23 @@ class MyAppRoutes {
         name: '/delivery-zones',
         pageBuilder: (context, state) =>
             platformPage(const DeliveryZonesPage()),
+      ),
+      GoRoute(
+        path: AppRoutes.deliveryBoys,
+        name: AppRoutes.deliveryBoys,
+        pageBuilder: (context, state) => platformPage(const DeliveryBoysPage()),
+      ),
+      GoRoute(
+        path: AppRoutes.addEditRider,
+        name: AppRoutes.addEditRider,
+        pageBuilder: (context, state) =>
+            platformPage(AddEditRiderPage(rider: state.extra as DeliveryBoy?)),
+      ),
+      GoRoute(
+        path: AppRoutes.riderLoginQr,
+        name: AppRoutes.riderLoginQr,
+        pageBuilder: (context, state) =>
+            platformPage(RiderQrPage(rider: state.extra as DeliveryBoy)),
       ),
       GoRoute(
         path: AppRoutes.systemUsers,

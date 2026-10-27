@@ -255,14 +255,17 @@ class _PermissionGroupCard extends StatelessWidget {
     );
   }
 
+  /// Names whose action alone doesn't say what they allow.
+  static const _permissionLabels = {
+    AppPermissions.orderPopup: 'Incoming order popup',
+  };
+
+  /// 'dashboard.view' → 'View', 'order.update_status' → 'Update status'.
   String _formatPermissionName(String permission) {
-    // permission is like 'dashboard.view', we want 'View' or something similar
-    // For now, just capitalize the last part
-    final parts = permission.split('.');
-    if (parts.length > 1) {
-      final name = parts.last;
-      return name[0].toUpperCase() + name.substring(1);
-    }
-    return permission;
+    final label = _permissionLabels[permission];
+    if (label != null) return label;
+    final name = permission.split('.').last.replaceAll('_', ' ').trim();
+    if (name.isEmpty) return permission;
+    return name[0].toUpperCase() + name.substring(1);
   }
 }

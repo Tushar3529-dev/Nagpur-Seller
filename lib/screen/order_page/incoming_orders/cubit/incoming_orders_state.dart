@@ -31,6 +31,11 @@ class IncomingOrdersState extends Equatable {
   final int? failedOrderId;
   final String? errorMessage;
 
+  /// One-off message about an order that left the popup, e.g. because the
+  /// backend gave it to another user. [noticeId] changes with each notice.
+  final String? notice;
+  final int noticeId;
+
   const IncomingOrdersState({
     this.orders = const [],
     this.shownAt = const {},
@@ -45,6 +50,8 @@ class IncomingOrdersState extends Equatable {
     this.isManagingBags = false,
     this.failedOrderId,
     this.errorMessage,
+    this.notice,
+    this.noticeId = 0,
   });
 
   bool get hasPending => orders.isNotEmpty;
@@ -104,6 +111,7 @@ class IncomingOrdersState extends Equatable {
     bool? isManagingBags,
     int? failedOrderId,
     String? errorMessage,
+    String? notice,
     bool clearAccepting = false,
     bool clearAssigningBag = false,
     bool clearPreparing = false,
@@ -129,6 +137,8 @@ class IncomingOrdersState extends Equatable {
       isManagingBags: isManagingBags ?? this.isManagingBags,
       failedOrderId: clearError ? null : (failedOrderId ?? this.failedOrderId),
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+      notice: notice ?? this.notice,
+      noticeId: notice != null ? noticeId + 1 : noticeId,
     );
   }
 
@@ -147,5 +157,7 @@ class IncomingOrdersState extends Equatable {
     isManagingBags,
     failedOrderId,
     errorMessage,
+    notice,
+    noticeId,
   ];
 }

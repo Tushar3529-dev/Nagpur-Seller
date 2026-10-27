@@ -17,10 +17,13 @@ import 'package:hyper_local_seller/screen/home_page/bloc/home_page/home_page_blo
 import 'package:hyper_local_seller/screen/home_page/bloc/notification/notification_list_bloc.dart';
 import 'package:hyper_local_seller/screen/order_page/bloc/orders/orders_bloc.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/cubit/incoming_orders_cubit.dart';
+import 'package:hyper_local_seller/screen/more_page/view/system_users/bloc/system_user_bloc.dart';
 import 'package:hyper_local_seller/screen/more_page/view/system_users/login_approvals/login_approvals_cubit.dart';
 import 'package:hyper_local_seller/widgets/ui/order_notification_handler.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:hyper_local_seller/config/api_routes.dart';
 import 'package:hyper_local_seller/config/app_permissions.dart';
+import 'package:hyper_local_seller/service/api_base_helper.dart';
 import 'package:hyper_local_seller/utils/permission_checker.dart';
 
 class NotificationService {
@@ -69,6 +72,23 @@ class NotificationService {
       iOS: iosInitializationSettings,
     );
 
+    // The backend sends `seller_new_order` pushes on this channel; Android
+    // only shows them heads-up if it exists with high importance.
+    await _flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.createNotificationChannel(
+          const AndroidNotificationChannel(
+            sellerOrdersChannelId,
+            'New orders',
+            description: 'Orders assigned to you for review.',
+            importance: Importance.max,
+            playSound: true,
+            enableVibration: true,
+          ),
+        );
+
     await _flutterLocalNotificationsPlugin.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: (response) {
@@ -106,6 +126,13 @@ class NotificationService {
 
     final type = payload['type']?.toString().toLowerCase();
     final orderId = payload['seller_order_id']?.toString();
+
+    // An order offered to this user. The push is only a hint: the popup
+    // opens by itself once the pending endpoint returns the order.
+    if (type == sellerNewOrderType) {
+      _fetchIncomingOrdersFromContext();
+      return;
+    }
 
     // Determine notification category
     final isOrderNotification = type == 'order' ||
@@ -206,6 +233,7 @@ class NotificationService {
         navContext.push(AppRoutes.withdrawHistory);
       }
     } else if (isLoginApprovalNotification) {
+      _refreshLoginApprovalsFromContext();
       debugPrint("Navigating to Login Approvals page");
       if (fromTerminated) {
         navContext.go(AppRoutes.home);
@@ -399,10 +427,26 @@ class NotificationService {
     } catch (e) {
       debugPrint('[Notification] Error refreshing login approvals: $e');
     }
+    try {
+      if (!LoginApprovalsCubit.canView) return;
+      final bloc = context.read<SystemUserBloc>();
+      bloc.add(
+        FetchSystemUsersEvent(isRefresh: true, silent: true, search: bloc.state.search),
+      );
+    } catch (e) {
+      debugPrint('[Notification] Error refreshing system users: $e');
+    }
   }
 
+  /// An incoming order offered to this user (popup flow).
+  static const String sellerNewOrderType = 'seller_new_order';
+
+  /// Android channel the backend names for [sellerNewOrderType] pushes.
+  static const String sellerOrdersChannelId = 'seller_orders';
+
   static bool _isOrderRelatedType(String? type, String? orderId) {
-    return type == 'order' ||
+    return type == sellerNewOrderType ||
+        type == 'order' ||
         type == 'orders' ||
         type == 'order_update' ||
         type == 'new_order' ||
@@ -415,7 +459,12 @@ class NotificationService {
   /// Updates and returns keep their existing handling.
   static bool isNewRegularOrderType(String? type, String? sellerOrderId) {
     final t = type?.toLowerCase() ?? '';
-    if (t == 'new_order' || t == 'order' || t == 'orders') return true;
+    if (t == sellerNewOrderType ||
+        t == 'new_order' ||
+        t == 'order' ||
+        t == 'orders') {
+      return true;
+    }
     return t.isEmpty && sellerOrderId != null && sellerOrderId.isNotEmpty;
   }
 
@@ -426,79 +475,6 @@ class NotificationService {
       context.read<IncomingOrdersCubit>().fetch();
     } catch (e) {
       debugPrint('[Notification] Error fetching incoming orders: $e');
-    }
-  }
-
-  static const int _incomingOrderAlertId = 9001;
-  static const String _incomingOrderChannelId = 'incoming_orders_channel';
-
-  /// Android only, from the background isolate: a notification whose sound
-  /// keeps repeating until the seller opens it (FLAG_INSISTENT). Only works
-  /// when the backend sends the new-order push as data-only — pushes with a
-  /// `notification` block are shown by the system instead.
-  static Future<void> showIncomingOrderAlert(RemoteMessage message) async {
-    if (!Platform.isAndroid) return;
-    try {
-      final plugin = FlutterLocalNotificationsPlugin();
-      await plugin.initialize(
-        const InitializationSettings(
-          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-        ),
-      );
-
-      const channel = AndroidNotificationChannel(
-        _incomingOrderChannelId,
-        'Incoming orders',
-        description: 'Rings until you open a new order.',
-        importance: Importance.max,
-        playSound: true,
-        sound: RawResourceAndroidNotificationSound('notification_sound'),
-        enableVibration: true,
-      );
-      await plugin
-          .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >()
-          ?.createNotificationChannel(channel);
-
-      final payload = jsonEncode({
-        'type': message.data['type'] ?? 'new_order',
-        'seller_order_id': message.data['seller_order_id'] ?? '',
-        'order_id': message.data['order_id'] ?? '',
-      });
-
-      await plugin.show(
-        _incomingOrderAlertId,
-        message.data['title'] ?? 'New order received',
-        message.data['body'] ?? 'Open the app to accept it.',
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            channel.id,
-            channel.name,
-            channelDescription: channel.description,
-            importance: Importance.max,
-            priority: Priority.max,
-            category: AndroidNotificationCategory.alarm,
-            sound: const RawResourceAndroidNotificationSound(
-              'notification_sound',
-            ),
-            autoCancel: true,
-            // 4 = Notification.FLAG_INSISTENT: repeat the sound until handled.
-            additionalFlags: Int32List.fromList(<int>[4]),
-          ),
-        ),
-        payload: payload,
-      );
-    } catch (e) {
-      debugPrint('[Notification] Error showing incoming order alert: $e');
-    }
-  }
-
-  Future<void> cancelIncomingOrderAlert() async {
-    try {
-      await _flutterLocalNotificationsPlugin.cancel(_incomingOrderAlertId);
-    } catch (e) {
-      debugPrint('[Notification] Error cancelling incoming order alert: $e');
     }
   }
 
@@ -788,6 +764,7 @@ class NotificationService {
       String? fcmToken = await _firebaseMessaging.getToken();
       if (fcmToken != null) {
         await HiveStorage.setFcmToken(fcmToken);
+        await registerFcmToken();
       }
     } catch (e) {
       debugPrint("Error updating tokens: $e");
@@ -798,6 +775,29 @@ class NotificationService {
     _firebaseMessaging.onTokenRefresh.listen((token) async {
       debugPrint('Token Refreshed: $token');
       await HiveStorage.setFcmToken(token);
+      await registerFcmToken();
     });
+  }
+
+  /// Sends this device's FCM token to `POST /seller/fcm-token` so order
+  /// offers can reach it. Called on app start, after login and on every
+  /// token refresh; does nothing while logged out.
+  Future<void> registerFcmToken() async {
+    final token = HiveStorage.fcmToken;
+    final accessToken = HiveStorage.userToken;
+    if (token == null ||
+        token.isEmpty ||
+        accessToken == null ||
+        accessToken.trim().isEmpty) {
+      return;
+    }
+    try {
+      await ApiBaseHelper().post(ApiRoutes.fcmTokenApi, {
+        'fcm_token': token,
+        'device_type': Platform.isIOS ? 'ios' : 'android',
+      });
+    } catch (e) {
+      debugPrint('[Notification] FCM token registration failed: $e');
+    }
   }
 }

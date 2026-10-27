@@ -3,6 +3,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hyper_local_seller/utils/auth_log.dart';
 import 'package:hyper_local_seller/bloc/settings/settings_cubit.dart';
 import 'package:hyper_local_seller/config/colors.dart';
 import 'package:flutter_svg/svg.dart';
@@ -54,7 +55,12 @@ class _SplashScreenState extends State<SplashScreen> {
     // ── Navigation decision ───────────────────────────────────────
     final isFirstTime = HiveStorage.isFirstTime;
 
+    authLog(
+      'splash: first_run=$isFirstTime '
+      'token=${mask(HiveStorage.userToken)}',
+    );
     if (isFirstTime) {
+      authLog('→ Intro');
       context.go(AppRoutes.introSlider);
       await HiveStorage.setIsFirstTime(false);
     } else {
@@ -91,13 +97,15 @@ class _SplashScreenState extends State<SplashScreen> {
               HiveStorage.isSubscriptionAvailable &&
               (HiveStorage.activePlanId == null || HiveStorage.activePlanId == 0) &&
               HiveStorage.pendingSubscriptionId == null) {
-            debugPrint("Splash: Navigating to subscription choose plan");
+            authLog('→ Choose plan (no active or pending subscription)');
             context.go(AppRoutes.subscriptionChoosePlan);
           } else {
+            authLog('→ Home (restored session)');
             context.go(AppRoutes.home);
           }
         }
       } else {
+        authLog('→ Login (no saved session)');
         context.go(AppRoutes.login);
       }
     }
@@ -130,7 +138,6 @@ class _SplashScreenState extends State<SplashScreen> {
     }
   }
 
-  @override
  /*  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.tertiary,
@@ -157,14 +164,33 @@ class _SplashScreenState extends State<SplashScreen> {
       ),
     );
   } */
- Widget build(BuildContext context) {
-  return Scaffold(
-    body: Image.asset(
-      ImagesPath.splashImage,
-      width: double.infinity,
-      height: double.infinity,
-      fit: BoxFit.cover,
-    ),
-  );
-}
+  // Edge colours of the square splash artwork, so any screen shape around
+  // it continues the picture instead of cropping it.
+  static const _artTop = Color(0xFF005DF8);
+  static const _artBottom = Color(0xFFC2D0F8);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _artTop,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const Column(
+            children: [
+              Expanded(child: ColoredBox(color: _artTop)),
+              Expanded(child: ColoredBox(color: _artBottom)),
+            ],
+          ),
+          Center(
+            child: Image.asset(
+              ImagesPath.splashImage,
+              fit: BoxFit.contain,
+              gaplessPlayback: true,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

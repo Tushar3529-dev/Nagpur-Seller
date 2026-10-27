@@ -1,5 +1,8 @@
 // ignore_for_file: deprecated_member_use
 
+import 'package:hyper_local_seller/screen/order_page/dispatch/model/dispatch_model.dart';
+import 'package:hyper_local_seller/screen/order_page/dispatch/widgets/dispatch_status_badge.dart';
+
 import 'package:flutter/material.dart';
 import 'package:hyper_local_seller/l10n/app_localizations.dart';
 import 'package:hyper_local_seller/utils/time_utils.dart';
@@ -106,6 +109,15 @@ class OrderCard extends StatelessWidget {
                       ),
                     ],
                   ),
+                  if (data['dispatch_status'] is DispatchOrder) ...[
+                    const SizedBox(height: 4),
+                    Align(
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: DispatchStatusBadge(
+                        order: data['dispatch_status'] as DispatchOrder,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 4),
                   Text(
                     '${l10n?.qtyWithCount(data['quantity']) ?? 'Qty: ${data['quantity']}'} • ${data['subtotal']}',

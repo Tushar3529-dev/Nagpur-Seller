@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hyper_local_seller/l10n/app_localizations.dart';
 import 'package:intl/intl.dart';
 import 'package:hyper_local_seller/config/colors.dart';
 import 'package:hyper_local_seller/config/constant.dart';
@@ -101,8 +102,7 @@ class LoginApprovalPendingView extends StatelessWidget {
         ),
         SizedBox(height: UIUtils.gapMD(screenType)),
         Text(
-          'Ask your seller to approve this login. Once approved, access '
-          'lasts 24 hours.',
+          AppLocalizations.of(context)?.askSellerApproveLogin ?? 'Ask your seller to approve this login. Your seller chooses how long access lasts.',
           textAlign: TextAlign.center,
           style: style(size: UIUtils.body(screenType) - 1, color: Colors.grey),
         ),

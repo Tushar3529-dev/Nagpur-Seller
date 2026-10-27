@@ -329,6 +329,13 @@ class _MorePageState extends State<MorePage> {
                 context.pushNamed(AppRoutes.systemUsers);
               },
             ),
+          if (PermissionChecker.hasPermission(AppPermissions.deliveryBoyView))
+            SettingsTileData(
+              img: ImagesPath.ordersSvg,
+              title: l10n?.deliveryBoys ?? 'Delivery Boys',
+              subtitle: l10n?.deliveryBoysSubtitle ?? 'Riders, login and QR',
+              onTap: () => context.pushNamed(AppRoutes.deliveryBoys),
+            ),
           SettingsTileData(
             img: ImagesPath.logoutSvg,
             title: l10n?.logout ?? "Logout",

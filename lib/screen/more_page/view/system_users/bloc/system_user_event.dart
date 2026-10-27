@@ -4,9 +4,14 @@ abstract class SystemUserEvent {}
 
 class FetchSystemUsersEvent extends SystemUserEvent {
   final bool isRefresh;
+  final bool silent;
   final String? search;
 
-  FetchSystemUsersEvent({this.isRefresh = false, this.search});
+  FetchSystemUsersEvent({
+    this.isRefresh = false,
+    this.silent = false,
+    this.search,
+  });
 }
 
 class LoadMoreSystemUsersEvent extends SystemUserEvent {}
@@ -26,3 +31,18 @@ class DeleteSystemUserEvent extends SystemUserEvent {
 class ClearSystemUserMessages extends SystemUserEvent {}
 
 class SystemUserReset extends SystemUserEvent {}
+
+class ApproveSystemUserLoginEvent extends SystemUserEvent {
+  final int id;
+  ApproveSystemUserLoginEvent({required this.id});
+}
+
+class DisapproveSystemUserLoginEvent extends SystemUserEvent {
+  final int id;
+  DisapproveSystemUserLoginEvent({required this.id});
+}
+
+class ApplyLoginApprovalResultEvent extends SystemUserEvent {
+  final LoginApprovalResult result;
+  ApplyLoginApprovalResultEvent(this.result);
+}
