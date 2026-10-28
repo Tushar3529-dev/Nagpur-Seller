@@ -207,6 +207,13 @@ class SellerOrder {
       .map((i) => i.image)
       .firstWhere((i) => i.isNotEmpty, orElse: () => '');
 
+  /// Whether "Process order" applies: at least one item still awaits the
+  /// store's response or was accepted but not yet dispatched.
+  bool get canProcess => items.any((item) {
+    final s = item.status.toLowerCase();
+    return s == 'awaiting_store_response' || s == 'accepted';
+  });
+
   /// Items the seller can still act on with [action]
   /// (`accept` / `reject` / `preparing`).
   List<SellerOrderLine> itemsFor(String action) {

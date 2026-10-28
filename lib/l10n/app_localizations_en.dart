@@ -653,6 +653,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enterHsnCode => 'Enter HSN Code';
 
   @override
+  String get rackNumber => 'Rack Number';
+
+  @override
+  String get enterRackNumber => 'Enter rack number (e.g. A-12)';
+
+  @override
+  String get processOrder => 'Process Order';
+
+  @override
+  String get cantProcessOrderTitle => 'Can\'t process this order';
+
+  @override
+  String get processOrderOk => 'OK';
+
+  @override
+  String get rackNumberHelper => 'Where this product sits in your store';
+
+  @override
+  String get rackLabel => 'Rack';
+
+  @override
   String get enterMobileNumber => 'Enter mobile number';
 
   @override

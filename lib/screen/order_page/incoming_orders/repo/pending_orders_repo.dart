@@ -118,6 +118,16 @@ class PendingOrdersRepo {
     }
   }
 
+  /// Main seller owner only: moves a still-pending popup offer (usually held
+  /// by a system user) to the owner. It does not accept the order. Throws a
+  /// 409 [ApiException] with a `data.code` when the offer can't be taken.
+  Future<void> takeoverPendingOffer(int sellerOrderId) async {
+    await _helper.post(
+      '${ApiRoutes.ordersApi}/$sellerOrderId/takeover-pending-offer',
+      {},
+    );
+  }
+
   /// Assigns an available bag from the seller's inventory to [order]. The
   /// server rejects unknown bags and bags assigned elsewhere with a 422.
   Future<AssignedBag> assignBag(PendingOrder order, String barcode) async {

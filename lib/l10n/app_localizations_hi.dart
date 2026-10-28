@@ -652,6 +652,27 @@ class AppLocalizationsHi extends AppLocalizations {
   String get enterHsnCode => 'HSN कोड दर्ज करें';
 
   @override
+  String get rackNumber => 'रैक नंबर';
+
+  @override
+  String get enterRackNumber => 'रैक नंबर दर्ज करें (जैसे A-12)';
+
+  @override
+  String get processOrder => 'ऑर्डर प्रोसेस करें';
+
+  @override
+  String get cantProcessOrderTitle => 'यह ऑर्डर प्रोसेस नहीं हो सकता';
+
+  @override
+  String get processOrderOk => 'ठीक है';
+
+  @override
+  String get rackNumberHelper => 'आपके स्टोर में यह उत्पाद कहाँ रखा है';
+
+  @override
+  String get rackLabel => 'रैक';
+
+  @override
   String get enterMobileNumber => 'मोबाइल नंबर दर्ज करें';
 
   @override

@@ -193,6 +193,10 @@ class PendingOrderItem extends Equatable {
   final String? variantWeight;
   final String? variantDimensions;
 
+  /// Where to pick this product in the store. Display only — never used to
+  /// identify or verify the item.
+  final String? rackNumber;
+
   bool get hasBarcode => barcode?.trim().isNotEmpty ?? false;
 
   const PendingOrderItem({
@@ -207,6 +211,7 @@ class PendingOrderItem extends Equatable {
     this.sku,
     this.variantWeight,
     this.variantDimensions,
+    this.rackNumber,
   });
 
   factory PendingOrderItem.fromJson(Map<String, dynamic> json) {
@@ -223,6 +228,7 @@ class PendingOrderItem extends Equatable {
       sku: _nonEmpty(json['sku']),
       variantWeight: _nonEmpty(json['variant_weight']),
       variantDimensions: _nonEmpty(json['variant_dimensions']),
+      rackNumber: _nonEmpty(json['rack_number']),
     );
   }
 
@@ -238,6 +244,7 @@ class PendingOrderItem extends Equatable {
     'sku': sku,
     'variant_weight': variantWeight,
     'variant_dimensions': variantDimensions,
+    'rack_number': rackNumber,
   };
 
   PendingOrderItem copyWith({String? image, String? barcode, String? status}) {
@@ -253,6 +260,7 @@ class PendingOrderItem extends Equatable {
       sku: sku,
       variantWeight: variantWeight,
       variantDimensions: variantDimensions,
+      rackNumber: rackNumber,
     );
   }
 
@@ -275,6 +283,7 @@ class PendingOrderItem extends Equatable {
     sku,
     variantWeight,
     variantDimensions,
+    rackNumber,
   ];
 }
 

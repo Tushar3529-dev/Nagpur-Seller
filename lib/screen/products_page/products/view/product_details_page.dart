@@ -25,6 +25,7 @@ import 'package:hyper_local_seller/utils/permission_checker.dart';
 import 'package:hyper_local_seller/config/app_permissions.dart';
 import 'package:hyper_local_seller/router/app_routes.dart';
 import 'package:hyper_local_seller/screen/products_page/add_products/bloc/selected_categories/selected_categories_cubit.dart';
+import 'package:hyper_local_seller/widgets/custom/rack_badge.dart';
 import 'package:hyper_local_seller/screen/products_page/products/widgets/product_inventory_dialog.dart';
 
 class ProductDetailsPage extends StatefulWidget {
@@ -356,6 +357,15 @@ class _ProductDetailsPageState extends State<ProductDetailsPage>
             ),
           ),
           const SizedBox(height: 8),
+
+          if (RackBadge.hasRack(_product.rackNumber)) ...[
+            RackBadge(
+              rackNumber: _product.rackNumber,
+              showLabel: true,
+              fontSize: 12.5,
+            ),
+            const SizedBox(height: 8),
+          ],
 
           // Rating row
           if (_product.ratingCount > 0)
@@ -765,6 +775,12 @@ class _ProductDetailsPageState extends State<ProductDetailsPage>
           Icons.receipt_long_outlined,
           l10n?.hsnCode ?? 'HSN Code',
           _product.hsnCode!,
+        ),
+      if (RackBadge.hasRack(_product.rackNumber))
+        _InfoRowData(
+          Icons.place_outlined,
+          l10n?.rackNumber ?? 'Rack Number',
+          _product.rackNumber!.trim(),
         ),
       _InfoRowData(
         Icons.assignment_return_outlined,

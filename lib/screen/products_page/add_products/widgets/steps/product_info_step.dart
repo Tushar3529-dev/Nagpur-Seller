@@ -22,6 +22,7 @@ class _ProductInfoStepState extends State<ProductInfoStep> {
   final List<Map<String, dynamic>> _customFields = [];
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _hsnController = TextEditingController();
+  final TextEditingController _rackController = TextEditingController();
   final TextEditingController _madeInController = TextEditingController();
   final FocusNode _titleFocus = FocusNode();
   final FocusNode _hsnFocus = FocusNode();
@@ -40,6 +41,7 @@ class _ProductInfoStepState extends State<ProductInfoStep> {
     final productData = context.read<AddProductBloc>().state.productData;
     _titleController.text = productData.title ?? "";
     _hsnController.text = productData.hsnCode ?? "";
+    _rackController.text = productData.rackNumber ?? "";
     _madeInController.text = productData.madeIn ?? "";
     _selectedIndicator = productData.indicator;
     _selectedBrandId = productData.brandId;
@@ -193,6 +195,7 @@ class _ProductInfoStepState extends State<ProductInfoStep> {
   void dispose() {
     _titleController.dispose();
     _hsnController.dispose();
+    _rackController.dispose();
     _madeInController.dispose();
     _brandController.dispose();
     _titleFocus.dispose();
@@ -205,6 +208,14 @@ class _ProductInfoStepState extends State<ProductInfoStep> {
     }
     super.dispose();
   }
+
+  /// Server-side limit for `rack_number`.
+  static const int _rackNumberMaxLength = 100;
+
+  /// 422 message for `rack_number`; editing any field replaces the failure
+  /// state, so it clears as soon as the seller types.
+  static String? _rackError(AddProductState state) =>
+      state is AddProductFailure ? state.fieldErrors['rack_number'] : null;
 
   void _updateBloc() {
     final bloc = context.read<AddProductBloc>();
@@ -227,6 +238,7 @@ class _ProductInfoStepState extends State<ProductInfoStep> {
           brandName: _brandController.text,
           madeIn: _madeInController.text,
           hsnCode: _hsnController.text,
+          rackNumber: _rackController.text,
           indicator: _selectedIndicator,
           prepTime: _basePrepTime,
           customFields: customFieldsData,
@@ -286,6 +298,36 @@ class _ProductInfoStepState extends State<ProductInfoStep> {
           hint: AppLocalizations.of(context)!.enterHsnCode,
           controller: _hsnController,
           onChanged: (v) => _updateBloc(),
+        ),
+        const SizedBox(height: 20),
+
+        CustomTextField(
+          label: AppLocalizations.of(context)!.rackNumber,
+          isRequired: false,
+          hint: AppLocalizations.of(context)!.enterRackNumber,
+          controller: _rackController,
+          maxLength: _rackNumberMaxLength,
+          textCapitalization: TextCapitalization.characters,
+          onChanged: (v) => _updateBloc(),
+        ),
+        BlocBuilder<AddProductBloc, AddProductState>(
+          buildWhen: (prev, curr) =>
+              _rackError(prev) != _rackError(curr),
+          builder: (context, state) {
+            final error = _rackError(state);
+            return Padding(
+              padding: const EdgeInsets.only(left: 16, top: 4),
+              child: Text(
+                error ?? AppLocalizations.of(context)!.rackNumberHelper,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: error != null
+                      ? Theme.of(context).colorScheme.error
+                      : Colors.grey,
+                ),
+              ),
+            );
+          },
         ),
         const SizedBox(height: 20),
 

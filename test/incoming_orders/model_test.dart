@@ -172,4 +172,23 @@ void main() {
       );
     });
   });
+
+  test('rack_number is optional and blank means none', () {
+    final base = Map<String, dynamic>.from(
+      (orderJson(1)['items'] as List).first as Map,
+    );
+    expect(PendingOrderItem.fromJson(base).rackNumber, isNull);
+    expect(
+      PendingOrderItem.fromJson({...base, 'rack_number': null}).rackNumber,
+      isNull,
+    );
+    expect(
+      PendingOrderItem.fromJson({...base, 'rack_number': '  '}).rackNumber,
+      isNull,
+    );
+    final racked = PendingOrderItem.fromJson({...base, 'rack_number': ' A-12 '});
+    expect(racked.rackNumber, 'A-12');
+    expect(PendingOrderItem.fromJson(racked.toJson()), racked);
+    expect(racked.copyWith(status: 'accepted').rackNumber, 'A-12');
+  });
 }

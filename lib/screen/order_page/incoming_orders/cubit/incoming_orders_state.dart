@@ -28,6 +28,10 @@ class IncomingOrdersState extends Equatable {
   /// True while the seller is away in Bag inventory adding bags. The popup is
   /// hidden meanwhile so that page can be used.
   final bool isManagingBags;
+
+  /// Orders (by seller_order_id) the main seller owner minimized. They keep
+  /// their offer and progress but leave the screen until reopened.
+  final Set<int> minimizedOrderIds;
   final int? failedOrderId;
   final String? errorMessage;
 
@@ -48,6 +52,7 @@ class IncomingOrdersState extends Equatable {
     this.assigningBagOrderId,
     this.preparingOrderId,
     this.isManagingBags = false,
+    this.minimizedOrderIds = const {},
     this.failedOrderId,
     this.errorMessage,
     this.notice,
@@ -56,8 +61,29 @@ class IncomingOrdersState extends Equatable {
 
   bool get hasPending => orders.isNotEmpty;
 
-  /// Orders the seller hasn't accepted yet — the phone rings while any exist.
-  bool get hasUnaccepted => orders.any((order) => !isAccepted(order));
+  bool isMinimized(PendingOrder order) =>
+      minimizedOrderIds.contains(order.sellerOrderId);
+
+  /// The queue the popup shows: everything but minimized orders.
+  List<PendingOrder> get visibleOrders => minimizedOrderIds.isEmpty
+      ? orders
+      : [
+          for (final order in orders)
+            if (!isMinimized(order)) order,
+        ];
+
+  /// Minimized orders, reopened from the "Continue order" button.
+  List<PendingOrder> get minimizedOrders => [
+    for (final order in orders)
+      if (isMinimized(order)) order,
+  ];
+
+  bool get hasVisible => orders.any((order) => !isMinimized(order));
+
+  /// On-screen orders the seller hasn't accepted yet — the phone rings while
+  /// any exist. A minimized order doesn't ring until it is reopened.
+  bool get hasUnaccepted =>
+      orders.any((order) => !isAccepted(order) && !isMinimized(order));
 
   bool get isBusy =>
       acceptingOrderId != null ||
@@ -109,6 +135,7 @@ class IncomingOrdersState extends Equatable {
     int? assigningBagOrderId,
     int? preparingOrderId,
     bool? isManagingBags,
+    Set<int>? minimizedOrderIds,
     int? failedOrderId,
     String? errorMessage,
     String? notice,
@@ -135,6 +162,7 @@ class IncomingOrdersState extends Equatable {
           ? null
           : (preparingOrderId ?? this.preparingOrderId),
       isManagingBags: isManagingBags ?? this.isManagingBags,
+      minimizedOrderIds: minimizedOrderIds ?? this.minimizedOrderIds,
       failedOrderId: clearError ? null : (failedOrderId ?? this.failedOrderId),
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       notice: notice ?? this.notice,
@@ -155,6 +183,7 @@ class IncomingOrdersState extends Equatable {
     assigningBagOrderId,
     preparingOrderId,
     isManagingBags,
+    minimizedOrderIds,
     failedOrderId,
     errorMessage,
     notice,

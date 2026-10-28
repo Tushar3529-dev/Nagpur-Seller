@@ -363,6 +363,17 @@ class PopupPresenceService {
     positions?.cancel();
   }
 
+  /// Whether the signed-in user is known to be the main seller owner. False
+  /// while unknown; [resolveOwner] finds out.
+  bool get isMainSeller =>
+      PermissionChecker.isDefaultSeller ||
+      (_isOwner == true && _ownerFor == HiveStorage.userData?['id']);
+
+  /// Whether the signed-in user is the main seller owner (only they may take
+  /// over another user's pending order or minimize the popup). Cached per
+  /// user; false when it can't be checked (offline).
+  Future<bool> resolveOwner() => _resolveOwner();
+
   /// The owner needs no location, so finding out comes first. A role named
   /// `seller` settles it; otherwise the owner-only availability endpoint
   /// does (200 owner, 403 not), once per signed-in user.

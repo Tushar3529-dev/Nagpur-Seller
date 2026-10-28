@@ -14,13 +14,16 @@ import 'package:hyper_local_seller/screen/order_page/incoming_orders/cubit/incom
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/model/pending_order_model.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/widgets/order_scan_panel.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/widgets/response_timer.dart';
+import 'package:hyper_local_seller/service/popup_presence_service.dart';
+import 'package:hyper_local_seller/widgets/custom/rack_badge.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Sits in `MaterialApp.builder`, above every route. While there are pending
 /// orders it covers the whole app with a stack of order cards. A card is
 /// cleared only by accepting it, scanning every item, assigning a bag and
 /// dispatching it — there is no close or reject. The popup steps aside only
-/// while the seller adds bags in Bag inventory.
+/// while the seller adds bags in Bag inventory, or when the main seller owner
+/// minimizes it; a "Continue order" button then brings it back.
 class IncomingOrderOverlay extends StatefulWidget {
   final Widget child;
 
@@ -49,7 +52,7 @@ class _IncomingOrderOverlayState extends State<IncomingOrderOverlay> {
   bool _hasPending = false;
 
   static bool _isShown(IncomingOrdersState state) =>
-      state.hasPending && !state.isManagingBags;
+      state.hasVisible && !state.isManagingBags;
 
   /// Hides the popup while Bag inventory is open, then brings it back.
   Future<void> _openBagInventory() async {
@@ -115,7 +118,9 @@ class _IncomingOrderOverlayState extends State<IncomingOrderOverlay> {
                   cameraBuilder: widget.cameraBuilder,
                   onAddBags: _openBagInventory,
                 ),
-              ),
+              )
+            else if (state.minimizedOrders.isNotEmpty && !state.isManagingBags)
+              _ContinueOrderButton(order: state.minimizedOrders.first),
           ],
         );
       },
@@ -148,8 +153,11 @@ class _OrderStackBarrier extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final top = state.orders.first;
+    final visible = state.visibleOrders;
+    final top = visible.first;
     final isScanning = state.isAccepted(top);
+    // Only the main seller owner may step away from an assigned order.
+    final canMinimize = PopupPresenceService().isMainSeller && !state.isBusy;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // This sits above the app's Navigator, so it brings its own Overlay for
@@ -170,9 +178,30 @@ class _OrderStackBarrier extends StatelessWidget {
                 child: SafeArea(
                   bottom: false,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                    child: Center(
-                      child: _WaitingBadge(count: state.orders.length),
+                    padding: const EdgeInsets.fromLTRB(16, 10, 8, 0),
+                    child: Row(
+                      children: [
+                        // Balances the minimize button so the badge stays
+                        // centred.
+                        if (canMinimize) const SizedBox(width: 48),
+                        Expanded(
+                          child: Center(
+                            child: _WaitingBadge(count: visible.length),
+                          ),
+                        ),
+                        if (canMinimize)
+                          IconButton(
+                            key: const ValueKey('minimize-order'),
+                            tooltip: 'Minimize',
+                            onPressed: () => context
+                                .read<IncomingOrdersCubit>()
+                                .minimize(top.sellerOrderId),
+                            icon: const Icon(
+                              Icons.close_fullscreen_rounded,
+                              color: Colors.white,
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ),
@@ -206,7 +235,7 @@ class _OrderStackBarrier extends StatelessWidget {
                             key: ValueKey(top.sellerOrderId),
                             order: top,
                             position: 1,
-                            total: state.orders.length,
+                            total: visible.length,
                             waitingSince: state.waitingSince(top),
                             isAccepting:
                                 state.acceptingOrderId == top.sellerOrderId,
@@ -219,6 +248,66 @@ class _OrderStackBarrier extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Floats over the app while the owner has minimized an order, and reopens
+/// it in the popup.
+class _ContinueOrderButton extends StatelessWidget {
+  final PendingOrder order;
+
+  const _ContinueOrderButton({required this.order});
+
+  @override
+  Widget build(BuildContext context) {
+    // Clears the dashboard's bottom navigation bar.
+    final bottom = MediaQuery.viewPaddingOf(context).bottom + 72;
+    return Positioned(
+      right: 16,
+      bottom: bottom,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width - 32,
+        ),
+        child: Material(
+          color: AppColors.primaryColor,
+          elevation: 6,
+          borderRadius: BorderRadius.circular(28),
+          child: InkWell(
+            key: const ValueKey('continue-order'),
+            borderRadius: BorderRadius.circular(28),
+            onTap: () =>
+                context.read<IncomingOrdersCubit>().reopen(order.sellerOrderId),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.inventory_2_outlined,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'Continue order #${order.orderNumber}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -642,6 +731,10 @@ class _ItemRow extends StatelessWidget {
                     color: theme.hintColor,
                   ),
                 ),
+                if (RackBadge.hasRack(item.rackNumber)) ...[
+                  const SizedBox(height: 4),
+                  RackBadge(rackNumber: item.rackNumber),
+                ],
               ],
             ),
           ),

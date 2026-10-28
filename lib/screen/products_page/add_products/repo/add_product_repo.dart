@@ -40,6 +40,9 @@ class AddProductRepo {
       "indicator": productData.indicator,
       "made_in": productData.madeIn,
       "hsn_code": productData.hsnCode,
+      // Always sent so clearing the field on edit clears it on the server
+      // (Laravel turns "" into null); omitting it would keep the old value.
+      "rack_number": productData.rackNumber?.trim() ?? "",
       // "brand_id": productData.brandId,
       "total_allowed_quantity": productData.totalAllowedQuantity,
       "minimum_order_quantity": productData.minimumOrderQuantity,

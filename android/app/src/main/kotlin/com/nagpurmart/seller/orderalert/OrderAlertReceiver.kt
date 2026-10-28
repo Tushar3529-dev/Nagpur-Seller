@@ -23,7 +23,11 @@ class OrderAlertReceiver : BroadcastReceiver() {
         private val NEW_ORDER_TYPES = setOf("seller_new_order", "new_order", "order", "orders")
 
         /** The backend gave the order to another seller: stop its ringing. */
-        private val REASSIGNED_TYPES = setOf("seller_order_reassigned", "order_alert_cancel")
+        private val REASSIGNED_TYPES = setOf(
+            "seller_order_offer_reassigned",
+            "seller_order_reassigned",
+            "order_alert_cancel",
+        )
     }
 
     override fun onReceive(context: Context, intent: Intent) {

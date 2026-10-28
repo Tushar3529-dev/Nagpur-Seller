@@ -179,6 +179,39 @@ class OrderCard extends StatelessWidget {
         // Buttons (none without permission to update orders)
         if (onStatusUpdate == null)
           const SizedBox.shrink()
+        else if (data['can_process'] == true) ...[
+          // Popup users: the order is accepted, scanned, bagged and
+          // dispatched in the order popup.
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              if (data['can_reject'] == true &&
+                  (status == 'pending' ||
+                      status == 'awaiting_store_response' ||
+                      status == 'partially_accepted')) ...[
+                Expanded(
+                  child: SecondaryButton(
+                    text: l10n?.reject ?? 'Reject',
+                    onPressed: () => onStatusUpdate?.call('reject'),
+                    foregroundColor: Colors.red,
+                    borderColor: Colors.red,
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                child: PrimaryButton(
+                  key: const ValueKey('process-order'),
+                  text: l10n?.processOrder ?? 'Process Order',
+                  icon: Icons.play_arrow_rounded,
+                  onPressed: () => onStatusUpdate?.call('process'),
+                  backgroundColor: Colors.green,
+                ),
+              ),
+            ],
+          ),
+        ] else if (data['can_update_status'] == false)
+          const SizedBox.shrink()
         else if (status == 'pending' ||
             status == 'awaiting_store_response' ||
             status == 'partially_accepted') ...[

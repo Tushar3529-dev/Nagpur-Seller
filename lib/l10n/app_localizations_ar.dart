@@ -650,6 +650,27 @@ class AppLocalizationsAr extends AppLocalizations {
   String get enterHsnCode => 'أدخل رمز HSN';
 
   @override
+  String get rackNumber => 'رقم الرف';
+
+  @override
+  String get enterRackNumber => 'أدخل رقم الرف (مثل A-12)';
+
+  @override
+  String get processOrder => 'معالجة الطلب';
+
+  @override
+  String get cantProcessOrderTitle => 'تعذّر معالجة هذا الطلب';
+
+  @override
+  String get processOrderOk => 'حسنًا';
+
+  @override
+  String get rackNumberHelper => 'مكان هذا المنتج في متجرك';
+
+  @override
+  String get rackLabel => 'الرف';
+
+  @override
   String get enterMobileNumber => 'أدخل رقم الجوال';
 
   @override

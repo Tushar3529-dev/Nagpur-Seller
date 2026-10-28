@@ -59,6 +59,10 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
   /// this session, even if the pending endpoint still lists them for a while.
   final Set<int> _handled = {};
 
+  /// Order the seller just opened from the orders list or "Continue order":
+  /// moved to the top of the queue on the next publish.
+  int? _focusId;
+
   static bool get _isLoggedIn {
     final token = HiveStorage.userToken;
     return token != null && token.trim().isNotEmpty;
@@ -270,6 +274,177 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
     return null;
   }
 
+  /// `data.code` values of a 409 from `takeover-pending-offer`.
+  static const offerAlreadyAcceptedCode = 'seller_order_offer_already_accepted';
+  static const offerNotPendingCode = 'seller_order_offer_not_pending';
+  static const ownerHasActiveOrderCode = 'seller_owner_has_active_order';
+
+  /// Opens [sellerOrderId] from the orders list ("Process order") in the
+  /// popup, at whatever step it's at: accept, scan, bag or dispatch.
+  ///
+  /// The main seller owner ([asOwner]) first takes the pending offer over
+  /// from whoever holds it — taking it over doesn't accept it. Other users
+  /// never take over: they can only open an order offered to them. Returns
+  /// null on success, otherwise the message to show; after a conflict the
+  /// caller should also refresh its order list.
+  Future<String?> processOrder(
+    int sellerOrderId, {
+    OrderMode? mode,
+    required bool asOwner,
+  }) async {
+    if (!_isLoggedIn) return 'Please log in again.';
+    // Already in the popup (perhaps minimized): just bring it up.
+    if (state.orders.any((o) => o.sellerOrderId == sellerOrderId)) {
+      reopen(sellerOrderId);
+      return null;
+    }
+    final generation = _sessionGeneration;
+
+    String? takeoverError;
+    if (asOwner) {
+      try {
+        await _repo.takeoverPendingOffer(sellerOrderId);
+      } catch (e) {
+        debugPrint('[IncomingOrders] takeover $sellerOrderId failed: $e');
+        takeoverError = _takeoverMessage(e);
+        // No pending offer, or an accepted one: it may already be the
+        // owner's own, which the pending list below tells. Anything else
+        // stops here.
+        final code = _conflictCode(e);
+        if (code != offerNotPendingCode && code != offerAlreadyAcceptedCode) {
+          if (!isClosed && generation == _sessionGeneration) {
+            _resumeFetching();
+          }
+          return takeoverError;
+        }
+      }
+    }
+    if (isClosed || generation != _sessionGeneration) return null;
+
+    final PendingOrder? order;
+    try {
+      order = await _findPending(sellerOrderId, mode);
+    } catch (e) {
+      debugPrint('[IncomingOrders] open $sellerOrderId failed: $e');
+      return takeoverError ?? "Couldn't load this order. $e";
+    }
+    if (isClosed || generation != _sessionGeneration) return null;
+    if (order == null) {
+      _resumeFetching();
+      return takeoverError ??
+          (asOwner
+              ? "Couldn't load this order. Refresh the list and try again."
+              : 'This order is not assigned to you, so it cannot be '
+                    'processed from here.');
+    }
+
+    _handled.remove(sellerOrderId);
+    if (order.isAcceptedOnServer) {
+      _held[sellerOrderId] = order;
+      emit(
+        state.copyWith(
+          acceptedOrderIds: {...state.acceptedOrderIds, sellerOrderId},
+        ),
+      );
+    } else {
+      // Waits in the accept step. Later polls keep it while the offer is
+      // still this user's.
+      _latest[order.mode] = [
+        for (final o in _latest[order.mode]!)
+          if (o.sellerOrderId != sellerOrderId) o,
+        order,
+      ];
+    }
+    _focusId = sellerOrderId;
+    _publish();
+    _save();
+    return null;
+  }
+
+  /// The order in this user's own pending list, either mode unless [mode]
+  /// is given. Wholesale is read without the 30-minute popup window.
+  Future<PendingOrder?> _findPending(int sellerOrderId, OrderMode? mode) async {
+    for (final m in mode != null ? [mode] : OrderMode.values) {
+      final orders = await _repo.getPendingOrders(m, popupWindowOnly: false);
+      final order = orders
+          .where((o) => o.sellerOrderId == sellerOrderId)
+          .firstOrNull;
+      if (order != null) return order;
+    }
+    return null;
+  }
+
+  static String? _conflictCode(Object error) {
+    if (error is! ApiException || error.statusCode != 409) return null;
+    final data = error.responseData?['data'];
+    return data is Map ? data['code']?.toString() : null;
+  }
+
+  static String _takeoverMessage(Object error) {
+    if (error is! ApiException) return "Couldn't take over this order. $error";
+    final fallback = switch (_conflictCode(error)) {
+      offerAlreadyAcceptedCode =>
+        'This order has already been accepted by another user.',
+      offerNotPendingCode => 'This order is no longer waiting to be accepted.',
+      ownerHasActiveOrderCode =>
+        'Finish the order currently assigned to you before taking over '
+            'another order.',
+      _ => switch (error.statusCode) {
+        403 => 'Only the main seller can take over orders.',
+        404 => 'This order was not found.',
+        _ => "Couldn't take over this order.",
+      },
+    };
+    return error.message.isNotEmpty ? error.message : fallback;
+  }
+
+  /// Hides [sellerOrderId] from the popup without giving up its offer or
+  /// progress (main seller owner only; the UI enforces that). It comes back
+  /// with [reopen].
+  void minimize(int sellerOrderId) {
+    if (isClosed ||
+        !state.orders.any((o) => o.sellerOrderId == sellerOrderId) ||
+        state.minimizedOrderIds.contains(sellerOrderId)) {
+      return;
+    }
+    emit(
+      state.copyWith(
+        minimizedOrderIds: {...state.minimizedOrderIds, sellerOrderId},
+      ),
+    );
+  }
+
+  /// Shows a minimized (or queued) order again, on top of the popup.
+  void reopen(int sellerOrderId) {
+    if (isClosed) return;
+    _focusId = sellerOrderId;
+    emit(
+      state.copyWith(
+        minimizedOrderIds: {...state.minimizedOrderIds}..remove(sellerOrderId),
+      ),
+    );
+    _publish();
+  }
+
+  /// The main seller took over [sellerOrderId] before this user accepted it
+  /// (`seller_order_offer_reassigned` push): close it, then re-read the
+  /// pending list.
+  void dropReassigned(int sellerOrderId) {
+    if (isClosed) return;
+    final order = state.orders
+        .where((o) => o.sellerOrderId == sellerOrderId)
+        .firstOrNull;
+    if (order == null) {
+      _resumeFetching();
+      return;
+    }
+    debugPrint('[IncomingOrders] $sellerOrderId taken over by the owner');
+    _dropOrder(
+      order,
+      'Order #${order.orderNumber} was taken over by the store owner.',
+    );
+  }
+
   /// Finds the item of [order] that a scanned or typed [code] belongs to.
   /// Unverified items win when several share a barcode.
   (ScanMatch, PendingOrderItem?) matchCode(PendingOrder order, String code) {
@@ -465,8 +640,20 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
   /// local progress, never retry it this session, and re-read the pending
   /// list, which may already hold this user's next order.
   void _dropAssignedElsewhere(PendingOrder order, Object error) {
+    debugPrint(
+      '[IncomingOrders] ${order.sellerOrderId} assigned to another user — '
+      'dropped',
+    );
+    final message = error is ApiException && error.message.isNotEmpty
+        ? error.message
+        : 'This order was assigned to another user.';
+    _dropOrder(order, message);
+  }
+
+  /// Forgets [order] and its local progress, never shows it again this
+  /// session, tells the seller why ([message]) and re-reads the pending list.
+  void _dropOrder(PendingOrder order, String message) {
     final id = order.sellerOrderId;
-    debugPrint('[IncomingOrders] $id assigned to another user — dropped');
     final itemIds = order.items.map((item) => item.orderItemId).toSet();
     itemIds.forEach(_doneSteps.remove);
     itemIds.forEach(_matchedCodes.remove);
@@ -478,9 +665,6 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
           if (o.sellerOrderId != id) o,
       ],
     );
-    final message = error is ApiException && error.message.isNotEmpty
-        ? error.message
-        : 'This order was assigned to another user.';
     emit(
       state.copyWith(
         clearAccepting: true,
@@ -496,6 +680,7 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
         verifiedBarcodes: {...state.verifiedBarcodes}
           ..removeWhere((itemId, _) => itemIds.contains(itemId)),
         bags: {...state.bags}..remove(id),
+        minimizedOrderIds: {...state.minimizedOrderIds}..remove(id),
         notice: message,
       ),
     );
@@ -599,6 +784,7 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
     _matchedCodes.clear();
     _held.clear();
     _handled.clear();
+    _focusId = null;
     _latest.updateAll((_, _) => const []);
     _restored = false;
     _store.clear();
@@ -686,11 +872,15 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
 
     // The card on screen stays on top until it's handled (or the backend
     // drops it), so a new order never replaces it mid-read.
+    // An order the seller just opened goes on top instead.
+    final focusId = _focusId;
+    _focusId = null;
     final pinnedId =
         state.acceptingOrderId ??
         state.assigningBagOrderId ??
         state.preparingOrderId ??
-        (state.orders.isEmpty ? null : state.orders.first.sellerOrderId);
+        focusId ??
+        state.visibleOrders.firstOrNull?.sellerOrderId;
     if (pinnedId != null) {
       final index = queue.indexWhere((o) => o.sellerOrderId == pinnedId);
       if (index > 0) queue.insert(0, queue.removeAt(index));
@@ -726,6 +916,8 @@ class IncomingOrdersCubit extends Cubit<IncomingOrdersState> {
         verifiedItemIds: verified,
         verifiedBarcodes: codes,
         bags: bags..removeWhere((id, _) => !byId.containsKey(id)),
+        minimizedOrderIds: {...state.minimizedOrderIds}
+          ..retainWhere(byId.containsKey),
       ),
     );
     if (sessionsChanged) _save();

@@ -12,6 +12,7 @@ import 'package:hyper_local_seller/screen/order_page/incoming_orders/cubit/incom
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/model/pending_order_model.dart';
 import 'package:hyper_local_seller/utils/permission_checker.dart';
 import 'package:hyper_local_seller/widgets/custom/barcode_scan_widgets.dart';
+import 'package:hyper_local_seller/widgets/custom/rack_badge.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 /// [items]: scanning products, [bag]: every product verified, scanning a
@@ -1156,6 +1157,10 @@ class _ItemPage extends StatelessWidget {
             ),
           ],
         ),
+        if (RackBadge.hasRack(item.rackNumber)) ...[
+          const SizedBox(height: 12),
+          _PickFromRack(rackNumber: item.rackNumber!),
+        ],
         if (!item.hasBarcode) ...[
           const SizedBox(height: 8),
           Text(
@@ -1302,6 +1307,60 @@ class _ItemPage extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Large "pick from" callout so the picker can find the shelf at a glance.
+/// Informational only; verification still relies on the scanned barcode.
+class _PickFromRack extends StatelessWidget {
+  final String rackNumber;
+
+  const _PickFromRack({required this.rackNumber});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final background = isDark
+        ? const Color(0xFF0B3D31)
+        : const Color(0xFFE1F5EE);
+    final strong = isDark ? const Color(0xFF9FE1CB) : const Color(0xFF085041);
+    final soft = isDark ? const Color(0xFF5DCAA5) : const Color(0xFF0F6E56);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.place_outlined, color: strong, size: 26),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Pick from',
+                  style: TextStyle(fontSize: 12, color: soft),
+                ),
+                Text(
+                  rackNumber.trim(),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 22,
+                    height: 1.2,
+                    fontWeight: FontWeight.w700,
+                    color: strong,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1483,6 +1542,10 @@ class _ChecklistRow extends StatelessWidget {
                     color: theme.hintColor,
                   ),
                 ),
+                if (RackBadge.hasRack(item.rackNumber)) ...[
+                  const SizedBox(height: 4),
+                  RackBadge(rackNumber: item.rackNumber),
+                ],
                 for (final error in errors.entries)
                   Text(
                     '${error.key}: ${error.value}',

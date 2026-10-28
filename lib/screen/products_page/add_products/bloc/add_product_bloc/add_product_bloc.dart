@@ -63,6 +63,7 @@ class AddProductBloc extends Bloc<AddProductEvent, AddProductState> {
     data.madeIn = p.madeIn;
     data.title = p.title;
     data.hsnCode = p.hsnCode;
+    data.rackNumber = p.rackNumber;
     data.indicator = p.indicator;
     data.prepTime = p.prepTime ?? 20;
     data.isReturnable = p.isReturnable;

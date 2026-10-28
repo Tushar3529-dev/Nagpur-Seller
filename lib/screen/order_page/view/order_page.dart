@@ -30,6 +30,7 @@ import 'package:hyper_local_seller/screen/order_page/dispatch/widgets/dispatch_a
 import 'package:hyper_local_seller/screen/order_page/dispatch/widgets/rider_availability_section.dart';
 import 'package:hyper_local_seller/screen/order_page/incoming_orders/widgets/order_alerts_banner.dart';
 import 'package:hyper_local_seller/screen/order_page/popup_users/cubit/popup_users_cubit.dart';
+import 'package:hyper_local_seller/service/popup_presence_service.dart';
 
 class OrderPage extends StatefulWidget {
   const OrderPage({super.key});
@@ -125,6 +126,25 @@ class _OrderPageState extends State<OrderPage>
     if (error != null && mounted) {
       showCustomSnackbar(context: context, message: error, isError: true);
     }
+  }
+
+  /// "Process order": opens [order] in the order popup. The main seller
+  /// owner first takes the pending offer over from whoever holds it; other
+  /// users can only open an order offered to them.
+  Future<void> _processOrder(SellerOrder order) async {
+    final cubit = context.read<IncomingOrdersCubit>();
+    final error = await OrderDialogs.withLoading(context, () async {
+      final asOwner = await PopupPresenceService().resolveOwner();
+      return cubit.processOrder(
+        order.sellerOrderId,
+        mode: order.orderMode,
+        asOwner: asOwner,
+      );
+    });
+    if (!mounted) return;
+    // The offer or the order's status may have changed either way.
+    context.read<OrdersBloc>().add(RefreshOrders());
+    if (error != null) await OrderDialogs.showProcessError(context, error);
   }
 
   Widget _buildTabBar(AppLocalizations? l10n) {
@@ -339,6 +359,11 @@ class _OrderPageState extends State<OrderPage>
                                     PermissionChecker.hasPermission(
                                       AppPermissions.orderUpdateStatus,
                                     );
+                                // Popup users process orders in the popup
+                                // instead of accepting from the list.
+                                final canProcess =
+                                    PermissionChecker.canShowOrderPopup &&
+                                    order.canProcess;
                                 return Padding(
                                   padding: EdgeInsets.only(
                                     bottom: UIUtils.gapMD(screenType),
@@ -361,6 +386,9 @@ class _OrderPageState extends State<OrderPage>
                                       'image': order.image,
                                       'isRushOrder': order.isRushOrder,
                                       'created_at': order.createdAt,
+                                      'can_process': canProcess,
+                                      'can_reject': canUpdateStatus,
+                                      'can_update_status': canUpdateStatus,
                                     },
                                     onTap: () {
                                       context.pushNamed(
@@ -370,10 +398,13 @@ class _OrderPageState extends State<OrderPage>
                                         },
                                       );
                                     },
-                                    onToggleStatus: !canUpdateStatus
+                                    onToggleStatus:
+                                        !canUpdateStatus && !canProcess
                                         ? null
                                         : (status) {
-                                            if (status == 'accept') {
+                                            if (status == 'process') {
+                                              _processOrder(order);
+                                            } else if (status == 'accept') {
                                               OrderDialogs.showAcceptDialog(
                                                 context,
                                                 () async {

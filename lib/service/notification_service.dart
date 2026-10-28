@@ -134,6 +134,12 @@ class NotificationService {
       return;
     }
 
+    // The main seller took this user's pending order over: close it.
+    if (type == sellerOrderReassignedType) {
+      _dropReassignedOrderFromContext(orderId);
+      return;
+    }
+
     // Determine notification category
     final isOrderNotification = type == 'order' ||
         type == 'orders' ||
@@ -294,6 +300,12 @@ class NotificationService {
       }
       final isOrderNotification = _isOrderRelatedType(type, payload['seller_order_id']);
 
+      if (type == sellerOrderReassignedType) {
+        // The popup closes it and explains why; no system notification.
+        _dropReassignedOrderFromContext(payload['seller_order_id']?.toString());
+        return;
+      }
+
       if (isNewRegularOrderType(type, payload['seller_order_id'])) {
         // The blocking incoming-order popup reads the pending list from the
         // server, so the push only needs to trigger a fetch.
@@ -441,6 +453,11 @@ class NotificationService {
   /// An incoming order offered to this user (popup flow).
   static const String sellerNewOrderType = 'seller_new_order';
 
+  /// Sent to the former recipient when the main seller takes over their
+  /// pending (not yet accepted) order.
+  static const String sellerOrderReassignedType =
+      'seller_order_offer_reassigned';
+
   /// Android channel the backend names for [sellerNewOrderType] pushes.
   static const String sellerOrdersChannelId = 'seller_orders';
 
@@ -475,6 +492,25 @@ class NotificationService {
       context.read<IncomingOrdersCubit>().fetch();
     } catch (e) {
       debugPrint('[Notification] Error fetching incoming orders: $e');
+    }
+  }
+
+  /// Closes the reassigned order's popup (when [sellerOrderId] parses) and
+  /// re-reads the pending list, which stays the source of truth.
+  void _dropReassignedOrderFromContext(String? sellerOrderId) {
+    final context = GlobalKeys.navigatorKey.currentContext;
+    if (context == null || !context.mounted) return;
+    try {
+      final cubit = context.read<IncomingOrdersCubit>();
+      final id = int.tryParse(sellerOrderId ?? '');
+      if (id != null) {
+        cubit.dropReassigned(id);
+      } else {
+        cubit.fetch();
+      }
+      context.read<OrdersBloc>().add(RefreshOrders());
+    } catch (e) {
+      debugPrint('[Notification] Error handling reassigned order: $e');
     }
   }
 

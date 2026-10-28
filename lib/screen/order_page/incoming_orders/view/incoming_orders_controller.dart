@@ -70,7 +70,8 @@ class _IncomingOrdersControllerState extends State<IncomingOrdersController>
     }
   }
 
-  /// Unaccepted orders ring natively; accepted ones stop. With
+  /// Unaccepted orders ring natively; accepted and minimized ones stop (a
+  /// minimized order rings again when reopened, if still unaccepted). With
   /// [afterFetch], the queue mirrors the server, so ringing orders missing
   /// from it were reassigned to another seller and stop too. Nothing else
   /// stops the ringing.
@@ -79,10 +80,10 @@ class _IncomingOrdersControllerState extends State<IncomingOrdersController>
     final state = _cubit.state;
     OrderAlertBridge.sync(
       [
-        for (final order in state.orders)
+        for (final order in state.visibleOrders)
           if (!state.isAccepted(order)) _alertFor(order),
       ],
-      acceptedIds: state.acceptedOrderIds,
+      acceptedIds: {...state.acceptedOrderIds, ...state.minimizedOrderIds},
       serverIds: afterFetch
           ? [for (final order in state.orders) order.sellerOrderId]
           : null,
@@ -160,7 +161,7 @@ class _IncomingOrdersControllerState extends State<IncomingOrdersController>
     // true = handled, so neither the router nor Android closes anything.
     // Bag inventory, opened from the popup, keeps its normal back button.
     final state = _cubit.state;
-    return state.hasPending && !state.isManagingBags;
+    return state.hasVisible && !state.isManagingBags;
   }
 
   @override
@@ -171,7 +172,8 @@ class _IncomingOrdersControllerState extends State<IncomingOrdersController>
           listenWhen: (prev, curr) =>
               prev.hasUnaccepted != curr.hasUnaccepted ||
               prev.orders != curr.orders ||
-              prev.acceptedOrderIds != curr.acceptedOrderIds,
+              prev.acceptedOrderIds != curr.acceptedOrderIds ||
+              prev.minimizedOrderIds != curr.minimizedOrderIds,
           listener: (context, state) => _syncRinging(state),
         ),
         BlocListener<IncomingOrdersCubit, IncomingOrdersState>(

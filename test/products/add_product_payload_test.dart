@@ -159,4 +159,19 @@ void main() {
     expect(row['variant_id'], 'variant-local-1');
     expect(row['unit_price_basis_unit'], 'g');
   });
+
+  group('rack_number', () {
+    test('is sent trimmed', () async {
+      final fields = await AddProductRepo.buildFields(
+        ProductData()..rackNumber = '  A-12 / Shelf 3 ',
+      );
+      expect(fields['rack_number'], 'A-12 / Shelf 3');
+    });
+
+    test('is sent empty when unset so an edit can clear it', () async {
+      final fields = await AddProductRepo.buildFields(ProductData()..id = 9);
+      expect(fields.containsKey('rack_number'), isTrue);
+      expect(fields['rack_number'], '');
+    });
+  });
 }

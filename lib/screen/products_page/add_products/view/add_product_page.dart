@@ -562,6 +562,7 @@ class _AddProductPageState extends State<AddProductPage> {
       'brand_id': 2,
       'base_prep_time': 2,
       'hsn_code': 2,
+      'rack_number': 2,
       'made_in': 2,
       'indicator': 2,
       'custom_fields': 2,

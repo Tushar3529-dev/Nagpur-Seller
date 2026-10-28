@@ -1336,6 +1336,48 @@ abstract class AppLocalizations {
   /// **'Enter HSN Code'**
   String get enterHsnCode;
 
+  /// No description provided for @rackNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Rack Number'**
+  String get rackNumber;
+
+  /// No description provided for @enterRackNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter rack number (e.g. A-12)'**
+  String get enterRackNumber;
+
+  /// No description provided for @processOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Process Order'**
+  String get processOrder;
+
+  /// No description provided for @cantProcessOrderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t process this order'**
+  String get cantProcessOrderTitle;
+
+  /// No description provided for @processOrderOk.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get processOrderOk;
+
+  /// No description provided for @rackNumberHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Where this product sits in your store'**
+  String get rackNumberHelper;
+
+  /// No description provided for @rackLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Rack'**
+  String get rackLabel;
+
   /// No description provided for @enterMobileNumber.
   ///
   /// In en, this message translates to:

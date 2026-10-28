@@ -75,6 +75,40 @@ class OrderDialogs {
     );
   }
 
+  /// Runs [action] behind a blocking spinner.
+  static Future<T> withLoading<T>(
+    BuildContext context,
+    Future<T> Function() action,
+  ) async {
+    _showLoading(context);
+    try {
+      return await action();
+    } finally {
+      _hideLoading(context);
+    }
+  }
+
+  /// Why "Process order" didn't open the order (e.g. another user accepted
+  /// it first). The list is refreshed behind it.
+  static Future<void> showProcessError(BuildContext context, String message) {
+    final l10n = AppLocalizations.of(context);
+    return showDialog<void>(
+      context: context,
+      useRootNavigator: true,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.info_outline, color: Colors.orange, size: 32),
+        title: Text(l10n?.cantProcessOrderTitle ?? "Can't process this order"),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(l10n?.processOrderOk ?? 'OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
   static Future<void> _handleAction(
     BuildContext context,
     Future<void> Function() onConfirm,

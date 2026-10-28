@@ -112,6 +112,9 @@ class Product {
   String? featured;
   String? description;
   String? hsnCode;
+
+  /// Seller's shelf/aisle label for the whole product, or null when unset.
+  String? rackNumber;
   int? prepTime;
   int? returnableDays;
   bool? isCancelable;
@@ -169,6 +172,7 @@ class Product {
     this.featured,
     this.description,
     this.hsnCode,
+    this.rackNumber,
     this.prepTime,
     this.returnableDays,
     this.isCancelable,
@@ -260,6 +264,7 @@ class Product {
       featured: JsonParser.string(json['featured'] ?? '0'),
       description: JsonParser.string(json['description']),
       hsnCode: JsonParser.string(json['hsn_code']),
+      rackNumber: _nonBlank(json['rack_number']),
       prepTime: JsonParser.intValue(json['base_prep_time']),
       returnableDays: JsonParser.intValue(json['returnable_days']),
       isCancelable: JsonParser.boolValue(json['is_cancelable']),
@@ -341,6 +346,7 @@ class Product {
     data['featured'] = featured;
     data['description'] = description;
     data['hsn_code'] = hsnCode;
+    data['rack_number'] = rackNumber;
     data['base_prep_time'] = prepTime;
     data['returnable_days'] = returnableDays;
     data['is_cancelable'] = isCancelable;
@@ -365,6 +371,12 @@ class Product {
           .toList();
     }
     return data;
+  }
+
+  /// Older products return null (or omit the field); treat blank as unset too.
+  static String? _nonBlank(dynamic value) {
+    final text = value?.toString().trim();
+    return text == null || text.isEmpty ? null : text;
   }
 }
 

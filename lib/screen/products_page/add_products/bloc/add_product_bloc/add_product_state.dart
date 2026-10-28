@@ -195,6 +195,8 @@ class ProductData {
   String? madeIn;
   String? title;
   String? hsnCode;
+  // Product-level shelf location; blank means none. Free text, max 100.
+  String? rackNumber;
   String? indicator;
   int prepTime = 20;
   bool isReturnable = false;
@@ -244,6 +246,7 @@ class ProductData {
     String? madeIn,
     String? title,
     String? hsnCode,
+    String? rackNumber,
     String? indicator,
     int? prepTime,
     bool? isReturnable,
@@ -293,6 +296,7 @@ class ProductData {
     newData.madeIn = madeIn ?? this.madeIn;
     newData.title = title ?? this.title;
     newData.hsnCode = hsnCode ?? this.hsnCode;
+    newData.rackNumber = rackNumber ?? this.rackNumber;
     newData.indicator = indicator ?? this.indicator;
     newData.prepTime = prepTime ?? this.prepTime;
     newData.isReturnable = isReturnable ?? this.isReturnable;

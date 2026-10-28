@@ -90,6 +90,25 @@ class FakePendingOrdersRepo extends PendingOrdersRepo {
   /// Thrown once by the next [markOrderPreparing].
   Object? prepareError;
 
+  /// seller_order_ids passed to [takeoverPendingOffer].
+  final List<int> takeoverCalls = [];
+
+  /// Thrown by [takeoverPendingOffer] instead of succeeding.
+  Object? takeoverError;
+
+  /// Pending orders a successful takeover hands to this user, by id.
+  final Map<int, Map<String, dynamic>> takeoverOffers = {};
+
+  @override
+  Future<void> takeoverPendingOffer(int sellerOrderId) async {
+    takeoverCalls.add(sellerOrderId);
+    if (takeoverError case final error?) throw error;
+    if (takeoverOffers.remove(sellerOrderId) case final json?) {
+      final mode = OrderMode.tryParse(json['order_mode']) ?? OrderMode.regular;
+      server[mode]!.add(json);
+    }
+  }
+
   @override
   Future<AssignedBag> assignBag(PendingOrder order, String barcode) async {
     if (bagGate != null) await bagGate!.future;

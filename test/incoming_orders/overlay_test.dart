@@ -1344,4 +1344,47 @@ void main() {
     expect(find.text('Scan bag'), findsOneWidget);
     await disposeApp(tester);
   });
+
+  testWidgets('main seller minimizes the popup and continues the order', (
+    tester,
+  ) async {
+    // Hive does real file I/O, which fake async never completes.
+    await tester.runAsync(
+      () => HiveStorage.setUserData({
+        'id': 1,
+        'role': 'seller',
+        'assigned_permissions': <String>[],
+      }),
+    );
+    addTearDown(
+      () => tester.runAsync(() => HiveStorage.setUserData(Map.of(testUser))),
+    );
+    repo.server[OrderMode.regular] = [_order(1)];
+    await pumpApp(tester);
+    expect(find.text('Accept order'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('minimize-order')));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Accept order'), findsNothing);
+    expect(find.text('Home screen'), findsOneWidget);
+    expect(find.text('Continue order #NM-20260922-1'), findsOneWidget);
+    expect(cubit.state.hasUnaccepted, isFalse, reason: 'stops ringing');
+
+    await tester.tap(find.byKey(const ValueKey('continue-order')));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Accept order'), findsOneWidget);
+    expect(find.byKey(const ValueKey('continue-order')), findsNothing);
+    await disposeApp(tester);
+  });
+
+  testWidgets('system users cannot minimize the popup', (tester) async {
+    repo.server[OrderMode.regular] = [_order(1)];
+    await pumpApp(tester);
+
+    expect(find.text('Accept order'), findsOneWidget);
+    expect(find.byKey(const ValueKey('minimize-order')), findsNothing);
+    await disposeApp(tester);
+  });
 }
